@@ -1,0 +1,1 @@
+Budujemy wybitnastrona.pl – platformę typu AI Website Builder. Używamy Next.js 15 (App Router), Tailwind CSS, Lucide React i shadcn/ui. Kluczowa zasada: AI generuje kod, który musi być renderowany w bezpiecznym iframe przez Sandpack lub WebContainers. Backend to Supabase.

@@ -6,6 +6,7 @@ import {
   SandpackPreview,
   SandpackCodeEditor,
   SandpackFileExplorer,
+  SandpackConsole,
   type SandpackTheme,
 } from "@codesandbox/sandpack-react";
 import {
@@ -18,7 +19,6 @@ import {
 } from "lucide-react";
 import { STARTER_DEPENDENCIES } from "@/lib/sandpack/starter";
 import { SandpackSaver } from "./sandpack-saver";
-import { TerminalPanel } from "@/components/project/terminal-panel";
 import type { SandpackRunnerProps } from "./sandpack-runner";
 
 const wybitnaTheme: SandpackTheme = {
@@ -75,15 +75,21 @@ export function SandpackInner({
       template="react-ts"
       theme={wybitnaTheme}
       files={files}
-      customSetup={{ dependencies: STARTER_DEPENDENCIES }}
+      customSetup={{
+        dependencies: STARTER_DEPENDENCIES,
+        // Explicitly declare entry so the bundler doesn't guess create-react-app
+        entry: "/index.tsx",
+      }}
       options={{
         recompileMode: "delayed",
-        recompileDelay: 500,
+        recompileDelay: 800,
         autorun: true,
         autoReload: true,
         externalResources: EXTERNAL_RESOURCES,
         // Use the official Sandpack bundler CDN — more reliable than the default
         bundlerURL: "https://sandpack-bundler.codesandbox.io",
+        // Delay bundler initialisation until preview is first shown
+        initMode: "lazy",
       }}
     >
       {projectId && (
@@ -158,10 +164,10 @@ function CodeView({
           />
         </div>
 
-        {/* Terminal pod kodem — collapsible (40% wys gdy otwarty) */}
+        {/* Konsola — collapsible; pokazuje console.log/warn/error z podglądu */}
         <div
           className={`flex shrink-0 flex-col border-t border-beige/10 transition-all ${
-            terminalOpen ? "h-[40%] min-h-[160px]" : "h-9"
+            terminalOpen ? "h-[38%] min-h-[140px]" : "h-9"
           }`}
         >
           <button
@@ -171,7 +177,7 @@ function CodeView({
           >
             <span className="flex items-center gap-1.5">
               <TerminalIcon className="h-3 w-3" />
-              Terminal
+              Konsola
             </span>
             {terminalOpen ? (
               <ChevronDown className="h-3 w-3 opacity-70" />
@@ -180,8 +186,17 @@ function CodeView({
             )}
           </button>
           {terminalOpen && (
-            <div className="min-h-0 flex-1">
-              <TerminalPanel projectId={projectId ?? ""} />
+            <div className="flex min-h-0 flex-1 flex-col">
+              {/* Info bar — explains this is a browser preview, not a real shell */}
+              <div className="shrink-0 border-b border-beige/10 bg-[#0a0a0a] px-3 py-1.5 text-[11px] text-neutral-500">
+                Konsola podglądu (console.log / błędy JS) · npm/node niedostępne — użyj chatu AI
+              </div>
+              <div className="min-h-0 flex-1 overflow-auto">
+                <SandpackConsole
+                  showHeader={false}
+                  style={{ height: "100%", background: "#0a0a0a", fontSize: "12px" }}
+                />
+              </div>
             </div>
           )}
         </div>

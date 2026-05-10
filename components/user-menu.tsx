@@ -70,13 +70,13 @@ export function UserMenu({ variant = "navbar" }: UserMenuProps) {
             <Settings className="h-4 w-4" />
             Ustawienia
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => settings.open("subscription")}>
+          <DropdownMenuItem onClick={() => settings.open("credits")}>
             <Gift className="h-4 w-4 text-beige/80" />
-            <span className="text-beige/90">Zdobadz darmowe tokeny</span>
+            <span className="text-beige/90">Zdobadz darmowe kredyty</span>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => settings.open("subscription")}>
+          <DropdownMenuItem onClick={() => settings.open("credits")}>
             <CreditCard className="h-4 w-4" />
-            Moja subskrypcja
+            Moje kredyty
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator className="bg-beige/10" />

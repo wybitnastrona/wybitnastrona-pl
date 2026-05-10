@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Settings2, Sparkles } from "lucide-react";
+import { ChevronDown, ChevronUp, FileText, Settings2, Sparkles } from "lucide-react";
 import { AI_MODELS, type AiModelId } from "@/lib/ai-models";
 import { getTemplate, type TemplateId } from "@/lib/templates";
 
@@ -12,13 +12,23 @@ const MCP_STUBS = [
   { id: "notion", label: "Notion MCP", description: "Polacz z Notion" },
 ] as const;
 
+export const CUSTOM_CONTEXT_MAX = 2000;
+
 type Props = {
   model: AiModelId;
   onModelChange: (id: AiModelId) => void;
   templateId: TemplateId;
+  customContext: string;
+  onCustomContextChange: (value: string) => void;
 };
 
-export function AdvancedControls({ model, onModelChange, templateId }: Props) {
+export function AdvancedControls({
+  model,
+  onModelChange,
+  templateId,
+  customContext,
+  onCustomContextChange,
+}: Props) {
   const [open, setOpen] = useState(false);
   const tpl = getTemplate(templateId);
 
@@ -61,6 +71,29 @@ export function AdvancedControls({ model, onModelChange, templateId }: Props) {
                   </span>
                 </div>
               ))}
+            </div>
+          </div>
+
+          {/* Custom System Context */}
+          <div className="mb-4">
+            <p className="mb-2 flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+              <FileText className="h-3 w-3" />
+              Custom System Context
+            </p>
+            <textarea
+              value={customContext}
+              onChange={(e) =>
+                onCustomContextChange(e.target.value.slice(0, CUSTOM_CONTEXT_MAX))
+              }
+              rows={3}
+              placeholder="Np: zawsze uzywaj kolorystyki czarno-bezowej; stylizuj w stylu Notion; nie dodawaj cookie bannerow..."
+              className="block w-full resize-none rounded-lg border border-beige/10 bg-background/30 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:border-beige/40 focus:outline-none"
+            />
+            <div className="mt-1 flex justify-between text-[10px] text-muted-foreground/70">
+              <span>Doklejone do system promptu przy KAZDEJ generacji</span>
+              <span>
+                {customContext.length} / {CUSTOM_CONTEXT_MAX}
+              </span>
             </div>
           </div>
 

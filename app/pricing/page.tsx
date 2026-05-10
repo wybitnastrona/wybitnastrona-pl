@@ -27,7 +27,7 @@ export default function PricingPage() {
             </p>
           </div>
 
-          <PricingClient topups={STRIPE_PRODUCTS} subs={[]} />
+          <PricingClient topups={STRIPE_PRODUCTS} />
 
           <div className="mt-12 rounded-2xl border border-beige/10 bg-card/40 p-6 text-center">
             <p className="text-sm font-medium text-foreground">Jak to dziala?</p>

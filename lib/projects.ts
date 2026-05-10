@@ -28,6 +28,7 @@ export async function createProject(
   prompt: string,
   templateId?: TemplateId,
   projectMode?: ProjectMode | string,
+  customSystemContext?: string,
 ): Promise<Project> {
   const supabase = await createClient();
   const {
@@ -52,6 +53,7 @@ export async function createProject(
       files: template.getFiles(),
       template: template.id,
       mode: resolvedMode,
+      custom_system_context: customSystemContext ?? null,
     })
     .select("*")
     .single();

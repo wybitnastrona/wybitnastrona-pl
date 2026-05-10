@@ -11,6 +11,7 @@ import {
   Download,
   ExternalLink,
   FileArchive,
+  FileText,
   Globe,
   Loader2,
   MoreHorizontal,
@@ -68,6 +69,7 @@ export function ProjectTopbar({
   const [shareOpen, setShareOpen] = useState(false);
   const [domainsOpen, setDomainsOpen] = useState(false);
   const [githubOpen, setGithubOpen] = useState(false);
+  const [contextOpen, setContextOpen] = useState(false);
 
   const previewUrl =
     project.is_public && project.slug
@@ -107,7 +109,10 @@ export function ProjectTopbar({
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
-        <MobileQrButton previewUrl={previewUrl} />
+        <MobileQrButton
+          previewUrl={previewUrl}
+          isExpo={project.template === "expo"}
+        />
 
         <Button
           type="button"
@@ -135,6 +140,10 @@ export function ProjectTopbar({
               <DropdownMenuItem onClick={() => setDomainsOpen(true)}>
                 <Globe className="h-3.5 w-3.5" />
                 Domeny
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setContextOpen(true)}>
+                <FileText className="h-3.5 w-3.5" />
+                System Context
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
@@ -231,7 +240,112 @@ export function ProjectTopbar({
         onOpenChange={setGithubOpen}
         project={project}
       />
+
+      <ContextDialog
+        open={contextOpen}
+        onOpenChange={setContextOpen}
+        project={project}
+      />
     </header>
+  );
+}
+
+const CONTEXT_MAX_LEN = 2000;
+
+function ContextDialog({
+  open,
+  onOpenChange,
+  project,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  project: Project;
+}) {
+  const [value, setValue] = useState<string>(
+    project.custom_system_context ?? "",
+  );
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  async function handleSave() {
+    setSaving(true);
+    setSaved(false);
+    try {
+      const res = await fetch(`/api/projects/${project.id}/context`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customSystemContext: value.slice(0, CONTEXT_MAX_LEN) }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        alert(data.error ?? "Nie udalo sie zapisac");
+        setSaving(false);
+        return;
+      }
+      setSaved(true);
+      setTimeout(() => {
+        onOpenChange(false);
+        setSaved(false);
+      }, 800);
+    } catch {
+      alert("Blad sieci");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Custom System Context</DialogTitle>
+          <DialogDescription>
+            Instrukcje doklejane do system promptu AI przy KAZDEJ generacji
+            w tym projekcie. Stosuj zwiezle wytyczne stylistyczne lub
+            techniczne (np. zawsze uzywaj Supabase do storage; trzymaj
+            paletke czarno-bezowa; nie dodawaj cookie bannerow).
+          </DialogDescription>
+        </DialogHeader>
+
+        <textarea
+          value={value}
+          onChange={(e) => setValue(e.target.value.slice(0, CONTEXT_MAX_LEN))}
+          rows={8}
+          placeholder="Np: zawsze uzywaj kolorystyki czarno-bezowej; stylizuj w stylu Notion; nie dodawaj cookie bannerow..."
+          className="block w-full resize-none rounded-lg border border-beige/15 bg-background/40 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-beige/40 focus:outline-none"
+        />
+        <div className="flex justify-between text-[10px] text-muted-foreground/70">
+          <span>{value.trim() ? "Aktywny" : "Brak (puste = wylaczone)"}</span>
+          <span>
+            {value.length} / {CONTEXT_MAX_LEN}
+          </span>
+        </div>
+
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+            disabled={saving}
+          >
+            Anuluj
+          </Button>
+          <Button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="bg-beige text-beige-foreground hover:bg-beige/90"
+          >
+            {saving ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : saved ? (
+              <Check className="h-3.5 w-3.5" />
+            ) : null}
+            {saved ? "Zapisano" : "Zapisz"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

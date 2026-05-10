@@ -65,6 +65,23 @@ export function MobileQrButton({ previewUrl, isExpo }: Props) {
             <p className="mt-4 truncate text-center font-mono text-[10px] text-muted-foreground">
               {qrUrl}
             </p>
+
+            {isExpo && (
+              <div className="mt-4 rounded-md border border-beige/10 bg-background/40 p-3 text-[11px] leading-relaxed text-muted-foreground">
+                <p className="mb-1.5 font-medium text-foreground/90">Jak otworzyc:</p>
+                <ol className="list-decimal space-y-0.5 pl-4">
+                  <li>
+                    Zainstaluj{" "}
+                    <span className="font-mono text-beige">Expo Go</span> z App
+                    Store / Google Play.
+                  </li>
+                  <li>Otworz Expo Go i wybierz &ldquo;Scan QR code&rdquo;.</li>
+                  <li>
+                    Lub wpisz URL recznie w polu &ldquo;Enter URL manually&rdquo; w Expo Go.
+                  </li>
+                </ol>
+              </div>
+            )}
           </div>
         </div>
       )}

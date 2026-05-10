@@ -57,6 +57,7 @@ export function CreationHero() {
   const [isPublic, setIsPublic] = useState(true);
   const [model, setModel] = useState<AiModelId>(DEFAULT_MODEL_ID);
   const [template, setTemplate] = useState<TemplateId>(DEFAULT_TEMPLATE);
+  const [customContext, setCustomContext] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [enhancing, setEnhancing] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
@@ -118,11 +119,6 @@ export function CreationHero() {
     const trimmed = prompt.trim();
     if (!trimmed || submitting) return;
 
-    if (currentModeDef.comingSoon) {
-      alert("Ten tryb bedzie dostepny wkrotce!");
-      return;
-    }
-
     let finalPrompt = trimmed;
 
     const textFiles = pendingFiles.filter((f) => f.type === "text");
@@ -156,6 +152,8 @@ export function CreationHero() {
     if (template !== DEFAULT_TEMPLATE) params.set("template", template);
     params.set("model", model);
     if (isPublic) params.set("public", "1");
+    const trimmedCtx = customContext.trim();
+    if (trimmedCtx) params.set("ctx", trimmedCtx.slice(0, 2000));
 
     setSubmitting(true);
     router.push(`/project/new?${params.toString()}`);
@@ -195,11 +193,12 @@ export function CreationHero() {
 
       <header className="mx-auto flex max-w-2xl flex-col items-center gap-3 text-center">
         <h1 className="text-balance text-4xl font-medium leading-tight tracking-tight text-foreground sm:text-5xl">
-          Gdzie pomysly staja sie{" "}
-          <span className="italic text-beige">rzeczywistoscia</span>
+          Zbuduj dowolna{" "}
+          <span className="italic text-beige">aplikacje</span>{" "}
+          w kilka minut
         </h1>
         <p className="max-w-lg text-balance text-base text-muted-foreground sm:text-lg">
-          Tworz aplikacje i strony przez zwykla rozmowe.
+          Opisz pomysl, AI buduje, ty publikujesz.
         </p>
       </header>
 
@@ -329,6 +328,8 @@ export function CreationHero() {
             model={model}
             onModelChange={setModel}
             templateId={template}
+            customContext={customContext}
+            onCustomContextChange={setCustomContext}
           />
         </div>
       </div>

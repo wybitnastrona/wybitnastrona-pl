@@ -226,7 +226,7 @@ export async function POST(req: Request) {
   // ─── Pobierz projekt ────────────────────────────────────────────────────────
   const { data: project, error: projectError } = await supabase
     .from("projects")
-    .select("id, user_id, files, prompt, locked_files, template, mode")
+    .select("id, user_id, files, prompt, locked_files, template, mode, custom_system_context")
     .eq("id", projectId)
     .maybeSingle();
 
@@ -242,6 +242,10 @@ export async function POST(req: Request) {
   );
   const projectTemplate = (project.template as string | null) ?? "react-ts";
   const projectMode = (project.mode as string | null) ?? "landing";
+  const customSystemContext = (project.custom_system_context as string | null)?.trim() ?? "";
+  const customContextSuffix = customSystemContext
+    ? `\n\nCUSTOM CONTEXT OD UZYTKOWNIKA (rygorystycznie przestrzegaj):\n${customSystemContext}`
+    : "";
   const modelMessages = await convertToModelMessages(
     sanitizeMessagesForAI(messages),
     { ignoreIncompleteToolCalls: true },
@@ -447,7 +451,8 @@ export async function POST(req: Request) {
       buildSystemPrompt(mode, projectTemplate, projectMode) +
       fileListContext +
       lockedContext +
-      ragContext,
+      ragContext +
+      customContextSuffix,
     messages: modelMessages,
     stopWhen: stepCountIs(
       mode === "plan"

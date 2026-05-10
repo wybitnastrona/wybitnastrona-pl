@@ -46,7 +46,6 @@ export const PROJECT_MODES: ProjectModeDef[] = [
       { label: "Generator przepisow", prompt: "Aplikacja z przepisami kulinarnymi, filtrowaniem i ulubionym" },
       { label: "Habit Tracker", prompt: "Aplikacja do sledzenia nawykow z kalendarzem i streak'ami" },
     ],
-    comingSoon: true,
   },
   {
     id: "landing",

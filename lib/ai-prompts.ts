@@ -197,12 +197,53 @@ Budujesz pelna aplikacje webowa z logika biznesowa. Priorytetowe elementy:
 Styl: UI w stylu SaaS — sidebar/navbar, tabelki, formularze, system powiadomien.`,
 
   mobile: `CEL PROJEKTU: Mobile App (Expo / React Native).
-Budujesz aplikacje mobilna w React Native z Expo. Priorytetowe elementy:
-- Nawigacja przez expo-router (Stack / Tabs)
-- Native UI (StyleSheet lub NativeWind do stylowania)
-- Responsywnosc na rozne ekrany (flexbox)
-- Obsługa gestow i animacji (Reanimated)
-NIE uzywaj Tailwind CDN ani DOM API — to React Native, nie web.`,
+Budujesz natywna aplikacje mobilna w React Native z Expo.
+
+ZAKAZ BEZWZGLEDNY (Twoj kod NIE skompiluje sie z tymi rzeczami):
+- NIE uzywaj zadnych tagow HTML: div, span, p, a, button, img, h1-h6, ul, li, section, header, footer.
+- NIE importuj z 'react-dom', 'react-dom/client', 'next/...', 'next/link', 'next/image'.
+- NIE uzywaj window, document, localStorage, sessionStorage (uzyj AsyncStorage / SecureStore).
+- NIE uzywaj klasycznego CSS przez <link>, <style> ani Tailwind CDN — to React Native.
+- NIE uzywaj 'lucide-react' (pakiet web) — uzywaj 'lucide-react-native'.
+
+OBOWIAZKOWO (kazdy ekran):
+- Komponenty IMPORTUJ z 'react-native': View, Text, TouchableOpacity, Pressable, ScrollView, FlatList, SectionList, Image, TextInput, Switch, Modal, ActivityIndicator.
+- SafeAreaView z 'react-native-safe-area-context' (NIE z 'react-native') w root layoutu i screenach z notchem.
+- Nawigacja: expo-router (Stack, Tabs, Link, useRouter, usePathname). Pliki w /app/.
+- Stylizacja: NativeWind (className={"flex-1 bg-neutral-950 px-6"}) LUB StyleSheet.create({...}) — wybierz jedno spojne podejscie w projekcie.
+- Ikony: 'lucide-react-native' — uzywaj prop size/color zamiast className (NativeWind nie zawsze trafia w SVG).
+- Obrazy: <Image source={{ uri: 'https://...' }} style={{ width, height }} /> z react-native.
+- Status bar: <StatusBar style="light|dark" /> z 'expo-status-bar'.
+- Async storage: '@react-native-async-storage/async-storage'.
+
+LAYOUT I RESPONSYWNOSC:
+- Flexbox po domyslnej osi 'column' (kierunek pionowy) — w przeciwienstwie do CSS!
+- Brak procentowych marginesow — uzywaj flex-1 / gap-2 / px-4 / py-3.
+- useWindowDimensions() dla orientacji i breakpointow.
+
+OBSLUGA NAWIGACJI:
+- Stack screens z parametrami: <Link href={{ pathname: '/post/[id]', params: { id } }} />.
+- expo-router Tabs do glownej nawigacji aplikacji.
+
+POPRAWNY PRZYKLAD EKRANU:
+\`\`\`tsx
+import { View, Text, TouchableOpacity } from "react-native";
+import { Heart } from "lucide-react-native";
+import { Link } from "expo-router";
+export default function Home() {
+  return (
+    <View className="flex-1 items-center justify-center bg-neutral-950 gap-4">
+      <Heart size={28} color="#e8dcc6" />
+      <Text className="text-2xl text-beige">Hello mobile</Text>
+      <Link href="/profile" asChild>
+        <TouchableOpacity className="rounded-2xl bg-beige px-6 py-3">
+          <Text className="text-neutral-950">Profil</Text>
+        </TouchableOpacity>
+      </Link>
+    </View>
+  );
+}
+\`\`\``,
 };
 
 export type GenerationMode = "build" | "plan" | "discuss" | "continue";

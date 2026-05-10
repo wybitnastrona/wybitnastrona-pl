@@ -7,8 +7,6 @@ import { formatAmount, type StripeProduct } from "@/lib/stripe-products";
 
 type Props = {
   topups: StripeProduct[];
-  /** Kept for API compat — unused after subscription removal. */
-  subs?: StripeProduct[];
 };
 
 export function PricingClient({ topups }: Props) {

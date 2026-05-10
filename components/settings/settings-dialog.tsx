@@ -16,7 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { GeneralTab } from "@/components/settings/tabs/general-tab";
-import { SubscriptionTab } from "@/components/settings/tabs/subscription-tab";
+import { CreditsTab } from "@/components/settings/tabs/credits-tab";
 import { ApplicationsTab } from "@/components/settings/tabs/applications-tab";
 import { CloudTab } from "@/components/settings/tabs/cloud-tab";
 import { KnowledgeTab } from "@/components/settings/tabs/knowledge-tab";
@@ -25,7 +25,7 @@ import { AddOnsTab } from "@/components/settings/tabs/addons-tab";
 
 export type SettingsTabId =
   | "general"
-  | "subscription"
+  | "credits"
   | "applications"
   | "cloud"
   | "knowledge"
@@ -38,7 +38,7 @@ const TABS: {
   icon: typeof SettingsIcon;
 }[] = [
   { id: "general", label: "Ogolne", icon: SettingsIcon },
-  { id: "subscription", label: "Subskrypcja i tokeny", icon: CreditCard },
+  { id: "credits", label: "Kredyty", icon: CreditCard },
   { id: "applications", label: "Aplikacje", icon: Plug },
   { id: "cloud", label: "Cloud", icon: Cloud },
   { id: "knowledge", label: "Wiedza", icon: Lightbulb },
@@ -95,7 +95,7 @@ export function SettingsDialog({
 
           <div className="flex-1 overflow-y-auto px-6 py-6">
             {activeTab === "general" && <GeneralTab />}
-            {activeTab === "subscription" && <SubscriptionTab />}
+            {activeTab === "credits" && <CreditsTab />}
             {activeTab === "applications" && <ApplicationsTab />}
             {activeTab === "cloud" && <CloudTab />}
             {activeTab === "knowledge" && <KnowledgeTab />}

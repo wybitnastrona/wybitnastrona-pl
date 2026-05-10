@@ -12,6 +12,7 @@ type SearchParams = Promise<{
   mode?: string | string[];
   projectMode?: string | string[];
   public?: string | string[];
+  ctx?: string | string[];
 }>;
 
 export default async function NewProjectPage({
@@ -44,6 +45,8 @@ export default async function NewProjectPage({
   const rawMode = Array.isArray(params.mode) ? params.mode[0] : params.mode;
   const rawProjectMode = Array.isArray(params.projectMode) ? params.projectMode[0] : params.projectMode;
   const isPublic = (Array.isArray(params.public) ? params.public[0] : params.public) === "1";
+  const rawCtx = Array.isArray(params.ctx) ? params.ctx[0] : params.ctx;
+  const customSystemContext = (rawCtx ?? "").trim().slice(0, 2000) || undefined;
 
   let project;
   try {
@@ -51,8 +54,8 @@ export default async function NewProjectPage({
       prompt,
       rawTemplate as TemplateId | undefined,
       rawProjectMode,
+      customSystemContext,
     );
-    // Set visibility if explicitly requested.
     if (isPublic !== undefined) {
       const supabase2 = await import("@/lib/supabase/server").then((m) => m.createClient());
       await supabase2.from("projects").update({ is_public: isPublic }).eq("id", project.id);

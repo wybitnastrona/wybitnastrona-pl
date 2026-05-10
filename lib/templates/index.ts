@@ -32,6 +32,12 @@ import {
   SVELTE_DEPS,
   SVELTE_RUN,
 } from "./svelte";
+import {
+  getExpoTemplate,
+  EXPO_DEPS,
+  EXPO_DEV_DEPS,
+  EXPO_RUN,
+} from "./expo";
 
 export type TemplateId =
   | "react-ts"
@@ -140,12 +146,15 @@ export const TEMPLATES: TemplateDef[] = [
   {
     id: "expo",
     label: "Expo / React Native",
-    description: "Aplikacje mobilne. Podgląd przez QR + Expo Go.",
+    description: "Aplikacje mobilne. Podglad przez QR + Expo Go.",
     webContainerOnly: true,
-    getFiles: () => ({}),
-    dependencies: {},
-    available: false,
-    containerImage: "wybitnastrona-hub/expo_mongo_base_image_cloud_arm:release",
+    getFiles: getExpoTemplate,
+    dependencies: EXPO_DEPS,
+    devDependencies: EXPO_DEV_DEPS,
+    runCommand: EXPO_RUN,
+    available: true,
+    badge: "new",
+    containerImage: "wybitnastrona-hub/expo_router_nativewind_arm:release",
   },
 ];
 

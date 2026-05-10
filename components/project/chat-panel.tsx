@@ -71,7 +71,13 @@ type ChatPanelProps = {
 
 export type ChatPanelHandle = {
   appendHint: (text: string) => void;
-  /** Starts generation with the given enriched prompt (called by WizardPanel). */
+  /**
+   * Called by WizardPanel after the user answers questions.
+   * Forces PLAN mode so the AI presents the plan before writing any files.
+   * The PlanCard "Approve" button then switches to BUILD mode.
+   */
+  startWithPlanPrompt: (enrichedPrompt: string) => void;
+  /** Start with the enriched prompt in the current mode (used when wizard is skipped). */
   startWithPrompt: (enrichedPrompt: string) => void;
 };
 
@@ -104,9 +110,22 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
   const scrollRef = useRef<HTMLDivElement>(null);
   const startedRef = useRef(false);
 
+  // Ref-based mode: body() reads modeRef.current at request time, avoiding
+  // the stale-closure problem when the Approve button switches plan→build.
+  const modeRef = useRef<ChatMode>(initialMode ?? "build");
+  function setModeSync(newMode: ChatMode) {
+    modeRef.current = newMode;
+    setMode(newMode);
+  }
+
   // Czy mamy zapisane wiadomosci w bazie? Jezeli tak -> nie auto-startujemy generacji.
   const hasStoredHistory = (initialMessages?.length ?? 0) > 0;
 
+  // model is kept in deps so transport recreates when model changes.
+  // mode is NOT in deps — we read modeRef.current inside body() at request time.
+  // body() is a callback invoked by DefaultChatTransport outside of render, so
+  // accessing modeRef.current there is intentional and safe.
+  /* eslint-disable react-hooks/refs */
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
@@ -114,11 +133,12 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
         body: () => ({
           projectId,
           model,
-          mode,
+          mode: modeRef.current,
         }),
       }),
-    [projectId, model, mode],
+    [projectId, model],
   );
+  /* eslint-enable react-hooks/refs */
 
   const { messages, sendMessage, status, error, stop } = useChat({
     messages: initialMessages ?? [],
@@ -244,6 +264,13 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
       appendHint: (text: string) => {
         setInput((prev) => (prev ? `${prev}\n${text}` : text));
       },
+      startWithPlanPrompt: (enrichedPrompt: string) => {
+        if (startedRef.current) return;
+        startedRef.current = true;
+        // Force plan mode so AI presents the plan before writing any files.
+        setModeSync("plan");
+        sendMessage({ text: enrichedPrompt });
+      },
       startWithPrompt: (enrichedPrompt: string) => {
         if (startedRef.current) return;
         startedRef.current = true;
@@ -349,8 +376,12 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
             onPlanAction={(partIdx, action) => {
               setConsumedPlans((prev) => new Set([...prev, partIdx]));
               if (action === "approve") {
+                // Switch to build mode BEFORE sending so the transport body()
+                // reads "build" from modeRef at request time.
+                setModeSync("build");
                 sendMessage({ text: "Zatwierdzone. Rozpocznij implementację." });
               } else if (action === "skip") {
+                setModeSync("build");
                 sendMessage({ text: "Pomiń plan, implementuj bezpośrednio." });
               } else {
                 // edit: let user type
@@ -488,7 +519,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
               onToggle={() => onSelectModeChange(!selectMode)}
             />
 
-            <ModeButton mode={mode} onChange={setMode} />
+            <ModeButton mode={mode} onChange={setModeSync} />
 
             <div className="ml-auto">
               {isStreaming ? (

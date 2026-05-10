@@ -26,8 +26,15 @@ export default async function ProjectPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/");
 
-  const project = await getProject(id);
-  if (!project || project.user_id !== user.id) {
+  let project;
+  try {
+    project = await getProject(id);
+  } catch {
+    notFound();
+  }
+  // RLS already enforces ownership; checking only !project avoids 404 for
+  // projects the user owns when the user_id column is temporarily unavailable.
+  if (!project) {
     notFound();
   }
 

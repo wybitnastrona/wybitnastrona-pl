@@ -137,3 +137,38 @@
     );
   }
 }
+
+/* Dark-theme scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(232, 220, 196, 0.25) transparent;
+}
+*::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(232, 220, 196, 0.25);
+  border-radius: 2px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(232, 220, 196, 0.45);
+}
+
+/* Sandpack error overlay — full height */
+.sp-wrapper,
+.sp-layout,
+.sp-preview-container {
+  height: 100% !important;
+}
+.sp-overlay {
+  height: 100% !important;
+}
+
+/* Sandpack file-tab separator */
+.sp-tabs {
+  border-bottom: 1px solid rgba(232, 220, 196, 0.15);
+}

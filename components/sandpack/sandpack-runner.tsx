@@ -38,6 +38,8 @@ export type SandpackRunnerProps = {
    * zapisywal reczne edycje uzytkownika do bazy (debounce 1.5s).
    */
   projectId?: string;
+  /** When true the editor is read-only (AI is actively writing files). */
+  isGenerating?: boolean;
 };
 
 export function SandpackRunner(props: SandpackRunnerProps) {

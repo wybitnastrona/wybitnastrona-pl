@@ -65,6 +65,7 @@ export function SandpackInner({
   onElementPick,
   hideInternalNavigator = false,
   projectId,
+  isGenerating = false,
 }: SandpackRunnerProps) {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [terminalOpen, setTerminalOpen] = useState(true);
@@ -97,6 +98,7 @@ export function SandpackInner({
             terminalOpen={terminalOpen}
             onToggleTerminal={() => setTerminalOpen((v) => !v)}
             projectId={projectId}
+            readOnly={isGenerating}
           />
         )}
 
@@ -127,10 +129,12 @@ function CodeView({
   terminalOpen,
   onToggleTerminal,
   projectId,
+  readOnly = false,
 }: {
   terminalOpen: boolean;
   onToggleTerminal: () => void;
   projectId?: string;
+  readOnly?: boolean;
 }) {
   return (
     <div className="flex h-full w-full">
@@ -147,6 +151,7 @@ function CodeView({
             showLineNumbers
             showInlineErrors
             wrapContent={false}
+            readOnly={readOnly}
             style={{ height: "100%" }}
           />
         </div>

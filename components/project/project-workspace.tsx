@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { UIMessage } from "ai";
 import { ProjectTopbar } from "@/components/project/project-topbar";
 import {
@@ -10,6 +10,10 @@ import {
 import { WizardPanel } from "@/components/project/wizard-panel";
 import { WorkspaceCanvas } from "@/components/project/workspace-canvas";
 import type { Project } from "@/lib/types/project";
+
+const CHAT_MIN = 280;
+const CHAT_MAX = 700;
+const CHAT_DEFAULT = 420;
 
 type Props = {
   project: Project;
@@ -45,7 +49,28 @@ export function ProjectWorkspace({
   );
 
   const [selectMode, setSelectMode] = useState(false);
+  const [chatWidth, setChatWidth] = useState(CHAT_DEFAULT);
   const chatRef = useRef<ChatPanelHandle>(null);
+  const dragRef = useRef<{ startX: number; startW: number } | null>(null);
+
+  const startResize = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    dragRef.current = { startX: e.clientX, startW: chatWidth };
+
+    function onMove(mv: MouseEvent) {
+      if (!dragRef.current) return;
+      const delta = mv.clientX - dragRef.current.startX;
+      const next = Math.min(CHAT_MAX, Math.max(CHAT_MIN, dragRef.current.startW + delta));
+      setChatWidth(next);
+    }
+    function onUp() {
+      dragRef.current = null;
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, [chatWidth]);
 
   function handleElementPick(info: {
     x: number;
@@ -74,7 +99,7 @@ export function ProjectWorkspace({
     setWizardActive(false);
     // Give React one tick to un-block the ChatPanel before sending
     setTimeout(() => {
-      chatRef.current?.startWithPrompt(enrichedPrompt);
+      chatRef.current?.startWithPlanPrompt(enrichedPrompt);
     }, 0);
   }
 
@@ -93,14 +118,24 @@ export function ProjectWorkspace({
         domainPartnerUrl={domainPartnerUrl}
       />
 
+      {/*
+        Mobile: single column, 2 rows (chat on top, canvas below).
+        Desktop (lg+): chat | drag-handle | canvas, rows collapse to 1fr.
+        The drag handle has display:none on mobile so it's absent from the grid.
+      */}
       <div
-        className="
-          grid min-h-0 flex-1
-          grid-cols-1 grid-rows-[40vh_1fr]
-          lg:grid-cols-[420px_1fr] lg:grid-rows-1
-        "
+        className="ws-grid grid min-h-0 flex-1"
+        style={
+          {
+            "--chat-w": `${chatWidth}px`,
+            gridTemplateColumns: "1fr",
+            gridTemplateRows: "40vh 1fr",
+          } as React.CSSProperties
+        }
       >
-        <div className="min-h-0 border-b border-beige/10 lg:border-b-0 lg:border-r">
+        <style>{`@media(min-width:1024px){.ws-grid{grid-template-columns:var(--chat-w) 5px 1fr;grid-template-rows:1fr}}`}</style>
+
+        <div className="min-h-0 border-b border-beige/10 lg:border-b-0">
           {wizardActive ? (
             <WizardPanel
               initialPrompt={project.prompt}
@@ -121,6 +156,14 @@ export function ProjectWorkspace({
               wizardBlocked={false}
             />
           )}
+        </div>
+
+        {/* Drag handle — hidden on mobile, so it doesn't consume a grid row */}
+        <div
+          className="relative hidden cursor-col-resize lg:block"
+          onMouseDown={startResize}
+        >
+          <div className="absolute inset-y-0 left-[2px] w-px bg-beige/10 transition-colors hover:bg-beige/40" />
         </div>
 
         <div className="min-h-0">

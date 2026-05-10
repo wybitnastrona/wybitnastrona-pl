@@ -137,6 +137,7 @@ export function WorkspaceCanvas({
         onOpenLive={handleOpenLive}
         opening={opening}
         liveUrl={liveUrl}
+        slug={liveSlug ?? undefined}
         publishDomain={publishDomain}
         useWC={useWC}
       />
@@ -165,6 +166,7 @@ export function WorkspaceCanvas({
               selectMode={view === "preview" && selectMode}
               onElementPick={onElementPick}
               projectId={project.id}
+              isGenerating={buildFile !== null}
             />
           </div>
         )}
@@ -255,6 +257,7 @@ function CanvasTopbar({
   onOpenLive,
   opening,
   liveUrl,
+  slug,
   publishDomain,
   useWC,
 }: {
@@ -263,10 +266,12 @@ function CanvasTopbar({
   onOpenLive: () => void;
   opening: boolean;
   liveUrl: string | null;
+  slug?: string;
   publishDomain: string;
   useWC: boolean;
 }) {
-  const displayUrl = liveUrl ?? `https://projekt.${publishDomain}`;
+  // Show the real project slug URL even before the project is published.
+  const displayUrl = liveUrl ?? (slug ? buildSubdomainUrl(slug, publishDomain) : `https://projekt.${publishDomain}`);
 
   return (
     <div className="flex h-10 shrink-0 items-center gap-2 border-b border-beige/10 bg-background/80 px-2">

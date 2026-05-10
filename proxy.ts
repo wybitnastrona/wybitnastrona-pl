@@ -1,11 +1,20 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/proxy";
 
-const RESERVED_SUBDOMAINS = new Set(["www", "app", "api", "admin", "static"]);
+const RESERVED_SUBDOMAINS = new Set([
+  "www",
+  "app",
+  "api",
+  "admin",
+  "static",
+  "mail",
+  "ftp",
+]);
 
 function getSubdomain(host: string, rootDomain: string): string | null {
-  const cleanHost = host.split(":")[0];
-  const cleanRoot = rootDomain.split(":")[0];
+  if (!rootDomain) return null;
+  const cleanHost = host.split(":")[0].toLowerCase();
+  const cleanRoot = rootDomain.split(":")[0].toLowerCase();
 
   if (cleanHost === cleanRoot) return null;
   if (!cleanHost.endsWith(`.${cleanRoot}`)) return null;
@@ -17,11 +26,20 @@ function getSubdomain(host: string, rootDomain: string): string | null {
   return subdomain;
 }
 
+function detectSubdomain(host: string): string | null {
+  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "localhost:3000";
+  const publishDomain = process.env.NEXT_PUBLIC_PUBLISH_DOMAIN;
+
+  return (
+    getSubdomain(host, rootDomain) ??
+    (publishDomain ? getSubdomain(host, publishDomain) : null)
+  );
+}
+
 export async function proxy(request: NextRequest) {
   const host = request.headers.get("host") ?? "";
-  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "localhost:3000";
 
-  const subdomain = getSubdomain(host, rootDomain);
+  const subdomain = detectSubdomain(host);
 
   if (subdomain) {
     const url = request.nextUrl.clone();

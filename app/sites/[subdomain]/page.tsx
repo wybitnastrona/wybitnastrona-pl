@@ -29,7 +29,11 @@ export default async function SitePage({ params }: { params: Params }) {
 
   return (
     <div className="h-screen w-screen">
-      <SandpackRunner files={project.files} mode="preview" />
+      <SandpackRunner
+        files={project.files}
+        viewMode="preview"
+        hideInternalNavigator
+      />
     </div>
   );
 }

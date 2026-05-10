@@ -5,6 +5,8 @@ import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { SandpackRunner } from "@/components/sandpack/sandpack-runner";
 import { getProjectBySlug } from "@/lib/projects";
+import { createClient } from "@/lib/supabase/server";
+import { logProjectEvent } from "@/lib/analytics-server";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +26,14 @@ export default async function PublicSharePage({ params }: { params: Params }) {
   const { slug } = await params;
   const project = await getProjectBySlug(slug);
   if (!project) notFound();
+
+  // Faza 2.7: trackuj odwiedziny strony publicznej.
+  const supabase = await createClient();
+  void logProjectEvent(supabase, {
+    projectId: project.id,
+    type: "view",
+    metadata: { source: "public_slug_page" },
+  });
 
   const rootDomain =
     process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "localhost:3000";
@@ -73,7 +83,11 @@ export default async function PublicSharePage({ params }: { params: Params }) {
 
           <div className="overflow-hidden rounded-2xl border border-beige/15 bg-card">
             <div className="h-[80vh] w-full">
-              <SandpackRunner files={project.files} mode="preview" />
+              <SandpackRunner
+                files={project.files}
+                viewMode="preview"
+                hideInternalNavigator
+              />
             </div>
           </div>
 

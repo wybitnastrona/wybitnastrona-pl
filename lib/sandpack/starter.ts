@@ -1,4 +1,6 @@
 import type { ProjectFiles } from "@/lib/types/project";
+import { ELEMENT_PICKER_SCRIPT } from "./element-picker-script";
+import { ERROR_LISTENER_SCRIPT } from "./error-listener-script";
 
 const APP_TSX = `import { useState } from "react";
 
@@ -37,7 +39,13 @@ const INDEX_HTML = `<!doctype html>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>wybitnastrona.pl - preview</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tailwind CSS jest wstrzykiwany przez externalResources w SandpackProvider -->
+    <script>
+${ELEMENT_PICKER_SCRIPT}
+    </script>
+    <script>
+${ERROR_LISTENER_SCRIPT}
+    </script>
   </head>
   <body>
     <div id="root"></div>

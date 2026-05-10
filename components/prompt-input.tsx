@@ -65,7 +65,7 @@ export function PromptInput({ value, onValueChange }: PromptInputProps) {
         <button
           type="button"
           aria-label="Załącz plik"
-          className="mt-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition hover:bg-white/5 hover:text-beige"
+          className="mt-1.5 flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition hover:bg-white/5 hover:text-beige"
         >
           <Paperclip className="h-4 w-4" />
         </button>

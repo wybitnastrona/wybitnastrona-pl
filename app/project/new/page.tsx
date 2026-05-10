@@ -1,10 +1,14 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createProject } from "@/lib/projects";
+import type { TemplateId } from "@/lib/templates";
 
 export const dynamic = "force-dynamic";
 
-type SearchParams = Promise<{ prompt?: string | string[] }>;
+type SearchParams = Promise<{
+  prompt?: string | string[];
+  template?: string | string[];
+}>;
 
 export default async function NewProjectPage({
   searchParams,
@@ -24,6 +28,13 @@ export default async function NewProjectPage({
   const prompt = (rawPrompt ?? "").trim();
   if (!prompt) redirect("/");
 
-  const project = await createProject(prompt);
+  const rawTemplate = Array.isArray(params.template)
+    ? params.template[0]
+    : params.template;
+
+  const project = await createProject(
+    prompt,
+    rawTemplate as TemplateId | undefined,
+  );
   redirect(`/project/${project.id}`);
 }

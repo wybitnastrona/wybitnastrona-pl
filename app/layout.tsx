@@ -1,8 +1,11 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/auth/auth-provider";
+import { SettingsProvider } from "@/components/settings/settings-provider";
 import { CookieBanner } from "@/components/cookie-banner";
+import { PwaRegister } from "@/components/pwa-register";
+import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -39,6 +42,18 @@ export const metadata: Metadata = {
     description:
       "Opisz pomysł, a AI zbuduje wybitną stronę w kilka sekund.",
   },
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "wybitnastrona",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0a0a0a",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
@@ -53,8 +68,12 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <AuthProvider>
-          {children}
-          <CookieBanner />
+          <SettingsProvider>
+            {children}
+            <CookieBanner />
+            <PwaRegister />
+            <Analytics />
+          </SettingsProvider>
         </AuthProvider>
       </body>
     </html>

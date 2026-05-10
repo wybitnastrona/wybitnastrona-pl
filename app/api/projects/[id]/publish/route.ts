@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { publishProject, unpublishProject } from "@/lib/projects";
+import { buildPublishUrl, getPublishDomain } from "@/lib/publish-url";
+import { logProjectEvent } from "@/lib/analytics-server";
 
 type Params = Promise<{ id: string }>;
 
@@ -17,12 +19,17 @@ export async function POST(_req: Request, { params }: { params: Params }) {
 
   try {
     const { slug } = await publishProject(id);
-    const rootDomain =
-      process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "localhost:3000";
-    const protocol = rootDomain.includes("localhost") ? "http" : "https";
+    const domain = getPublishDomain();
+    void logProjectEvent(supabase, {
+      projectId: id,
+      userId: user.id,
+      type: "publish",
+      metadata: { slug, domain },
+    });
     return NextResponse.json({
       slug,
-      url: `${protocol}://${slug}.${rootDomain}`,
+      domain,
+      url: buildPublishUrl(slug, domain),
     });
   } catch (err) {
     return NextResponse.json(

@@ -6,8 +6,23 @@ import { Showcase } from "@/components/landing/showcase";
 import { Faq } from "@/components/landing/faq";
 import { CtaFooter } from "@/components/landing/cta-footer";
 import { Footer } from "@/components/footer";
+import { AppShell } from "@/components/app-shell/app-shell";
+import { listMyProjects } from "@/lib/projects";
+import { createClient } from "@/lib/supabase/server";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user) {
+    const projects = await listMyProjects();
+    return <AppShell projects={projects} />;
+  }
+
   return (
     <>
       <Navbar />

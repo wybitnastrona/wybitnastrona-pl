@@ -53,7 +53,7 @@ export function SuggestionGrid({ onSelect }: SuggestionGridProps) {
           key={title}
           type="button"
           onClick={() => onSelect(prompt)}
-          className="group flex flex-col items-start gap-3 rounded-xl border border-beige/10 bg-card p-4 text-left transition hover:border-beige/40 hover:bg-card/80 focus:outline-none focus-visible:border-beige/60 focus-visible:ring-2 focus-visible:ring-beige/30"
+          className="group flex cursor-pointer flex-col items-start gap-3 rounded-xl border border-beige/10 bg-card p-4 text-left transition hover:border-beige/40 hover:bg-card/80 focus:outline-none focus-visible:border-beige/60 focus-visible:ring-2 focus-visible:ring-beige/30"
         >
           <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-beige/20 bg-background text-beige transition group-hover:border-beige/50 group-hover:bg-beige/10">
             <Icon className="h-4 w-4" />

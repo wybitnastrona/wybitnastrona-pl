@@ -6,7 +6,7 @@ import type {
   ProjectFiles,
   ProjectListItem,
 } from "@/lib/types/project";
-import { getStarterFiles } from "@/lib/sandpack/starter";
+import { getTemplate, type TemplateId } from "@/lib/templates";
 
 const slugAlphabet =
   "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -19,7 +19,10 @@ function deriveTitle(prompt: string): string {
   return sliced.length < cleaned.length ? `${sliced}…` : sliced;
 }
 
-export async function createProject(prompt: string): Promise<Project> {
+export async function createProject(
+  prompt: string,
+  templateId?: TemplateId,
+): Promise<Project> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -28,13 +31,16 @@ export async function createProject(prompt: string): Promise<Project> {
     throw new Error("Not authenticated");
   }
 
+  const template = getTemplate(templateId);
+
   const { data, error } = await supabase
     .from("projects")
     .insert({
       user_id: user.id,
       prompt,
       title: deriveTitle(prompt),
-      files: getStarterFiles(),
+      files: template.getFiles(),
+      template: template.id,
     })
     .select("*")
     .single();
@@ -153,4 +159,137 @@ export async function unpublishProject(id: string): Promise<void> {
     .update({ is_public: false, published_at: null })
     .eq("id", id);
   if (error) throw error;
+}
+
+export async function updateProjectCustomDomain(
+  id: string,
+  domain: string | null,
+): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("projects")
+    .update({
+      custom_domain: domain,
+      custom_domain_verified_at: null,
+    })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+export async function updateProjectDatabase(
+  id: string,
+  database: { url: string | null; anonKey: string | null },
+): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("projects")
+    .update({
+      database_url: database.url,
+      database_anon_key: database.anonKey,
+    })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+// ─── Snapshots ──────────────────────────────────────────────────────────────
+
+export type Snapshot = {
+  id: string;
+  project_id: string;
+  files: ProjectFiles;
+  label: string | null;
+  created_at: string;
+};
+
+export async function createSnapshot(
+  projectId: string,
+  files: ProjectFiles,
+  label?: string,
+): Promise<Snapshot> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("project_snapshots")
+    .insert({ project_id: projectId, files, label: label ?? null })
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data as Snapshot;
+}
+
+export async function listSnapshots(projectId: string): Promise<Snapshot[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("project_snapshots")
+    .select("id, project_id, label, created_at")
+    .eq("project_id", projectId)
+    .order("created_at", { ascending: false })
+    .limit(20);
+  if (error) return [];
+  return (data ?? []) as Snapshot[];
+}
+
+export async function getSnapshot(id: string): Promise<Snapshot | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("project_snapshots")
+    .select("*")
+    .eq("id", id)
+    .single();
+  if (error) return null;
+  return data as Snapshot;
+}
+
+// ─── Chat messages ──────────────────────────────────────────────────────────
+
+export type StoredChatMessage = {
+  id: string;
+  project_id: string;
+  role: "user" | "assistant" | "system";
+  parts: unknown[];
+  created_at: string;
+};
+
+export async function listChatMessages(
+  projectId: string,
+): Promise<StoredChatMessage[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("chat_messages")
+    .select("*")
+    .eq("project_id", projectId)
+    .order("created_at", { ascending: true });
+  if (error) return [];
+  return (data ?? []) as StoredChatMessage[];
+}
+
+export async function appendChatMessages(
+  projectId: string,
+  msgs: Array<{ role: "user" | "assistant" | "system"; parts: unknown[] }>,
+): Promise<void> {
+  if (msgs.length === 0) return;
+  const supabase = await createClient();
+  const rows = msgs.map((m) => ({
+    project_id: projectId,
+    role: m.role,
+    parts: m.parts,
+  }));
+  const { error } = await supabase.from("chat_messages").insert(rows);
+  if (error) throw error;
+}
+
+export async function replaceChatMessages(
+  projectId: string,
+  msgs: Array<{ role: "user" | "assistant" | "system"; parts: unknown[] }>,
+): Promise<void> {
+  const supabase = await createClient();
+  // delete + insert w jednej transakcji nie da rady przez supabase-js,
+  // ale chat_messages ma cascadę i RLS, wiec robimy 2 osobne ops.
+  await supabase.from("chat_messages").delete().eq("project_id", projectId);
+  if (msgs.length === 0) return;
+  const rows = msgs.map((m) => ({
+    project_id: projectId,
+    role: m.role,
+    parts: m.parts,
+  }));
+  await supabase.from("chat_messages").insert(rows);
 }

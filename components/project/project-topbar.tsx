@@ -5,13 +5,20 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   ArrowLeft,
+  BarChart3,
   Check,
   Copy,
   Download,
+  ExternalLink,
+  FileArchive,
   Globe,
   Loader2,
+  MoreHorizontal,
   Share2,
+  Smartphone,
+  Sparkles,
 } from "lucide-react";
+import { GithubIcon } from "@/components/brand-icons";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,20 +29,49 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { Project } from "@/lib/types/project";
+import { MobileQrButton } from "@/components/project/mobile-qr";
 
 type Props = {
   project: Project;
   rootDomain: string;
+  publishDomain: string;
   appUrl: string;
+  domainPartnerUrl: string;
 };
 
-export function ProjectTopbar({ project, rootDomain, appUrl }: Props) {
+function buildSubdomainUrl(slug: string, domain: string): string {
+  const protocol = domain.includes("localhost") ? "http" : "https";
+  return `${protocol}://${slug}.${domain}`;
+}
+
+export function ProjectTopbar({
+  project,
+  rootDomain,
+  publishDomain,
+  appUrl,
+  domainPartnerUrl,
+}: Props) {
   const router = useRouter();
   const [title, setTitle] = useState(project.title);
   const [savingTitle, setSavingTitle] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [domainsOpen, setDomainsOpen] = useState(false);
+  const [githubOpen, setGithubOpen] = useState(false);
+
+  const previewUrl =
+    project.is_public && project.slug
+      ? buildSubdomainUrl(project.slug, publishDomain)
+      : null;
 
   async function saveTitle() {
     if (title.trim() === project.title || !title.trim()) {
@@ -57,7 +93,7 @@ export function ProjectTopbar({ project, rootDomain, appUrl }: Props) {
 
   return (
     <header className="flex h-14 items-center justify-between gap-3 border-b border-beige/10 bg-background/80 px-4 backdrop-blur">
-      <div className="flex items-center gap-3 min-w-0">
+      <div className="flex min-w-0 items-center gap-3">
         <Link
           href="/dashboard"
           className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition hover:bg-white/5 hover:text-beige"
@@ -82,17 +118,19 @@ export function ProjectTopbar({ project, rootDomain, appUrl }: Props) {
         )}
         {project.is_public && project.slug && (
           <Link
-            href={`/p/${project.slug}`}
+            href={buildSubdomainUrl(project.slug, publishDomain)}
             target="_blank"
-            className="hidden md:inline-flex h-6 items-center gap-1 rounded-full border border-beige/20 px-2 text-xs text-beige/80 hover:border-beige/40 transition"
+            className="hidden h-6 items-center gap-1 rounded-full border border-beige/20 px-2 text-xs text-beige/80 transition hover:border-beige/40 md:inline-flex"
           >
             <Globe className="h-3 w-3" />
-            Opublikowany
+            Live
           </Link>
         )}
       </div>
 
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex shrink-0 items-center gap-2">
+        <MobileQrButton previewUrl={previewUrl} />
+
         <Button
           type="button"
           variant="ghost"
@@ -101,23 +139,70 @@ export function ProjectTopbar({ project, rootDomain, appUrl }: Props) {
           className="text-foreground/80 hover:bg-white/5"
         >
           <Share2 className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Share</span>
+          <span className="hidden sm:inline">Udostepnij</span>
         </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            window.open(
-              `/api/projects/${project.id}/export`,
-              "_blank",
-            );
-          }}
-          className="text-foreground/80 hover:bg-white/5"
-        >
-          <Download className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Export</span>
-        </Button>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-foreground/80 transition hover:bg-white/5"
+            aria-label="Wiecej akcji"
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" sideOffset={6} className="w-56">
+            <DropdownMenuLabel className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+              Domeny i hosting
+            </DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => setDomainsOpen(true)}>
+              <Globe className="h-3.5 w-3.5" />
+              Domeny
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+              Eksport
+            </DropdownMenuLabel>
+            <DropdownMenuItem
+              onClick={() =>
+                window.open(`/api/export/zip?projectId=${project.id}`, "_blank")
+              }
+            >
+              <FileArchive className="h-3.5 w-3.5" />
+              Pobierz ZIP
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setGithubOpen(true)}>
+              <GithubIcon className="h-3.5 w-3.5" />
+              Push do GitHub
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() =>
+                window.open(`/api/projects/${project.id}/export`, "_blank")
+              }
+            >
+              <Download className="h-3.5 w-3.5" />
+              Wyeksportuj projekt
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => router.push(`/project/${project.id}/analytics`)}
+            >
+              <BarChart3 className="h-3.5 w-3.5" />
+              Analityka
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => router.push(`/project/${project.id}/variants`)}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              A/B test (3 warianty)
+            </DropdownMenuItem>
+            {previewUrl && (
+              <DropdownMenuItem onClick={() => window.open(previewUrl, "_blank")}>
+                <Smartphone className="h-3.5 w-3.5" />
+                Otwórz live
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         <Button
           type="button"
           size="sm"
@@ -125,7 +210,7 @@ export function ProjectTopbar({ project, rootDomain, appUrl }: Props) {
           className="bg-beige text-beige-foreground hover:bg-beige/90"
         >
           <Globe className="h-3.5 w-3.5" />
-          {project.is_public ? "Zarzadzaj" : "Publish"}
+          {project.is_public ? "Zarzadzaj" : "Opublikuj"}
         </Button>
       </div>
 
@@ -133,7 +218,11 @@ export function ProjectTopbar({ project, rootDomain, appUrl }: Props) {
         open={publishOpen}
         onOpenChange={setPublishOpen}
         project={project}
-        rootDomain={rootDomain}
+        publishDomain={publishDomain}
+        onOpenDomains={() => {
+          setPublishOpen(false);
+          setDomainsOpen(true);
+        }}
       />
 
       <ShareDialog
@@ -141,9 +230,154 @@ export function ProjectTopbar({ project, rootDomain, appUrl }: Props) {
         onOpenChange={setShareOpen}
         project={project}
         appUrl={appUrl}
+        publishDomain={publishDomain}
+      />
+
+      <DomainsDialog
+        open={domainsOpen}
+        onOpenChange={setDomainsOpen}
+        project={project}
         rootDomain={rootDomain}
+        publishDomain={publishDomain}
+        domainPartnerUrl={domainPartnerUrl}
+      />
+
+      <GithubDialog
+        open={githubOpen}
+        onOpenChange={setGithubOpen}
+        project={project}
       />
     </header>
+  );
+}
+
+function GithubDialog({
+  open,
+  onOpenChange,
+  project,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  project: Project;
+}) {
+  const [repoName, setRepoName] = useState(
+    project.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+  );
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handlePush() {
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await fetch("/api/github/push", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: project.id,
+          repoName,
+          private: isPrivate,
+        }),
+      });
+      const data = (await res.json()) as { url?: string; error?: string };
+      if (data.url) {
+        setResult(data.url);
+      } else {
+        setError(data.error ?? "Push nie powiódł się");
+      }
+    } catch {
+      setError("Błąd sieci");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="border-beige/20 bg-card sm:max-w-[480px]">
+        <DialogHeader>
+          <DialogTitle>Push do GitHub</DialogTitle>
+          <DialogDescription>
+            Tworzymy nowe repozytorium i wypychamy wszystkie pliki projektu. Wymaga
+            zalogowania przez GitHub OAuth z dostępem do <code>repo</code>.
+          </DialogDescription>
+        </DialogHeader>
+
+        {result ? (
+          <div className="space-y-3">
+            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+              <p className="font-medium">Repozytorium utworzone</p>
+              <a
+                href={result}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-1 block break-all text-xs underline hover:text-emerald-100"
+              >
+                {result}
+              </a>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div>
+              <label className="mb-1 block text-xs uppercase tracking-wider text-muted-foreground">
+                Nazwa repozytorium
+              </label>
+              <Input
+                value={repoName}
+                onChange={(e) =>
+                  setRepoName(e.target.value.replace(/[^a-zA-Z0-9_-]/g, "-"))
+                }
+                placeholder="moja-strona"
+                className="font-mono text-xs"
+              />
+            </div>
+            <label className="flex cursor-pointer items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={isPrivate}
+                onChange={(e) => setIsPrivate(e.target.checked)}
+                className="h-4 w-4 cursor-pointer"
+              />
+              Prywatne repozytorium
+            </label>
+            {error && (
+              <div className="rounded-md border border-rose-500/30 bg-rose-500/10 p-2 text-xs text-rose-200">
+                {error}
+              </div>
+            )}
+          </div>
+        )}
+
+        <DialogFooter>
+          {result ? (
+            <Button
+              type="button"
+              onClick={() => {
+                onOpenChange(false);
+                setResult(null);
+              }}
+              className="bg-beige text-beige-foreground hover:bg-beige/90"
+            >
+              Zamknij
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              onClick={handlePush}
+              disabled={busy || !repoName.trim()}
+              className="bg-beige text-beige-foreground hover:bg-beige/90"
+            >
+              {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              <GithubIcon className="h-3.5 w-3.5" />
+              Wypchnij
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -151,17 +385,20 @@ function PublishDialog({
   open,
   onOpenChange,
   project,
-  rootDomain,
+  publishDomain,
+  onOpenDomains,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   project: Project;
-  rootDomain: string;
+  publishDomain: string;
+  onOpenDomains: () => void;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [slug, setSlug] = useState(project.slug ?? "");
   const [isPublic, setIsPublic] = useState(project.is_public);
+  const [justPublished, setJustPublished] = useState(false);
 
   async function handlePublish() {
     setLoading(true);
@@ -173,6 +410,7 @@ function PublishDialog({
         const data = (await res.json()) as { slug: string };
         setSlug(data.slug);
         setIsPublic(true);
+        setJustPublished(true);
         router.refresh();
       }
     } finally {
@@ -188,6 +426,7 @@ function PublishDialog({
       });
       if (res.ok) {
         setIsPublic(false);
+        setJustPublished(false);
         router.refresh();
       }
     } finally {
@@ -195,29 +434,72 @@ function PublishDialog({
     }
   }
 
-  const subdomainUrl = slug
-    ? rootDomain.includes("localhost")
-      ? `http://${slug}.${rootDomain}`
-      : `https://${slug}.${rootDomain}`
-    : "";
+  const url = slug ? buildSubdomainUrl(slug, publishDomain) : "";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-card border-beige/20 sm:max-w-[480px]">
+      <DialogContent className="border-beige/20 bg-card sm:max-w-[520px]">
         <DialogHeader>
-          <DialogTitle>Publikacja na subdomenie</DialogTitle>
+          <DialogTitle>
+            {justPublished ? "Strona opublikowana" : "Publikacja projektu"}
+          </DialogTitle>
           <DialogDescription>
-            Po publikacji projekt bedzie dostepny pod adresem{" "}
-            <span className="font-mono text-beige/80">{`<slug>.${rootDomain}`}</span>
-            .
+            {justPublished
+              ? "Twoja strona jest dostepna w internecie pod adresem ponizej."
+              : `Publikujemy projekt pod adresem {slug}.${publishDomain}.`}
           </DialogDescription>
         </DialogHeader>
 
         {isPublic && slug ? (
-          <div className="space-y-3">
+          <div className="space-y-4">
+            {justPublished && (
+              <div className="flex items-start gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">
+                <Sparkles className="mt-0.5 h-4 w-4 shrink-0" />
+                <p>Gotowe. Mozesz teraz udostepnic link lub podpiac wlasna domene.</p>
+              </div>
+            )}
             <div className="flex items-center gap-2">
-              <Input value={subdomainUrl} readOnly className="font-mono text-xs" />
-              <CopyButton value={subdomainUrl} />
+              <Input
+                value={url}
+                readOnly
+                className="font-mono text-xs"
+              />
+              <CopyButton value={url} />
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="outline"
+                onClick={() => window.open(url, "_blank")}
+                aria-label="Otworz na zywo"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+            <div className="rounded-lg border border-beige/15 bg-background/60 p-3 text-sm">
+              <p className="font-medium text-foreground">
+                Wlasna domena lub zakup nowej
+              </p>
+              <p className="mt-1 text-muted-foreground">
+                Aby podpiac wlasna domene (np. twojasklep.pl) lub kupic
+                ja przez wybitnastrona.pl, otworz panel domen.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={onOpenDomains}
+                  className="bg-beige text-beige-foreground hover:bg-beige/90"
+                >
+                  <Globe className="h-3.5 w-3.5" />
+                  Domeny i hosting
+                </Button>
+                <Link
+                  href="/pricing"
+                  className="inline-flex h-7 items-center justify-center rounded-md border border-beige/20 px-2.5 text-xs font-medium text-beige/90 transition hover:border-beige/40 hover:bg-white/5"
+                >
+                  Zobacz plany
+                </Link>
+              </div>
             </div>
             <p className="text-xs text-muted-foreground">
               Strona jest publicznie widoczna. Mozesz ja w kazdej chwili
@@ -226,7 +508,8 @@ function PublishDialog({
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">
-            Klikniecie ponizej wygeneruje unikalny slug i opublikuje projekt.
+            Klikniecie ponizej wygeneruje unikalny adres i opublikuje
+            projekt w internecie.
           </p>
         )}
 
@@ -264,27 +547,26 @@ function ShareDialog({
   onOpenChange,
   project,
   appUrl,
-  rootDomain,
+  publishDomain,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   project: Project;
   appUrl: string;
-  rootDomain: string;
+  publishDomain: string;
 }) {
-  const shareUrl = project.is_public && project.slug
-    ? `${appUrl}/p/${project.slug}`
-    : "";
-
-  const subdomainUrl = project.is_public && project.slug
-    ? rootDomain.includes("localhost")
-      ? `http://${project.slug}.${rootDomain}`
-      : `https://${project.slug}.${rootDomain}`
-    : "";
+  const shareUrl =
+    project.is_public && project.slug
+      ? `${appUrl}/p/${project.slug}`
+      : "";
+  const subdomainUrl =
+    project.is_public && project.slug
+      ? buildSubdomainUrl(project.slug, publishDomain)
+      : "";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-card border-beige/20 sm:max-w-[480px]">
+      <DialogContent className="border-beige/20 bg-card sm:max-w-[480px]">
         <DialogHeader>
           <DialogTitle>Udostepnij projekt</DialogTitle>
           <DialogDescription>
@@ -298,10 +580,14 @@ function ShareDialog({
           <div className="space-y-3">
             <div>
               <p className="mb-1 text-xs uppercase tracking-wider text-muted-foreground">
-                Subdomena
+                Strona na zywo
               </p>
               <div className="flex items-center gap-2">
-                <Input value={subdomainUrl} readOnly className="font-mono text-xs" />
+                <Input
+                  value={subdomainUrl}
+                  readOnly
+                  className="font-mono text-xs"
+                />
                 <CopyButton value={subdomainUrl} />
               </div>
             </div>
@@ -310,16 +596,336 @@ function ShareDialog({
                 Strona z opisem (z navbarem)
               </p>
               <div className="flex items-center gap-2">
-                <Input value={shareUrl} readOnly className="font-mono text-xs" />
+                <Input
+                  value={shareUrl}
+                  readOnly
+                  className="font-mono text-xs"
+                />
                 <CopyButton value={shareUrl} />
               </div>
             </div>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">
-            Otworz dialog Publish, zeby udostepnic projekt publicznie.
+            Otworz dialog Opublikuj, aby udostepnic projekt publicznie.
           </p>
         )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DomainsDialog({
+  open,
+  onOpenChange,
+  project,
+  rootDomain,
+  publishDomain,
+  domainPartnerUrl,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  project: Project;
+  rootDomain: string;
+  publishDomain: string;
+  domainPartnerUrl: string;
+}) {
+  const router = useRouter();
+  const [domain, setDomain] = useState(project.custom_domain ?? "");
+  const [saving, setSaving] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [verifyResult, setVerifyResult] = useState<{
+    verified: boolean;
+    misconfigured?: boolean;
+    expectedCnames?: string[];
+    expectedAValues?: string[];
+  } | null>(null);
+
+  const verified = Boolean(project.custom_domain_verified_at);
+
+  async function handleVerify() {
+    setError(null);
+    setVerifying(true);
+    setVerifyResult(null);
+    try {
+      const res = await fetch(
+        `/api/projects/${project.id}/domain/verify`,
+        { method: "POST" },
+      );
+      const data = (await res.json()) as {
+        verified?: boolean;
+        misconfigured?: boolean;
+        expected?: { cnames?: string[]; aValues?: string[] };
+        error?: string;
+      };
+      if (!res.ok) {
+        setError(data.error ?? "Weryfikacja nie powiodla sie");
+        return;
+      }
+      setVerifyResult({
+        verified: Boolean(data.verified),
+        misconfigured: data.misconfigured,
+        expectedCnames: data.expected?.cnames,
+        expectedAValues: data.expected?.aValues,
+      });
+      if (data.verified) router.refresh();
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  async function handleSave(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/projects/${project.id}/domain`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domain }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ?? "Nie udalo sie zapisac domeny");
+        return;
+      }
+      router.refresh();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleRemove() {
+    setError(null);
+    setRemoving(true);
+    try {
+      const res = await fetch(`/api/projects/${project.id}/domain`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ?? "Nie udalo sie usunac domeny");
+        return;
+      }
+      setDomain("");
+      router.refresh();
+    } finally {
+      setRemoving(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="border-beige/20 bg-card sm:max-w-[560px]">
+        <DialogHeader>
+          <DialogTitle>Domeny i hosting</DialogTitle>
+          <DialogDescription>
+            Zarzadzaj domenami dla tego projektu. Hosting podgladu jest
+            aktywny pod {publishDomain}.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-5">
+          <section className="rounded-lg border border-beige/15 bg-background/60 p-3">
+            <p className="text-sm font-medium text-foreground">
+              Domena podgladu
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Generowany automatycznie adres - dziala od razu, bez konfiguracji.
+            </p>
+            {project.is_public && project.slug ? (
+              <div className="mt-2 flex items-center gap-2">
+                <Input
+                  value={buildSubdomainUrl(project.slug, publishDomain)}
+                  readOnly
+                  className="font-mono text-xs"
+                />
+                <CopyButton
+                  value={buildSubdomainUrl(project.slug, publishDomain)}
+                />
+              </div>
+            ) : (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Opublikuj projekt, aby zobaczyc adres.
+              </p>
+            )}
+          </section>
+
+          <section className="rounded-lg border border-beige/15 bg-background/60 p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  Wlasna domena
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Podpniesz np. twojasklep.pl. Skonfiguruj rekord DNS
+                  zgodnie z instrukcja ponizej.
+                </p>
+              </div>
+              {project.custom_domain && (
+                <span
+                  className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wider ${
+                    verified
+                      ? "border-emerald-400/30 text-emerald-300"
+                      : "border-amber-400/30 text-amber-200"
+                  }`}
+                >
+                  {verified ? "Zweryfikowano" : "Oczekuje"}
+                </span>
+              )}
+            </div>
+
+            <form onSubmit={handleSave} className="mt-3 flex items-end gap-2">
+              <div className="flex-1">
+                <Input
+                  value={domain}
+                  onChange={(e) => setDomain(e.target.value)}
+                  placeholder="np. twojasklep.pl"
+                  className="font-mono text-xs"
+                />
+              </div>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={saving || !domain.trim()}
+                className="bg-beige text-beige-foreground hover:bg-beige/90"
+              >
+                {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                Zapisz
+              </Button>
+              {project.custom_domain && (
+                <>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleVerify}
+                    disabled={verifying}
+                    className="text-beige/90 hover:bg-white/5"
+                  >
+                    {verifying ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Check className="h-3.5 w-3.5" />
+                    )}
+                    Sprawdź DNS
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleRemove}
+                    disabled={removing}
+                    className="text-red-300 hover:bg-red-500/10"
+                  >
+                    {removing && (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    )}
+                    Usun
+                  </Button>
+                </>
+              )}
+            </form>
+
+            {error && (
+              <p className="mt-2 text-xs text-red-300">{error}</p>
+            )}
+
+            {verifyResult && (
+              <div
+                className={`mt-3 rounded-md border p-3 text-xs ${
+                  verifyResult.verified
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-100"
+                    : "border-amber-500/30 bg-amber-500/10 text-amber-100"
+                }`}
+              >
+                {verifyResult.verified ? (
+                  <p className="font-medium">
+                    DNS poprawnie skonfigurowane. Domena działa.
+                  </p>
+                ) : (
+                  <>
+                    <p className="font-medium">
+                      DNS jeszcze nie wskazuje na nasze serwery.
+                    </p>
+                    <p className="mt-1">
+                      Konfiguracja może potrwać do 30 minut po dodaniu rekordu
+                      CNAME. Sprawdź ponownie później.
+                    </p>
+                    {verifyResult.expectedCnames && verifyResult.expectedCnames.length > 0 && (
+                      <p className="mt-2 font-mono text-[10px]">
+                        CNAME → {verifyResult.expectedCnames.join(", ")}
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            <div className="mt-3 rounded-md border border-beige/10 bg-card/40 p-3 text-xs text-muted-foreground">
+              <p className="mb-2 font-medium text-foreground">
+                Konfiguracja DNS
+              </p>
+              <ol className="list-decimal space-y-1 pl-4">
+                <li>
+                  U swojego rejestratora dodaj rekord{" "}
+                  <span className="font-mono text-beige/80">CNAME</span> dla
+                  hosta{" "}
+                  <span className="font-mono text-beige/80">@</span> lub{" "}
+                  <span className="font-mono text-beige/80">www</span>{" "}
+                  wskazujacy na{" "}
+                  <span className="font-mono text-beige/80">
+                    cname.vercel-dns.com
+                  </span>
+                  .
+                </li>
+                <li>
+                  Po zapisaniu domeny powyzej napisz do nas (
+                  <a
+                    href="mailto:hello@wybitnastrona.pl"
+                    className="text-beige/80 hover:text-beige"
+                  >
+                    hello@wybitnastrona.pl
+                  </a>
+                  ), abysmy podpieli ja do platformy. Weryfikacja zwykle
+                  trwa do 30 minut.
+                </li>
+                <li>
+                  Aktualnie dostepne sa rowniez subdomeny{" "}
+                  <span className="font-mono text-beige/80">
+                    *.{rootDomain}
+                  </span>{" "}
+                  oraz{" "}
+                  <span className="font-mono text-beige/80">
+                    *.{publishDomain}
+                  </span>
+                  .
+                </li>
+              </ol>
+            </div>
+          </section>
+
+          <section className="rounded-lg border border-beige/15 bg-background/60 p-3">
+            <p className="text-sm font-medium text-foreground">
+              Nie masz jeszcze domeny?
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Kup ja u naszego partnera, a potem skonfiguruj DNS jak
+              wyzej. Pelna automatyka zakupu w aplikacji wkrotce.
+            </p>
+            <a
+              href={domainPartnerUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 inline-flex h-8 items-center gap-1.5 rounded-md border border-beige/20 px-3 text-xs font-medium text-beige/90 transition hover:border-beige/40 hover:bg-white/5"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              Kup domene
+            </a>
+          </section>
+        </div>
       </DialogContent>
     </Dialog>
   );

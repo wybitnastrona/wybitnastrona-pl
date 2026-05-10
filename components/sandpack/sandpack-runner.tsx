@@ -16,11 +16,28 @@ const SandpackInner = dynamic(
   },
 );
 
+export type SandpackViewMode = "preview" | "code" | "split";
+
 export type SandpackRunnerProps = {
   files: ProjectFiles;
-  mode?: "editor" | "preview";
-  showFileExplorer?: boolean;
-  showConsole?: boolean;
+  viewMode?: SandpackViewMode;
+  /** Tryb wyboru elementu - aktywuje overlay nad podgladem. */
+  selectMode?: boolean;
+  /** Callback wywolywany gdy uzytkownik kliknie w preview w trybie select. */
+  onElementPick?: (info: {
+    x: number;
+    y: number;
+    selector?: string;
+    html?: string;
+    tagName?: string;
+  }) => void;
+  /** Wyrenderuj nadpisany URL bar - jezeli true, wewnetrzny navigator Sandpacka jest ukryty. */
+  hideInternalNavigator?: boolean;
+  /**
+   * ID projektu — jezeli przekazane, SandpackSaver bedzie automatycznie
+   * zapisywal reczne edycje uzytkownika do bazy (debounce 1.5s).
+   */
+  projectId?: string;
 };
 
 export function SandpackRunner(props: SandpackRunnerProps) {

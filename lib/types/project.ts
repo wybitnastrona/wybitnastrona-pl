@@ -15,6 +15,11 @@ export type Project = {
   files: ProjectFiles;
   is_public: boolean;
   published_at: string | null;
+  custom_domain: string | null;
+  custom_domain_verified_at: string | null;
+  database_url: string | null;
+  database_anon_key: string | null;
+  template: string;
   created_at: string;
   updated_at: string;
 };

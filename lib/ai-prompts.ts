@@ -1,19 +1,17 @@
 /**
- * Dynamiczny BASE_PROMPT zalezny od `project.template`.
+ * Dynamiczny BASE_PROMPT zalezny od `project.template` i `project.mode`.
  *
- * Po starcie projektu generujemy plik startowy w danym frameworku (patrz
- * `lib/templates/`). AI musi pisac kod *zgodny* z tym frameworkiem — Next.js
- * App Router, Astro, Vue 3 itd. — a nie zawsze "React + Sandpack".
- *
- * Ten modul zwraca trzy fragmenty:
+ * Ten modul zwraca cztery fragmenty:
  *   - shared header (rola, narzedzia, jezyk, obrazy)
+ *   - per-project-mode header (landing / fullstack / mobile)
  *   - per-template stack guidance
- *   - per-mode suffix (PLAN / BUILD / DISCUSS / CONTINUE)
+ *   - per-generation-mode suffix (PLAN / BUILD / DISCUSS / CONTINUE)
  *
  * `app/api/generate/route.ts` sklada calosc.
  */
 
 import type { TemplateId } from "@/lib/templates";
+import type { ProjectMode } from "@/lib/project-modes";
 
 const SHARED_HEADER = `Jestes asystentem wybitnastrona.pl — generatorem profesjonalnych stron internetowych.
 
@@ -175,13 +173,49 @@ REGULY:
 Jezeli wszystko juz dziala i nic nie brakuje — odpowiedz krotko ze projekt jest kompletny.
 `;
 
+// ────────────────────────────────────────────────────────────────────────────
+// Per-project-mode context headers
+// ────────────────────────────────────────────────────────────────────────────
+
+const MODE_HEADERS: Record<ProjectMode, string> = {
+  landing: `CEL PROJEKTU: Landing Page.
+Budujesz profesjonalny landing page / strone marketingowa. Priorytetowe elementy:
+- Hero z mocnym headlinem i CTA
+- Value proposition (co i dla kogo)
+- Social proof (opinie, liczby, loga klientow)
+- FAQ i sekcja kontaktowa
+- Footer z linkami
+Styl: nowoczesny, estetyczny, senior-level design — dobre proporcje, typografia, kontrast.`,
+
+  fullstack: `CEL PROJEKTU: Full Stack Web App.
+Budujesz pelna aplikacje webowa z logika biznesowa. Priorytetowe elementy:
+- Autentykacja uzytkownikow (login/register, sessions)
+- Glowny dashboard / panel z nawigacja
+- CRUD na glownej encji (list, create, edit, delete)
+- Persystencja danych — uzyj Supabase (nigdy "Bolt Database")
+- Error handling i walidacja formularzy
+Styl: UI w stylu SaaS — sidebar/navbar, tabelki, formularze, system powiadomien.`,
+
+  mobile: `CEL PROJEKTU: Mobile App (Expo / React Native).
+Budujesz aplikacje mobilna w React Native z Expo. Priorytetowe elementy:
+- Nawigacja przez expo-router (Stack / Tabs)
+- Native UI (StyleSheet lub NativeWind do stylowania)
+- Responsywnosc na rozne ekrany (flexbox)
+- Obsługa gestow i animacji (Reanimated)
+NIE uzywaj Tailwind CDN ani DOM API — to React Native, nie web.`,
+};
+
 export type GenerationMode = "build" | "plan" | "discuss" | "continue";
 
 export function buildSystemPrompt(
   mode: GenerationMode,
   templateId: string | null | undefined,
+  projectMode?: ProjectMode | string | null,
 ): string {
   const stack = getStackRules(templateId);
+  const modeHeader = (projectMode && MODE_HEADERS[projectMode as ProjectMode])
+    ? `\n${MODE_HEADERS[projectMode as ProjectMode]}\n`
+    : "";
   const suffix =
     mode === "plan"
       ? PLAN_ONLY_SUFFIX
@@ -190,5 +224,5 @@ export function buildSystemPrompt(
         : mode === "continue"
           ? CONTINUE_SUFFIX
           : BUILD_SUFFIX;
-  return `${SHARED_HEADER}\n${stack}\n${suffix}`;
+  return `${SHARED_HEADER}${modeHeader}\n${stack}\n${suffix}`;
 }

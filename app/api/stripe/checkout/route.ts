@@ -46,7 +46,7 @@ export async function POST(req: Request) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
   const session = await stripe.checkout.sessions.create({
-    mode: product.type === "subscription" ? "subscription" : "payment",
+    mode: "payment",
     customer: customer.id,
     line_items: [{ price: product.stripePriceId, quantity: 1 }],
     success_url: `${appUrl}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
@@ -55,11 +55,9 @@ export async function POST(req: Request) {
       user_id: user.id,
       product_id: product.id,
       points: String(product.points),
-      tier: product.tier ?? "",
     },
     // BLIK + Apple Pay + Google Pay sa wlaczane automatycznie w Dashboard Stripe.
-    payment_method_types:
-      product.type === "subscription" ? ["card"] : ["card", "blik", "p24"],
+    payment_method_types: ["card", "blik", "p24"],
     locale: "pl",
     allow_promotion_codes: true,
   });

@@ -18,8 +18,8 @@ Po dodaniu wildcard `*.wybitny.website` **Vercel zazada potwierdzenia
 wlasnosci** - zwykle wymaga dodatkowego rekordu TXT lub upgrade'u planu (na
 darmowym planie wildcard nie zawsze dziala).
 
-**WAZNE:** ten sam projekt Vercel obsluguje wszystkie te hosty. `proxy.ts`
-rozpoznaje subdomene i przekierowuje do `app/sites/[subdomain]`.
+**WAZNE:** ten sam projekt Vercel obsluguje wszystkie te hosty. `middleware.ts`
+rozpoznaje subdomene / domeny wlasne i przekierowuje (rewrite) do `app/sites/[subdomain]`.
 
 ## 2. Zmienne srodowiskowe (Vercel + .env.local)
 

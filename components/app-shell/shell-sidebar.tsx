@@ -11,6 +11,7 @@ import {
   Star,
 } from "lucide-react";
 import { UserMenu } from "@/components/user-menu";
+import { CreditsPill } from "@/components/app-shell/credits-pill";
 
 const NAV = [
   { href: "/", label: "Start", icon: Home, exact: true },
@@ -103,9 +104,10 @@ export function ShellSidebar() {
         </ul>
       </nav>
 
-      <div className="border-t border-beige/10 px-3 py-3 text-[11px] text-muted-foreground">
-        <p>
-          (c) {new Date().getFullYear()} wybitnastrona.pl - AI Website Builder
+      <div className="border-t border-beige/10 px-3 py-3">
+        <CreditsPill />
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          (c) {new Date().getFullYear()} wybitnastrona.pl
         </p>
       </div>
     </aside>

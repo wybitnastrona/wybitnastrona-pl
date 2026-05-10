@@ -60,6 +60,11 @@ export type TemplateDef = {
   /** Czy dostepny w MVP. */
   available: boolean;
   badge?: "new" | "beta";
+  /**
+   * Emergent-style container image label (kosmetic — wyswietlane w Advanced Controls).
+   * Faktyczny preview to nadal Sandpack / WebContainer.
+   */
+  containerImage: string;
 };
 
 export const TEMPLATES: TemplateDef[] = [
@@ -73,10 +78,11 @@ export const TEMPLATES: TemplateDef[] = [
     dependencies: REACT_TS_DEPS,
     runCommand: REACT_TS_RUN,
     available: true,
+    containerImage: "wybitnastrona-hub/react_vite_tailwind_shadcn_base:release",
   },
   {
     id: "nextjs",
-    label: "Next.js 15",
+    label: "Next.js 16",
     description: "Server components + App Router. Wymaga WebContainera.",
     webContainerOnly: true,
     getFiles: getNextjsTemplate,
@@ -84,6 +90,7 @@ export const TEMPLATES: TemplateDef[] = [
     runCommand: NEXTJS_RUN,
     available: true,
     badge: "new",
+    containerImage: "wybitnastrona-hub/nextjs_app_router_supabase_shadcn_base:release",
   },
   {
     id: "vue",
@@ -95,6 +102,7 @@ export const TEMPLATES: TemplateDef[] = [
     dependencies: VITE_VUE_DEPS,
     runCommand: VITE_VUE_RUN,
     available: true,
+    containerImage: "wybitnastrona-hub/vue3_vite_tailwind_base:release",
   },
   {
     id: "astro",
@@ -105,6 +113,7 @@ export const TEMPLATES: TemplateDef[] = [
     dependencies: ASTRO_DEPS,
     runCommand: ASTRO_RUN,
     available: true,
+    containerImage: "wybitnastrona-hub/astro_tailwind_base:release",
   },
   {
     id: "svelte",
@@ -116,6 +125,7 @@ export const TEMPLATES: TemplateDef[] = [
     runCommand: SVELTE_RUN,
     available: true,
     badge: "beta",
+    containerImage: "wybitnastrona-hub/sveltekit_tailwind_base:release",
   },
   {
     id: "remix",
@@ -125,6 +135,7 @@ export const TEMPLATES: TemplateDef[] = [
     getFiles: () => ({}),
     dependencies: {},
     available: false,
+    containerImage: "wybitnastrona-hub/remix_tailwind_base:release",
   },
   {
     id: "expo",
@@ -134,6 +145,7 @@ export const TEMPLATES: TemplateDef[] = [
     getFiles: () => ({}),
     dependencies: {},
     available: false,
+    containerImage: "wybitnastrona-hub/expo_mongo_base_image_cloud_arm:release",
   },
 ];
 

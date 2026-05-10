@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { BuyCreditsDialog } from "@/components/app-shell/buy-credits-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -73,8 +74,6 @@ type ChatPanelProps = {
   wizardBlocked?: boolean;
   /** Notifies the parent whenever the streaming state changes. */
   onStreamingChange?: (streaming: boolean) => void;
-  /** Plan subskrypcji ('free' | 'pro' | 'team'). Free = tylko Haiku. */
-  userPlan?: string;
 };
 
 export type ChatPanelHandle = {
@@ -105,34 +104,22 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     initialMode,
     wizardBlocked,
     onStreamingChange,
-    userPlan = "free",
   },
   ref,
 ) {
   const router = useRouter();
   const [input, setInput] = useState("");
   const [mode, setMode] = useState<ChatMode>(initialMode ?? "build");
-  const isPro = userPlan === "pro" || userPlan === "team";
-
-  // Na planie Free wymuszamy Haiku — ignorujemy initialModel jezeli wskazuje Pro model.
-  const resolvedInitialModel: AiModelId = (() => {
-    const m = (initialModel as AiModelId | undefined) ?? DEFAULT_MODEL_ID;
-    if (!isPro) {
-      const def = AI_MODELS.find((x) => x.id === m);
-      return def?.requiresPro ? DEFAULT_MODEL_ID : m;
-    }
-    return m;
-  })();
+  const resolvedInitialModel: AiModelId =
+    (initialModel as AiModelId | undefined) ?? DEFAULT_MODEL_ID;
 
   const [model, setModel] = useState<AiModelId>(resolvedInitialModel);
 
-  // Jezeli model zostal ustawiony na Pro-only przez starsze URL, resetuj go.
   function handleModelChange(id: AiModelId) {
-    const def = AI_MODELS.find((x) => x.id === id);
-    if (!isPro && def?.requiresPro) return; // zignoruj
     setModel(id);
   }
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [buyCreditsOpen, setBuyCreditsOpen] = useState(false);
   // Track which plan cards have been acted on (approved/skipped)
   const [consumedPlans, setConsumedPlans] = useState<Set<number>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -468,18 +455,15 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     });
   }, [isStreaming, sendMessage]);
 
-  // CTA tylko gdy ostatni job generacji faktycznie się nie domknął (timeout / błąd).
-  // Poprzednia heurystyka (ostatnia wiadomość = assistant) pokazywała przycisk po
-  // każdej udanej generacji — mylące dla użytkownika.
-  const lastMessage = messages[messages.length - 1];
+  // CTA gdy job się nie domknął (timeout / błąd) albo backend zasygnalizował kontynuację (`is_continue`).
   const showContinueCta =
     !isStreaming &&
     hasFiles &&
-    !!lastMessage &&
-    lastMessage.role === "assistant" &&
     mode !== "discuss" &&
     mode !== "plan" &&
-    (genProgress?.status === "stalled" || genProgress?.status === "failed");
+    (genProgress?.status === "stalled" ||
+      genProgress?.status === "failed" ||
+      genProgress?.isContinue === true);
 
   const handleRevertToMessage = useCallback(
     async (messageId: string) => {
@@ -645,24 +629,25 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
         {error && (
           <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
             {error.message.includes("Insufficient points") ||
+            error.message.includes("insufficient_credits") ||
             error.message.includes("402") ? (
               <>
-                <span className="font-medium">Za mało punktów.</span>{" "}
-                <a
-                  href="/pricing"
-                  className="underline hover:text-amber-100"
-                  target="_blank"
-                  rel="noopener"
+                <span className="font-medium">Za malo kredytow.</span>{" "}
+                <button
+                  type="button"
+                  onClick={() => setBuyCreditsOpen(true)}
+                  className="cursor-pointer underline hover:text-amber-100"
                 >
-                  Uzupełnij punkty
-                </a>{" "}
-                lub wybierz tańszy model (Haiku 4.5 kosztuje 10 pkt).
+                  Kup kredyty
+                </button>{" "}
+                lub wybierz tanszy model (Haiku 4.5 kosztuje 10 kr).
               </>
             ) : (
               error.message
             )}
           </div>
         )}
+        <BuyCreditsDialog open={buyCreditsOpen} onClose={() => setBuyCreditsOpen(false)} />
       </div>
 
       <form
@@ -758,7 +743,6 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
               value={model}
               onChange={handleModelChange}
               currentLabel={modelDef.labelShort}
-              isPro={isPro}
             />
 
             <SelectModeButton
@@ -802,12 +786,10 @@ function ModelSelector({
   value,
   onChange,
   currentLabel,
-  isPro = false,
 }: {
   value: AiModelId;
   onChange: (id: AiModelId) => void;
   currentLabel: string;
-  isPro?: boolean;
 }) {
   const badgeLabel: Record<string, string> = {
     new: "Nowy",
@@ -831,36 +813,27 @@ function ModelSelector({
             Anthropic Claude
           </DropdownMenuLabel>
           {AI_MODELS.map((m) => {
-            const locked = !!m.requiresPro && !isPro;
             return (
               <DropdownMenuItem
                 key={m.id}
-                disabled={!m.available || locked}
-                onClick={() => !locked && m.available && onChange(m.id)}
+                disabled={!m.available}
+                onClick={() => m.available && onChange(m.id)}
                 className={
                   value === m.id
                     ? "flex-col items-start bg-beige/10 text-beige"
-                    : locked
-                      ? "flex-col items-start opacity-50"
-                      : "flex-col items-start"
+                    : "flex-col items-start"
                 }
               >
                 <div className="flex w-full items-center gap-2">
                   <span className="font-medium">{m.label}</span>
-                  {locked ? (
-                    <span className="ml-auto rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 py-0 text-[9px] uppercase tracking-wider text-amber-400">
-                      Pro
-                    </span>
-                  ) : m.badge ? (
+                  {m.badge ? (
                     <span className="ml-auto rounded-full border border-beige/25 px-1.5 py-0 text-[9px] uppercase tracking-wider text-beige/80">
                       {badgeLabel[m.badge] ?? m.badge}
                     </span>
                   ) : null}
                 </div>
                 <p className="text-[10px] text-muted-foreground">
-                  {locked
-                    ? "Dostępny w planie Pro — przejdź do ustawień."
-                    : m.description}
+                  {m.description}
                 </p>
               </DropdownMenuItem>
             );

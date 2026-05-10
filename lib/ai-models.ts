@@ -1,6 +1,6 @@
 /**
  * Modele AI dostepne w kreatorze.
- * pointCost: koszt jednego zapytania do AI w punktach uzytkownika.
+ * pointCost: koszt jednego zapytania do AI w kredytach uzytkownika.
  */
 
 export type AiModelId =
@@ -19,11 +19,9 @@ export type AiModelDef = {
   anthropicModel: string;
   description: string;
   badge?: "new" | "fast" | "powerful";
-  /** Koszt jednego zapytania w punktach uzytkownika. */
+  /** Koszt jednego zapytania w kredytach uzytkownika. */
   pointCost: number;
   available: boolean;
-  /** Jezeli true — model wymaga planu Pro lub Team (niedostepny w Free). */
-  requiresPro?: boolean;
 };
 
 export const AI_MODELS: AiModelDef[] = [
@@ -32,7 +30,7 @@ export const AI_MODELS: AiModelDef[] = [
     label: "Claude Haiku 4.5",
     labelShort: "Haiku 4.5",
     anthropicModel: "claude-haiku-4-5",
-    description: "Najszybszy model. Idealny do prostych zmian i iteracji.",
+    description: "Najszybszy model. Idealny do prostych zmian i iteracji. 10 kredytow / generacja.",
     badge: "fast",
     pointCost: 10,
     available: true,
@@ -42,38 +40,33 @@ export const AI_MODELS: AiModelDef[] = [
     label: "Claude Sonnet 4.6",
     labelShort: "Sonnet 4.6",
     anthropicModel: "claude-sonnet-4-5",
-    description: "Najlepszy balans szybkosci i jakosci kodu. Wymaga planu Pro.",
+    description: "Najlepszy balans szybkosci i jakosci kodu. 25 kredytow / generacja.",
     pointCost: 25,
     available: true,
-    requiresPro: true,
   },
   {
     id: "claude-opus-4-6",
     label: "Claude Opus 4.6",
     labelShort: "Opus 4.6",
     anthropicModel: "claude-opus-4-5",
-    description:
-      "Zaawansowane projekty, refaktoring architektury. Wymaga planu Pro.",
+    description: "Zaawansowane projekty, refaktoring architektury. 60 kredytow / generacja.",
     badge: "powerful",
     pointCost: 60,
     available: true,
-    requiresPro: true,
   },
   {
     id: "claude-opus-4-7",
     label: "Claude Opus 4.7",
     labelShort: "Opus 4.7",
     anthropicModel: "claude-opus-4-5",
-    description:
-      "Maksymalna jakosc na zlozonych zadaniach. Wymaga planu Pro.",
+    description: "Maksymalna jakosc na zlozonych zadaniach. 80 kredytow / generacja.",
     badge: "new",
     pointCost: 80,
     available: true,
-    requiresPro: true,
   },
 ];
 
-/** Domyslny model — Haiku 4.5 dostepny dla wszystkich planow (w tym Free). */
+/** Domyslny model — Haiku 4.5 dostepny dla wszystkich. */
 export const DEFAULT_MODEL_ID: AiModelId = "claude-haiku-4-5";
 
 export function getModel(id: AiModelId | string | undefined): AiModelDef {

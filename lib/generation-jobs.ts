@@ -24,6 +24,7 @@ export type GenerationJob = {
   started_at: string;
   updated_at: string;
   finished_at: string | null;
+  is_continue?: boolean;
 };
 
 /** Creates a new running generation job and returns its id. */
@@ -50,8 +51,6 @@ export async function createJob(
 
   if (error || !data) {
     console.error("[generation-jobs] createJob failed:", error);
-    // Return a dummy id so the rest of the code doesn't crash — progress
-    // tracking is best-effort and must not block generation.
     return "00000000-0000-0000-0000-000000000000";
   }
   return data.id as string;
@@ -59,8 +58,7 @@ export async function createJob(
 
 /**
  * Atomically increments step, sets current action, optionally appends to
- * files_written or files_patched.  Uses the bump_job Postgres RPC so there
- * are no read-modify-write race conditions.
+ * files_written or files_patched.
  */
 export async function bumpJob(
   supabase: SupabaseClient,
@@ -77,7 +75,7 @@ export async function bumpJob(
   if (error) console.error("[generation-jobs] bumpJob failed:", error);
 }
 
-/** Marks the job as completed or failed. Optionally records token usage. */
+/** Marks the job as completed or failed. Optionally records token usage and deducts credits. */
 export async function finishJob(
   supabase: SupabaseClient,
   jobId: string,
@@ -88,6 +86,10 @@ export async function finishJob(
     outputTokens?: number;
     totalTokens?: number;
     pointsSpent?: number;
+    /** true = job zakończony na granicy czasu/kroków; użytkownik może kliknąć „Kontynuuj". */
+    isContinue?: boolean;
+    /** Kredyty do odjecia z profiles.points (atomicznie w finish_job RPC). */
+    pointsConsumed?: number;
   },
 ): Promise<void> {
   const { error } = await supabase.rpc("finish_job", {
@@ -98,6 +100,8 @@ export async function finishJob(
     p_output_tokens: usage?.outputTokens ?? null,
     p_total_tokens: usage?.totalTokens ?? null,
     p_points_spent: usage?.pointsSpent ?? null,
+    p_is_continue: usage?.isContinue ?? false,
+    p_points_consumed: usage?.pointsConsumed ?? 0,
   });
   if (error) console.error("[generation-jobs] finishJob failed:", error);
 }

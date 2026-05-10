@@ -7,6 +7,7 @@ import type {
   ProjectListItem,
 } from "@/lib/types/project";
 import { getTemplate, type TemplateId } from "@/lib/templates";
+import { getModeById, DEFAULT_MODE, type ProjectMode } from "@/lib/project-modes";
 import {
   stripShadowPublicIndexFromProjectFiles,
   ensureTailwindInProjectFiles,
@@ -26,6 +27,7 @@ function deriveTitle(prompt: string): string {
 export async function createProject(
   prompt: string,
   templateId?: TemplateId,
+  projectMode?: ProjectMode | string,
 ): Promise<Project> {
   const supabase = await createClient();
   const {
@@ -35,7 +37,11 @@ export async function createProject(
     throw new Error("Not authenticated");
   }
 
-  const template = getTemplate(templateId);
+  const resolvedMode = (projectMode as ProjectMode) ?? DEFAULT_MODE;
+  const modeDef = getModeById(resolvedMode);
+  // Template from URL param takes priority; otherwise use mode's default.
+  const resolvedTemplateId = templateId ?? (modeDef.defaultTemplate as TemplateId);
+  const template = getTemplate(resolvedTemplateId);
 
   const { data, error } = await supabase
     .from("projects")
@@ -45,6 +51,7 @@ export async function createProject(
       title: deriveTitle(prompt),
       files: template.getFiles(),
       template: template.id,
+      mode: resolvedMode,
     })
     .select("*")
     .single();
@@ -289,7 +296,7 @@ export async function listChatMessages(
 ): Promise<StoredChatMessage[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("chat_messages")
+    .from("project_chat_messages")
     .select("*")
     .eq("project_id", projectId)
     .order("created_at", { ascending: true });
@@ -308,7 +315,7 @@ export async function appendChatMessages(
     role: m.role,
     parts: m.parts,
   }));
-  const { error } = await supabase.from("chat_messages").insert(rows);
+  const { error } = await supabase.from("project_chat_messages").insert(rows);
   if (error) throw error;
 }
 
@@ -318,13 +325,13 @@ export async function replaceChatMessages(
 ): Promise<void> {
   const supabase = await createClient();
   // delete + insert w jednej transakcji nie da rady przez supabase-js,
-  // ale chat_messages ma cascadę i RLS, wiec robimy 2 osobne ops.
-  await supabase.from("chat_messages").delete().eq("project_id", projectId);
+  // ale project_chat_messages ma cascadę i RLS, wiec robimy 2 osobne ops.
+  await supabase.from("project_chat_messages").delete().eq("project_id", projectId);
   if (msgs.length === 0) return;
   const rows = msgs.map((m) => ({
     project_id: projectId,
     role: m.role,
     parts: m.parts,
   }));
-  await supabase.from("chat_messages").insert(rows);
+  await supabase.from("project_chat_messages").insert(rows);
 }

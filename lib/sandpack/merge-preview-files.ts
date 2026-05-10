@@ -96,14 +96,5 @@ export function mergeSandpackProjectFiles(files: ProjectFiles): ProjectFiles {
     ...starter,
     ...files,
   });
-
-  const entry = merged["/index.html"];
-  if (entry && typeof entry.code === "string") {
-    merged["/index.html"] = {
-      ...entry,
-      code: injectTailwindIntoHtml(entry.code),
-    };
-  }
-
-  return merged;
+  return ensureTailwindInProjectFiles(merged);
 }

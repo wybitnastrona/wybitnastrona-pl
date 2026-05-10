@@ -192,7 +192,10 @@ export function WorkspaceCanvas({
 
   // „Wybierz” ma sens tylko nad podglądem — przełącz na Podgląd przy włączeniu trybu.
   useEffect(() => {
-    if (selectMode) setView("preview");
+    if (!selectMode) return;
+    queueMicrotask(() => {
+      setView("preview");
+    });
   }, [selectMode]);
 
   async function handleOpenLive() {

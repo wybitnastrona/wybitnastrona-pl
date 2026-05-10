@@ -10,6 +10,8 @@ type SearchParams = Promise<{
   template?: string | string[];
   model?: string | string[];
   mode?: string | string[];
+  projectMode?: string | string[];
+  public?: string | string[];
 }>;
 
 export default async function NewProjectPage({
@@ -40,13 +42,21 @@ export default async function NewProjectPage({
     : params.model;
 
   const rawMode = Array.isArray(params.mode) ? params.mode[0] : params.mode;
+  const rawProjectMode = Array.isArray(params.projectMode) ? params.projectMode[0] : params.projectMode;
+  const isPublic = (Array.isArray(params.public) ? params.public[0] : params.public) === "1";
 
   let project;
   try {
     project = await createProject(
       prompt,
       rawTemplate as TemplateId | undefined,
+      rawProjectMode,
     );
+    // Set visibility if explicitly requested.
+    if (isPublic !== undefined) {
+      const supabase2 = await import("@/lib/supabase/server").then((m) => m.createClient());
+      await supabase2.from("projects").update({ is_public: isPublic }).eq("id", project.id);
+    }
   } catch (err) {
     console.error("[new-project] createProject failed:", err);
     redirect("/");

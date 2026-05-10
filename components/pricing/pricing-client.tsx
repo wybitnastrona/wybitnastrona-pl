@@ -7,10 +7,11 @@ import { formatAmount, type StripeProduct } from "@/lib/stripe-products";
 
 type Props = {
   topups: StripeProduct[];
-  subs: StripeProduct[];
+  /** Kept for API compat — unused after subscription removal. */
+  subs?: StripeProduct[];
 };
 
-export function PricingClient({ topups, subs }: Props) {
+export function PricingClient({ topups }: Props) {
   const { user, openAuth } = useAuth();
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -30,54 +31,31 @@ export function PricingClient({ topups, subs }: Props) {
       if (data.url) {
         window.location.assign(data.url);
       } else {
-        alert(data.error ?? "Nie udało się rozpocząć płatności");
+        alert(data.error ?? "Nie udalo sie rozpoczac platnosci");
         setBusy(null);
       }
     } catch {
-      alert("Błąd sieci");
+      alert("Blad sieci");
       setBusy(null);
     }
   }
 
   return (
-    <div className="space-y-12">
-      {/* Pakiety punktów */}
-      <div>
-        <div className="mb-6 flex items-center gap-2">
-          <Zap className="h-4 w-4 text-beige" />
-          <h2 className="text-lg font-medium">Pakiety jednorazowe</h2>
-        </div>
-        <div className="grid gap-4 md:grid-cols-3">
-          {topups.map((p, i) => (
-            <ProductCard
-              key={p.id}
-              product={p}
-              highlighted={i === 1}
-              busy={busy === p.id}
-              onClick={() => buy(p.id)}
-            />
-          ))}
-        </div>
+    <div>
+      <div className="mb-6 flex items-center gap-2">
+        <Zap className="h-4 w-4 text-beige" />
+        <h2 className="text-lg font-medium">Pakiety kredytow</h2>
       </div>
-
-      {/* Subskrypcje */}
-      <div>
-        <div className="mb-6 flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-beige" />
-          <h2 className="text-lg font-medium">Subskrypcje miesięczne</h2>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          {subs.map((p, i) => (
-            <ProductCard
-              key={p.id}
-              product={p}
-              highlighted={i === 0}
-              busy={busy === p.id}
-              onClick={() => buy(p.id)}
-              recurring
-            />
-          ))}
-        </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        {topups.map((p, i) => (
+          <ProductCard
+            key={p.id}
+            product={p}
+            highlighted={i === 1}
+            busy={busy === p.id}
+            onClick={() => buy(p.id)}
+          />
+        ))}
       </div>
     </div>
   );
@@ -88,15 +66,12 @@ function ProductCard({
   highlighted,
   busy,
   onClick,
-  recurring,
 }: {
   product: StripeProduct;
   highlighted: boolean;
   busy: boolean;
   onClick: () => void;
-  recurring?: boolean;
 }) {
-  const features = buildFeatures(product);
   return (
     <div
       className={`flex flex-col gap-5 rounded-2xl border p-6 ${
@@ -119,15 +94,12 @@ function ProductCard({
         <span className="text-4xl font-medium tracking-tight">
           {formatAmount(product.amountCents, product.currency)}
         </span>
-        {recurring && (
-          <span className="text-sm text-muted-foreground">/mc</span>
-        )}
       </div>
 
       <p className="text-sm text-muted-foreground">{product.description}</p>
 
       <ul className="space-y-2">
-        {features.map((f) => (
+        {buildFeatures(product).map((f) => (
           <li
             key={f}
             className="flex items-start gap-2 text-sm text-foreground/90"
@@ -149,35 +121,17 @@ function ProductCard({
         } disabled:opacity-60`}
       >
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-        {recurring ? "Subskrybuj" : "Kup pakiet"}
+        Kup pakiet
       </button>
     </div>
   );
 }
 
 function buildFeatures(p: StripeProduct): string[] {
-  if (p.type === "topup") {
-    return [
-      `${p.points.toLocaleString("pl-PL")} punktów na koncie`,
-      "Punkty nie wygasają",
-      "Wszystkie modele AI dostępne",
-      "BLIK, karta, Apple Pay",
-    ];
-  }
-  if (p.tier === "pro") {
-    return [
-      `${p.points.toLocaleString("pl-PL")} punktów co miesiąc`,
-      "Dostęp do Claude Opus 4.6/4.7",
-      "Priorytet w generowaniu",
-      "10 publikowanych projektów",
-      "Faktury VAT na NIP",
-    ];
-  }
   return [
-    `${p.points.toLocaleString("pl-PL")} punktów co miesiąc`,
-    "Wszystko z planu Pro",
-    "Współpraca w czasie rzeczywistym (wkrótce)",
-    "Custom domeny bez limitu",
-    "Dedykowany support",
+    `${p.points.toLocaleString("pl-PL")} kredytow na koncie`,
+    "Kredyty nie wygasaja",
+    "Wszystkie modele AI dostepne",
+    "BLIK, karta, Apple Pay",
   ];
 }

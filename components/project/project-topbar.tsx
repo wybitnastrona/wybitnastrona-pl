@@ -64,8 +64,6 @@ export function ProjectTopbar({
   domainPartnerUrl,
 }: Props) {
   const router = useRouter();
-  const [title, setTitle] = useState(project.title);
-  const [savingTitle, setSavingTitle] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [domainsOpen, setDomainsOpen] = useState(false);
@@ -75,24 +73,6 @@ export function ProjectTopbar({
     project.is_public && project.slug
       ? buildSubdomainUrl(project.slug, publishDomain)
       : null;
-
-  async function saveTitle() {
-    if (title.trim() === project.title || !title.trim()) {
-      setTitle(project.title);
-      return;
-    }
-    setSavingTitle(true);
-    try {
-      await fetch(`/api/projects/${project.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title.trim() }),
-      });
-      router.refresh();
-    } finally {
-      setSavingTitle(false);
-    }
-  }
 
   return (
     <header className="flex h-14 items-center justify-between gap-3 border-b border-beige/10 bg-background/80 px-4 backdrop-blur">
@@ -109,14 +89,11 @@ export function ProjectTopbar({
         <ProjectSwitcher
           currentProject={{
             id: project.id,
-            title,
+            title: project.title,
             updated_at: project.updated_at,
           }}
         />
 
-        {savingTitle && (
-          <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-        )}
         {project.is_public && project.slug && (
           <Link
             href={buildSubdomainUrl(project.slug, publishDomain)}

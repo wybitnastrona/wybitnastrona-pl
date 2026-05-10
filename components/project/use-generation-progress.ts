@@ -14,6 +14,8 @@ export type GenerationProgress = {
   outputTokens: number | null;
   totalTokens: number | null;
   pointsSpent: number | null;
+  /** Job zakończony z prośbą o kontynuację (limit czasu/kroków). */
+  isContinue?: boolean;
 };
 
 /**
@@ -33,6 +35,7 @@ export function useGenerationProgress(projectId: string): GenerationProgress | n
     function applyRow(row: Record<string, unknown>) {
       if (cancelled) return;
       const status = row.status as GenerationProgress["status"];
+      const isContinue = Boolean(row.is_continue);
       setProgress({
         jobId: row.id as string,
         status,
@@ -44,13 +47,16 @@ export function useGenerationProgress(projectId: string): GenerationProgress | n
         outputTokens: (row.output_tokens as number | null) ?? null,
         totalTokens: (row.total_tokens as number | null) ?? null,
         pointsSpent: (row.points_spent as number | null) ?? null,
+        isContinue,
       });
-      // Completed: krótko — wystarczy na podsumowanie tokenów.
-      // Failed / stalled: dłużej — użytkownik ma czas na „Kontynuuj generowanie”.
-      if (status === "completed") {
+      if (status === "completed" && !isContinue) {
         setTimeout(() => {
           if (!cancelled) setProgress(null);
         }, 8000);
+      } else if (status === "completed" && isContinue) {
+        setTimeout(() => {
+          if (!cancelled) setProgress(null);
+        }, 120_000);
       } else if (status === "failed" || status === "stalled") {
         setTimeout(() => {
           if (!cancelled) setProgress(null);
@@ -58,18 +64,34 @@ export function useGenerationProgress(projectId: string): GenerationProgress | n
       }
     }
 
-    // Initial fetch — get the most recent running job for this project.
-    void supabase
-      .from("generation_jobs")
-      .select("*")
-      .eq("project_id", projectId)
-      .in("status", ["running", "pending"])
-      .order("started_at", { ascending: false })
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) applyRow(data as Record<string, unknown>);
-      });
+    // Initial fetch — running job, albo ostatni „handoff” (completed + is_continue).
+    void (async () => {
+      const { data: running } = await supabase
+        .from("generation_jobs")
+        .select("*")
+        .eq("project_id", projectId)
+        .in("status", ["running", "pending"])
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (cancelled) return;
+      if (running) {
+        applyRow(running as Record<string, unknown>);
+        return;
+      }
+      const since = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+      const { data: handoff } = await supabase
+        .from("generation_jobs")
+        .select("*")
+        .eq("project_id", projectId)
+        .eq("status", "completed")
+        .eq("is_continue", true)
+        .gte("finished_at", since)
+        .order("finished_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!cancelled && handoff) applyRow(handoff as Record<string, unknown>);
+    })();
 
     // Realtime subscription.
     const channel = supabase

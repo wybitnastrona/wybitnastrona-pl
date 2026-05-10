@@ -1,36 +1,21 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
- * Custom-domain routing for published projects.
+ * Routing subdomen publikacji oraz domen własnych (custom_domain w `projects`).
+ * Rewrite do `/sites/[slug]` — ten sam przepływ co wcześniej w `proxy.ts` (Next 16).
  *
- * Next.js 16 renamed `middleware.ts` to `proxy.ts` (same lifecycle, same API,
- * just a clearer name). See node_modules/next/dist/docs/01-app/01-getting-started/16-proxy.md.
- *
- * Flow:
- *  1) Klient odwiedza wlasna domene (np. mojadomena.pl), DNS prowadzi na Vercel.
- *  2) Proxy odczytuje naglowek host.
- *  3) Jezeli host != ROOT_DOMAIN i nie jest publish-subdomena -> sprawdzamy
- *     w Supabase czy istnieje projekt z taka custom_domain (zweryfikowana).
- *     Wynik cache'ujemy w cookie ("wbn_route") na 5 min, zeby nie hammer-ovac DB.
- *  4) Jezeli tak -> rewrite do /sites/[slug]/<original path>.
- *  5) Subdomena <slug>.publish-domain (np. <slug>.wybitnastrona.pl albo
- *     <slug>.wybitny.website) ma nadal byc obslugiwana — rewrite do /sites/[slug].
- *
- * UWAGA: w runtimie Edge nie mamy ciastek Supabase auth (ten kod biegnie przed
- * wszystkimi handlerami). Uzywamy public anon-key + REST z naglowkiem apikey;
- * sprawdzamy tylko zweryfikowane domeny + opublikowane projekty.
+ * Edge: brak sesji Supabase — lookup przez REST + anon key (tylko zweryfikowane,
+ * publiczne projekty).
  */
 
 export const config = {
   matcher: [
-    // Pomijamy: API, statyczne pliki Next, sciezki publish (/sites/*),
-    // legacy (/p/*), oraz favicon/sitemap. Reszta przechodzi przez proxy.
     "/((?!api|_next/static|_next/image|sites|p/|favicon\\.ico|sitemap\\.xml|robots\\.txt|.*\\.[a-zA-Z0-9]+$).*)",
   ],
 };
 
 const ROUTE_COOKIE = "wbn_route";
-const ROUTE_COOKIE_MAX_AGE = 60 * 5; // 5 min
+const ROUTE_COOKIE_MAX_AGE = 60 * 5;
 
 function getRootDomains(): string[] {
   const explicit = (process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "").trim();
@@ -53,7 +38,6 @@ function extractPublishSlug(host: string, roots: string[]): string | null {
   for (const root of roots) {
     if (lower.endsWith(`.${root}`)) {
       const sub = lower.slice(0, -1 - root.length);
-      // pomijamy wildcard typu "www.<root>"
       if (sub && sub !== "www") return sub;
     }
   }
@@ -79,7 +63,6 @@ async function lookupSlugByCustomDomain(host: string): Promise<string | null> {
         Authorization: `Bearer ${key}`,
         Accept: "application/json",
       },
-      // Edge runtime: avoid Next caching this — the route map can change anytime.
       cache: "no-store",
     });
     if (!res.ok) return null;
@@ -90,7 +73,7 @@ async function lookupSlugByCustomDomain(host: string): Promise<string | null> {
   }
 }
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const url = request.nextUrl.clone();
   const rawHost = (request.headers.get("host") ?? "").toLowerCase();
   if (!rawHost) return NextResponse.next();
@@ -98,9 +81,6 @@ export async function proxy(request: NextRequest) {
   const host = rawHost.split(":")[0];
   const roots = getRootDomains();
 
-  // 1) <slug>.<publish-domain> — zwykla publikacja przez subdomene.
-  // /sites/[subdomain] renderuje cala strone w Sandpack (SPA), wiec ignorujemy
-  // dalsze segmenty sciezki — i tak obsluguje je iframe.
   const publishSlug = extractPublishSlug(host, roots);
   if (publishSlug) {
     if (!url.pathname.startsWith("/sites/")) {
@@ -110,13 +90,8 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2) Host nalezy do nas — dziala normalna aplikacja (landing, /dashboard, ...).
   if (isInternalHost(host, roots)) {
     const res = NextResponse.next();
-    // COI dla WebContainer (SharedArrayBuffer). COEP `require-corp` blokuje
-    // bundler Sandpack (brak CORP po stronie codesandbox.io) — używamy
-    // `credentialless` (Chrome: zasoby cross-origin bez CORP, bez cookies).
-    // Ustawiamy tutaj (Edge), żeby nagłówki zawsze szły z odpowiedzią HTML.
     if (url.pathname.startsWith("/project/")) {
       res.headers.set("Cross-Origin-Embedder-Policy", "credentialless");
       res.headers.set("Cross-Origin-Opener-Policy", "same-origin");
@@ -124,7 +99,6 @@ export async function proxy(request: NextRequest) {
     return res;
   }
 
-  // 3) Custom domain — sprawdzamy mapping. Najpierw cookie cache.
   const cached = request.cookies.get(ROUTE_COOKIE);
   let slug: string | null = null;
   if (cached?.value) {
@@ -136,7 +110,6 @@ export async function proxy(request: NextRequest) {
   }
 
   if (!slug) {
-    // Brak zmapowanego projektu — zwracamy plain 404 (czyscimy stary cache).
     const res = new NextResponse(
       `<!doctype html><meta charset="utf-8"><title>Nie znaleziono</title>` +
         `<style>body{font-family:system-ui;background:#0a0a09;color:#e7e3da;` +
@@ -155,7 +128,6 @@ export async function proxy(request: NextRequest) {
     return res;
   }
 
-  // 4) Rewrite na /sites/[slug]. (Inner-path routing obsluguje renderowany iframe.)
   url.pathname = `/sites/${slug}`;
   const response = NextResponse.rewrite(url);
   response.cookies.set(ROUTE_COOKIE, `${host}|${slug}`, {

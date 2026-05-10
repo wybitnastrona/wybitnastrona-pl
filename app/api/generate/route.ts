@@ -11,7 +11,12 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { updateProjectFiles, createSnapshot } from "@/lib/projects";
 import type { ProjectFiles } from "@/lib/types/project";
-import { AI_MODELS, getModel, resolveAnthropicModel, type AiModelId } from "@/lib/ai-models";
+import {
+  DEFAULT_MODEL_ID,
+  getModel,
+  resolveAnthropicModel,
+  type AiModelId,
+} from "@/lib/ai-models";
 import { buildRagContext } from "@/lib/rag";
 import { logProjectEvent } from "@/lib/analytics-server";
 import { fetchUnsplashImage } from "@/lib/unsplash";
@@ -23,6 +28,11 @@ import {
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
+
+/** Margines przed limitem Vercela — zapis stanu + `is_continue` zamiast twardego timeoutu. */
+const GENERATION_HANDOFF_DEADLINE_MS = 240_000;
+/** Max kroków z narzędziami na turę build/continue; reszta przez „Kontynuuj generowanie”. */
+const BUILD_CONTINUE_MAX_STEPS = 28;
 
 const writeFileSchema = z.object({
   path: z
@@ -160,7 +170,7 @@ export async function POST(req: Request) {
 
   const projectId = body.projectId;
   const messages = body.messages;
-  const modelId = (body.model ?? "claude-sonnet-4-6") as AiModelId;
+  const modelId = (body.model ?? DEFAULT_MODEL_ID) as AiModelId;
   const mode: GenerationMode =
     body.mode === "plan"
       ? "plan"
@@ -190,7 +200,7 @@ export async function POST(req: Request) {
 
   const { data: profileRow, error: profileErr } = await supabase
     .from("profiles")
-    .select("points, plan")
+    .select("points")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -199,15 +209,7 @@ export async function POST(req: Request) {
   }
 
   const currentPoints = (profileRow?.points as number | null) ?? 0;
-  const userPlan = (profileRow?.plan as string | null) ?? "free";
-  const isPro = userPlan === "pro" || userPlan === "team";
-
-  // Wymuszenie Haiku dla planu Free — zapobiega obejsciu restrickcji przez URL/API.
-  const effectiveModelId: AiModelId = (() => {
-    if (isPro) return modelId;
-    const def = AI_MODELS.find((m) => m.id === modelId);
-    return def?.requiresPro ? ("claude-haiku-4-5" as AiModelId) : modelId;
-  })();
+  const effectiveModelId: AiModelId = modelId;
 
   if (currentPoints < pointsRequired) {
     return NextResponse.json(
@@ -224,7 +226,7 @@ export async function POST(req: Request) {
   // ─── Pobierz projekt ────────────────────────────────────────────────────────
   const { data: project, error: projectError } = await supabase
     .from("projects")
-    .select("id, user_id, files, prompt, locked_files, template")
+    .select("id, user_id, files, prompt, locked_files, template, mode")
     .eq("id", projectId)
     .maybeSingle();
 
@@ -239,6 +241,7 @@ export async function POST(req: Request) {
     ),
   );
   const projectTemplate = (project.template as string | null) ?? "react-ts";
+  const projectMode = (project.mode as string | null) ?? "landing";
   const modelMessages = await convertToModelMessages(
     sanitizeMessagesForAI(messages),
     { ignoreIncompleteToolCalls: true },
@@ -310,6 +313,18 @@ export async function POST(req: Request) {
       },
     }),
   };
+
+  const handoffAbort = new AbortController();
+  let deadlineTimer: ReturnType<typeof setTimeout> | null = null;
+  let handoffFromDeadline = false;
+  /** Liczba zakończonych kroków LLM (pętla narzędzi) — do wykrycia limitu `stopWhen`. */
+  let completedLlmSteps = 0;
+  if (mode === "build" || mode === "continue") {
+    deadlineTimer = setTimeout(() => {
+      handoffFromDeadline = true;
+      handoffAbort.abort();
+    }, GENERATION_HANDOFF_DEADLINE_MS);
+  }
 
   const buildTools = {
     showPlan: tool({
@@ -424,8 +439,12 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: anthropic(anthropicModel),
+    abortSignal:
+      mode === "build" || mode === "continue"
+        ? handoffAbort.signal
+        : undefined,
     system:
-      buildSystemPrompt(mode, projectTemplate) +
+      buildSystemPrompt(mode, projectTemplate, projectMode) +
       fileListContext +
       lockedContext +
       ragContext,
@@ -435,9 +454,7 @@ export async function POST(req: Request) {
         ? 4
         : mode === "discuss"
           ? 6
-          : mode === "continue"
-            ? 30
-            : 30,
+          : BUILD_CONTINUE_MAX_STEPS,
     ),
     tools:
       mode === "plan"
@@ -446,7 +463,22 @@ export async function POST(req: Request) {
           ? discussTools
           : buildTools, // 'build' AND 'continue' share full tool set
 
-    onFinish: async ({ totalUsage, response }) => {
+    onStepFinish: async () => {
+      completedLlmSteps += 1;
+    },
+
+    onFinish: async ({ totalUsage, response, finishReason }) => {
+      if (deadlineTimer) {
+        clearTimeout(deadlineTimer);
+        deadlineTimer = null;
+      }
+
+      const markContinue =
+        (mode === "build" || mode === "continue") &&
+        (handoffFromDeadline ||
+          (completedLlmSteps >= BUILD_CONTINUE_MAX_STEPS &&
+            finishReason !== "stop"));
+
       // Real token usage from the model run.
       const inputTokens = totalUsage?.inputTokens ?? undefined;
       const outputTokens = totalUsage?.outputTokens ?? undefined;
@@ -483,22 +515,14 @@ export async function POST(req: Request) {
 
       const isReadOnly = mode === "plan" || mode === "discuss";
       if (isReadOnly) {
-        // Tryb plan/discuss: odejmij oplate, zadne pliki nie sa zapisywane.
-        await supabase
-          .rpc("deduct_points", {
-            p_user_id: user.id,
-            amount: pointsRequired,
-          })
-          .then(
-            ({ error }) => {
-              if (error) console.error(`deduct_points (${mode}):`, error);
-            },
-          );
+        // Tryb plan/discuss: odejmij kredyty przez finish_job (atomicznie).
         void finishJob(supabase, jobId, "completed", undefined, {
           inputTokens,
           outputTokens,
           totalTokens,
           pointsSpent: pointsRequired,
+          pointsConsumed: pointsRequired,
+          isContinue: false,
         });
         return;
       }
@@ -530,21 +554,14 @@ export async function POST(req: Request) {
 
         await updateProjectFiles(projectId, files);
 
-        // Odejmij punkty po udanym zapisie.
-        await supabase
-          .rpc("deduct_points", {
-            p_user_id: user.id,
-            amount: pointsRequired,
-          })
-          .then(
-            ({ error }) => { if (error) console.error("deduct_points (build):", error); },
-          );
-
+        // finish_job atomicznie odejmuje kredyty (p_points_consumed).
         void finishJob(supabase, jobId, "completed", undefined, {
           inputTokens,
           outputTokens,
           totalTokens,
           pointsSpent: pointsRequired,
+          pointsConsumed: pointsRequired,
+          isContinue: markContinue,
         });
       } catch (err) {
         console.error("Failed to persist files:", err);
@@ -553,6 +570,8 @@ export async function POST(req: Request) {
           outputTokens,
           totalTokens,
           pointsSpent: pointsRequired,
+          pointsConsumed: 0,
+          isContinue: false,
         });
       }
     },

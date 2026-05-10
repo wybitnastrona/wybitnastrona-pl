@@ -50,8 +50,20 @@ export function ProjectWorkspace({
 
   const [selectMode, setSelectMode] = useState(false);
   const [chatWidth, setChatWidth] = useState(CHAT_DEFAULT);
+  const [streaming, setStreaming] = useState(false);
   const chatRef = useRef<ChatPanelHandle>(null);
   const dragRef = useRef<{ startX: number; startW: number } | null>(null);
+
+  const handleFixError = useCallback(
+    (hint: string, opts: { auto: boolean }) => {
+      if (opts.auto) {
+        chatRef.current?.submitHint(hint);
+      } else {
+        chatRef.current?.appendHint(hint);
+      }
+    },
+    [],
+  );
 
   const startResize = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -161,6 +173,7 @@ export function ProjectWorkspace({
             initialModel={initialModel}
             initialMode={initialMode}
             wizardBlocked={wizardActive}
+            onStreamingChange={setStreaming}
           />
         </div>
 
@@ -178,7 +191,8 @@ export function ProjectWorkspace({
             publishDomain={publishDomain}
             selectMode={selectMode}
             onElementPick={handleElementPick}
-            onFixError={(hint) => chatRef.current?.appendHint(hint)}
+            onFixError={handleFixError}
+            isStreaming={streaming}
           />
         </div>
       </div>

@@ -221,6 +221,7 @@ export type Snapshot = {
   project_id: string;
   files: ProjectFiles;
   label: string | null;
+  message_id: string | null;
   created_at: string;
 };
 
@@ -228,11 +229,17 @@ export async function createSnapshot(
   projectId: string,
   files: ProjectFiles,
   label?: string,
+  messageId?: string,
 ): Promise<Snapshot> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("project_snapshots")
-    .insert({ project_id: projectId, files, label: label ?? null })
+    .insert({
+      project_id: projectId,
+      files,
+      label: label ?? null,
+      message_id: messageId ?? null,
+    })
     .select("*")
     .single();
   if (error) throw error;
@@ -243,10 +250,10 @@ export async function listSnapshots(projectId: string): Promise<Snapshot[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("project_snapshots")
-    .select("id, project_id, label, created_at")
+    .select("id, project_id, label, message_id, created_at")
     .eq("project_id", projectId)
     .order("created_at", { ascending: false })
-    .limit(20);
+    .limit(50);
   if (error) return [];
   return (data ?? []) as Snapshot[];
 }

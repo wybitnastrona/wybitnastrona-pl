@@ -20,6 +20,8 @@ export type Project = {
   database_url: string | null;
   database_anon_key: string | null;
   template: string;
+  /** Paths that AI is forbidden to write/patch/delete. */
+  locked_files: string[];
   created_at: string;
   updated_at: string;
 };

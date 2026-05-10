@@ -19,6 +19,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { GithubIcon } from "@/components/brand-icons";
+import { GithubButton } from "@/components/auth/github-button";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -273,9 +274,11 @@ function GithubDialog({
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [needsGithubAuth, setNeedsGithubAuth] = useState(false);
 
   async function handlePush() {
     setError(null);
+    setNeedsGithubAuth(false);
     setBusy(true);
     try {
       const res = await fetch("/api/github/push", {
@@ -287,9 +290,15 @@ function GithubDialog({
           private: isPrivate,
         }),
       });
-      const data = (await res.json()) as { url?: string; error?: string };
+      const data = (await res.json()) as {
+        url?: string;
+        error?: string;
+        code?: string;
+      };
       if (data.url) {
         setResult(data.url);
+      } else if (data.code === "github_token_missing") {
+        setNeedsGithubAuth(true);
       } else {
         setError(data.error ?? "Push nie powiódł się");
       }
@@ -324,6 +333,18 @@ function GithubDialog({
                 {result}
               </a>
             </div>
+          </div>
+        ) : needsGithubAuth ? (
+          <div className="space-y-3">
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
+              <p className="font-medium">Połącz konto GitHub</p>
+              <p className="mt-1 text-xs">
+                Nie mamy tokenu z dostępem do <code>repo</code>. Zaloguj się
+                ponownie przez GitHub — token zostanie zapisany w sesji i Push
+                zadziała.
+              </p>
+            </div>
+            <GithubButton label="Połącz z GitHub" />
           </div>
         ) : (
           <div className="space-y-3">
@@ -368,6 +389,14 @@ function GithubDialog({
               className="bg-beige text-beige-foreground hover:bg-beige/90"
             >
               Zamknij
+            </Button>
+          ) : needsGithubAuth ? (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => onOpenChange(false)}
+            >
+              Anuluj
             </Button>
           ) : (
             <Button

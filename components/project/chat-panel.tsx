@@ -2,6 +2,7 @@
 
 import {
   forwardRef,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useMemo,
@@ -16,9 +17,11 @@ import {
   ChevronDown,
   ListTodo,
   Loader2,
+  MessagesSquare,
   MousePointer2,
   Paperclip,
   Rocket,
+  RotateCcw,
   Sparkles,
   Wrench,
   X,
@@ -41,8 +44,9 @@ import {
 } from "@/lib/ai-models";
 import { VoiceButton } from "@/components/project/voice-button";
 import { PlanCard } from "@/components/project/plan-card";
+import { useGenerationProgress } from "@/components/project/use-generation-progress";
 
-type ChatMode = "build" | "plan";
+type ChatMode = "build" | "plan" | "discuss";
 
 type Attachment = {
   id: string;
@@ -67,10 +71,14 @@ type ChatPanelProps = {
   initialMode?: ChatMode;
   /** Gdy true, auto-start jest wstrzymany (kreator pytań jest aktywny). */
   wizardBlocked?: boolean;
+  /** Notifies the parent whenever the streaming state changes. */
+  onStreamingChange?: (streaming: boolean) => void;
 };
 
 export type ChatPanelHandle = {
   appendHint: (text: string) => void;
+  /** Sends the hint as a chat message immediately (used by auto-fix). */
+  submitHint: (text: string) => void;
   /**
    * Called by WizardPanel after the user answers questions.
    * Forces PLAN mode so the AI presents the plan before writing any files.
@@ -94,6 +102,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     initialModel,
     initialMode,
     wizardBlocked,
+    onStreamingChange,
   },
   ref,
 ) {
@@ -228,10 +237,10 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     });
   }, [messages]);
 
-  // Faza 1.3: streaming partial code do edytora i WebContainera.
-  // Gdy AI sciaga `tool-writeFile` z `state=input-streaming`, emitujemy
-  // event globalny z czesciowa zawartoscia. Sandpack/WC nasluchuja i renderuja
-  // typewriter effect w edytorze.
+  // Streaming partial code to the editor preview.
+  // For writeFile: stream the content char-by-char while input-streaming.
+  // For patchFile: emit the final patched content when the tool output is ready
+  //   (patchFile output includes the full patched `content` field).
   useEffect(() => {
     for (const m of messages) {
       if (m.role !== "assistant") continue;
@@ -240,8 +249,11 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
           type: string;
           state?: string;
           input?: { path?: string; content?: string };
+          output?: { ok?: boolean; path?: string; content?: string };
         };
         const sp = part as StreamingPart;
+
+        // writeFile — stream while typing
         if (
           sp.type === "tool-writeFile" &&
           sp.state === "input-streaming" &&
@@ -254,6 +266,21 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
             }),
           );
         }
+
+        // patchFile — emit final patched content once the tool output is available
+        if (
+          sp.type === "tool-patchFile" &&
+          sp.state === "output-available" &&
+          sp.output?.ok &&
+          sp.output.path &&
+          typeof sp.output.content === "string"
+        ) {
+          window.dispatchEvent(
+            new CustomEvent("wybitna:partial-write", {
+              detail: { path: sp.output.path, content: sp.output.content },
+            }),
+          );
+        }
       }
     }
   }, [messages]);
@@ -263,6 +290,12 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     () => ({
       appendHint: (text: string) => {
         setInput((prev) => (prev ? `${prev}\n${text}` : text));
+      },
+      submitHint: (text: string) => {
+        // Auto-fix path: send straight to the model in build mode so the AI
+        // can patch the project without an extra plan round-trip.
+        setModeSync("build");
+        sendMessage({ text });
       },
       startWithPlanPrompt: (enrichedPrompt: string) => {
         if (startedRef.current) return;
@@ -345,6 +378,13 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
   }
 
   const isStreaming = status === "streaming" || status === "submitted";
+  const genProgress = useGenerationProgress(projectId);
+
+  // Forward streaming state up so parents (e.g. ErrorWatcher) can react.
+  useEffect(() => {
+    onStreamingChange?.(isStreaming);
+  }, [isStreaming, onStreamingChange]);
+
   const lastAssistantId = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
       if (messages[i].role === "assistant") return messages[i].id;
@@ -353,6 +393,68 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
   }, [messages]);
 
   const modelDef = getModel(model);
+
+  // ─── Per-message snapshots — populated whenever the assistant finishes a
+  //     run. Maps assistantMessageId → snapshotId so we can render a "Cofnij
+  //     do tego momentu" button next to each AI reply.
+  const [messageSnapshots, setMessageSnapshots] = useState<
+    Record<string, string>
+  >({});
+  const [revertingMessageId, setRevertingMessageId] = useState<string | null>(
+    null,
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    async function refresh() {
+      try {
+        const res = await fetch(`/api/projects/${projectId}/snapshots`);
+        if (!res.ok) return;
+        const data = (await res.json()) as Array<{
+          id: string;
+          message_id: string | null;
+        }>;
+        if (cancelled) return;
+        const map: Record<string, string> = {};
+        for (const s of data) {
+          if (s.message_id) map[s.message_id] = s.id;
+        }
+        setMessageSnapshots(map);
+      } catch {
+        /* ignore */
+      }
+    }
+    void refresh();
+    return () => {
+      cancelled = true;
+    };
+    // Refetch each time a stream finishes — that's when a new snapshot appears.
+  }, [projectId, isStreaming]);
+
+  const handleRevertToMessage = useCallback(
+    async (messageId: string) => {
+      const snapshotId = messageSnapshots[messageId];
+      if (!snapshotId) return;
+      const ok = confirm(
+        "Cofnąć projekt do stanu sprzed tej odpowiedzi AI? Aktualne pliki zostaną nadpisane.",
+      );
+      if (!ok) return;
+      setRevertingMessageId(messageId);
+      try {
+        const res = await fetch(
+          `/api/projects/${projectId}/snapshots/${snapshotId}/restore`,
+          { method: "POST" },
+        );
+        if (!res.ok) throw new Error("revert failed");
+        router.refresh();
+      } catch (err) {
+        console.error("[revert]", err);
+      } finally {
+        setRevertingMessageId(null);
+      }
+    },
+    [messageSnapshots, projectId, router],
+  );
 
   return (
     <div className="flex h-full flex-col bg-background">
@@ -367,12 +469,35 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
           </div>
         )}
 
-        {messages.map((message) => (
+        {messages.map((message, idx) => {
+          // Snapshots are keyed by the user message that triggered the AI run.
+          // Show the "Cofnij" button on the assistant reply right after that
+          // user message.
+          let triggeringUserId: string | null = null;
+          if (message.role === "assistant") {
+            for (let j = idx - 1; j >= 0; j--) {
+              if (messages[j].role === "user") {
+                triggeringUserId = messages[j].id;
+                break;
+              }
+            }
+          }
+          const snapshotId = triggeringUserId
+            ? messageSnapshots[triggeringUserId]
+            : undefined;
+          return (
           <Message
             key={message.id}
             message={message}
             isStreaming={isStreaming && message.id === lastAssistantId}
             consumedPlans={consumedPlans}
+            canRevert={message.role === "assistant" && !!snapshotId}
+            isReverting={
+              !!triggeringUserId && revertingMessageId === triggeringUserId
+            }
+            onRevert={() =>
+              triggeringUserId && void handleRevertToMessage(triggeringUserId)
+            }
             onPlanAction={(partIdx, action, finalSteps) => {
               if (action === "approve") {
                 setConsumedPlans((prev) => new Set([...prev, partIdx]));
@@ -395,14 +520,61 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
               }
             }}
           />
-        ))}
+          );
+        })}
 
         {isStreaming && (
-          <div className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            Mysle...
+          <div className="flex flex-col gap-1 rounded-lg border border-beige/10 bg-card/40 px-3 py-2.5">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin text-beige/60" />
+              <span>
+                {genProgress?.currentAction
+                  ? genProgress.currentAction
+                  : "Mysle..."}
+              </span>
+            </div>
+            {genProgress && genProgress.step > 0 && (
+              <div className="flex items-center gap-2">
+                <div className="h-1 flex-1 overflow-hidden rounded-full bg-beige/10">
+                  <div
+                    className="h-1 rounded-full bg-beige/50 transition-all duration-500"
+                    style={{
+                      width: `${Math.min(100, Math.round((genProgress.step / 20) * 100))}%`,
+                    }}
+                  />
+                </div>
+                <span className="shrink-0 text-[10px] text-muted-foreground/60">
+                  {genProgress.filesWritten.length + genProgress.filesPatched.length} plik
+                  {genProgress.filesWritten.length + genProgress.filesPatched.length !== 1 ? "ów" : ""}
+                </span>
+              </div>
+            )}
           </div>
         )}
+
+        {/* Token cost summary — shown briefly after a job completes. */}
+        {!isStreaming &&
+          genProgress &&
+          (genProgress.status === "completed" ||
+            genProgress.status === "failed") &&
+          genProgress.totalTokens != null && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-[11px] text-muted-foreground/70">
+              <span className="inline-flex items-center gap-1">
+                <Sparkles className="h-3 w-3 text-beige/50" />
+                {formatNumber(genProgress.totalTokens)} tokenów
+              </span>
+              {genProgress.inputTokens != null &&
+                genProgress.outputTokens != null && (
+                  <span>
+                    {formatNumber(genProgress.inputTokens)} in /{" "}
+                    {formatNumber(genProgress.outputTokens)} out
+                  </span>
+                )}
+              {genProgress.pointsSpent != null && (
+                <span>· {genProgress.pointsSpent} pkt</span>
+              )}
+            </div>
+          )}
 
         {error && (
           <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
@@ -489,8 +661,10 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
             }}
             placeholder={
               mode === "plan"
-                ? "Opisz pomysl - asystent przygotuje plan..."
-                : "Co dodac lub zmienic?"
+                ? "Opisz pomysl — asystent przygotuje plan..."
+                : mode === "discuss"
+                  ? "Zapytaj o kod, architekturę, sugestie..."
+                  : "Co dodać lub zmienić?"
             }
             rows={1}
             className="block max-h-32 min-h-[36px] w-full resize-none bg-transparent px-3 pt-2.5 pb-1 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
@@ -642,6 +816,27 @@ function SelectModeButton({
   );
 }
 
+const MODE_META: Record<
+  ChatMode,
+  { label: string; icon: typeof Rocket; description: string }
+> = {
+  build: {
+    label: "Build",
+    icon: Rocket,
+    description: "Generuj i edytuj kod od razu",
+  },
+  plan: {
+    label: "Plan",
+    icon: Wrench,
+    description: "Pokaż plan, zatwierdź zanim zacznie pisać",
+  },
+  discuss: {
+    label: "Discuss",
+    icon: MessagesSquare,
+    description: "Porozmawiaj o kodzie, bez zmian (tańszy tryb)",
+  },
+};
+
 function ModeButton({
   mode,
   onChange,
@@ -649,44 +844,91 @@ function ModeButton({
   mode: ChatMode;
   onChange: (mode: ChatMode) => void;
 }) {
+  const Icon = MODE_META[mode].icon;
+  const isActive = mode !== "build";
   return (
-    <button
-      type="button"
-      onClick={() => onChange(mode === "plan" ? "build" : "plan")}
-      aria-pressed={mode === "plan"}
-      className={`flex h-7 cursor-pointer items-center gap-1 rounded-md border px-2 text-[11px] transition ${
-        mode === "plan"
-          ? "border-beige/40 bg-beige/10 text-beige"
-          : "border-beige/15 bg-background/40 text-muted-foreground hover:border-beige/30 hover:text-foreground"
-      }`}
-      title={mode === "plan" ? "Tryb Plan" : "Tryb Build"}
-    >
-      {mode === "plan" ? (
-        <Wrench className="h-3 w-3" />
-      ) : (
-        <Rocket className="h-3 w-3" />
-      )}
-      {mode === "plan" ? "Plan" : "Build"}
-    </button>
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        className={`flex h-7 cursor-pointer items-center gap-1 rounded-md border px-2 text-[11px] transition ${
+          isActive
+            ? "border-beige/40 bg-beige/10 text-beige"
+            : "border-beige/15 bg-background/40 text-muted-foreground hover:border-beige/30 hover:text-foreground"
+        }`}
+        title={MODE_META[mode].description}
+        aria-label="Wybierz tryb"
+      >
+        <Icon className="h-3 w-3" />
+        {MODE_META[mode].label}
+        <ChevronDown className="h-3 w-3 opacity-60" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" sideOffset={6} className="w-60">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="px-2 py-1 text-xs uppercase tracking-wider text-muted-foreground">
+            Tryb pracy
+          </DropdownMenuLabel>
+          {(Object.keys(MODE_META) as ChatMode[]).map((m) => {
+            const meta = MODE_META[m];
+            const ItemIcon = meta.icon;
+            return (
+              <DropdownMenuItem
+                key={m}
+                onClick={() => onChange(m)}
+                className={
+                  m === mode
+                    ? "flex-col items-start bg-beige/10 text-beige"
+                    : "flex-col items-start"
+                }
+              >
+                <div className="flex w-full items-center gap-2">
+                  <ItemIcon className="h-3.5 w-3.5" />
+                  <span className="font-medium">{meta.label}</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  {meta.description}
+                </p>
+              </DropdownMenuItem>
+            );
+          })}
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
 type ToolPart = {
   type: string;
   state?: string;
-  input?: { path?: string; steps?: string[] };
-  output?: { steps?: string[]; skipped?: boolean; ok?: boolean };
+  input?: {
+    path?: string;
+    steps?: string[];
+    edits?: Array<{ oldString: string; newString: string }>;
+  };
+  output?: {
+    steps?: string[];
+    skipped?: boolean;
+    ok?: boolean;
+    path?: string;
+    content?: string;
+    editsApplied?: number;
+    error?: string;
+  };
 };
 
 function Message({
   message,
   isStreaming,
   consumedPlans,
+  canRevert,
+  isReverting,
+  onRevert,
   onPlanAction,
 }: {
   message: UIMessage;
   isStreaming: boolean;
   consumedPlans: Set<number>;
+  canRevert: boolean;
+  isReverting: boolean;
+  onRevert: () => void;
   onPlanAction: (partIdx: number, action: "approve" | "skip", finalSteps?: string[]) => void;
 }) {
   const isUser = message.role === "user";
@@ -695,9 +937,27 @@ function Message({
     <div
       className={`flex flex-col gap-1 ${isUser ? "items-end" : "items-start"}`}
     >
-      <span className="px-1 text-xs uppercase tracking-wider text-muted-foreground/70">
-        {isUser ? "Ty" : "Asystent"}
-      </span>
+      <div className="flex w-full items-center gap-2 px-1">
+        <span className="text-xs uppercase tracking-wider text-muted-foreground/70">
+          {isUser ? "Ty" : "Asystent"}
+        </span>
+        {canRevert && !isStreaming && (
+          <button
+            type="button"
+            onClick={onRevert}
+            disabled={isReverting}
+            className="ml-auto inline-flex cursor-pointer items-center gap-1 rounded-md border border-beige/15 bg-card/40 px-1.5 py-0.5 text-[10px] text-muted-foreground transition hover:border-beige/30 hover:bg-card hover:text-beige disabled:opacity-60"
+            title="Cofnij projekt do stanu sprzed tej odpowiedzi"
+          >
+            {isReverting ? (
+              <Loader2 className="h-2.5 w-2.5 animate-spin" />
+            ) : (
+              <RotateCcw className="h-2.5 w-2.5" />
+            )}
+            Cofnij do tego momentu
+          </button>
+        )}
+      </div>
       <div
         className={`max-w-[92%] rounded-2xl text-sm leading-relaxed ${
           isUser
@@ -743,24 +1003,46 @@ function Message({
             const toolPart = part as ToolPart;
             // Hide skipped writes (plan-mode AI tried to write but was blocked)
             if (toolPart.output?.skipped) return null;
-            const action = part.type.replace("tool-", "");
-            const filePath = toolPart.input?.path;
+            // readFile is a technical detail — hide from chat UI
+            if (part.type === "tool-readFile") return null;
+
+            const filePath = toolPart.input?.path ?? toolPart.output?.path;
+            const isStreaming = toolPart.state === "input-streaming";
+
+            let verb = part.type.replace("tool-", "");
+            if (part.type === "tool-writeFile") verb = "wpisuje";
+            else if (part.type === "tool-deleteFile") verb = "usuwa";
+            else if (part.type === "tool-patchFile") verb = "edytuje";
+            else if (part.type === "tool-fetchImage") verb = "pobiera zdjęcie";
+
+            // For patchFile show how many edits were applied
+            const editsSuffix =
+              part.type === "tool-patchFile" && toolPart.output?.editsApplied != null
+                ? ` (${toolPart.output.editsApplied} ${toolPart.output.editsApplied === 1 ? "zmiana" : "zmian"})`
+                : "";
+
+            // Show patch errors inline
+            const patchError =
+              part.type === "tool-patchFile" && toolPart.output?.ok === false
+                ? toolPart.output.error
+                : null;
+
             return (
               <div
                 key={idx}
-                className="mt-1 flex items-center gap-2 rounded-md bg-background/60 px-2 py-1.5 text-xs text-muted-foreground"
+                className="mt-1 flex flex-col gap-0.5 rounded-md bg-background/60 px-2 py-1.5 text-xs text-muted-foreground"
               >
-                <Wrench className="h-3 w-3 text-beige/70" />
-                <span className="font-mono">
-                  {action === "writeFile"
-                    ? "wpisuje"
-                    : action === "deleteFile"
-                      ? "usuwa"
-                      : action}
-                  {filePath ? `: ${filePath}` : ""}
-                </span>
-                {toolPart.state === "input-streaming" && (
-                  <Loader2 className="h-3 w-3 animate-spin" />
+                <div className="flex items-center gap-2">
+                  <Wrench className="h-3 w-3 shrink-0 text-beige/70" />
+                  <span className="font-mono">
+                    {verb}
+                    {filePath ? `: ${filePath}` : ""}
+                    {editsSuffix}
+                  </span>
+                  {isStreaming && <Loader2 className="h-3 w-3 animate-spin" />}
+                </div>
+                {patchError && (
+                  <p className="pl-5 text-[10px] text-amber-400/80">{patchError}</p>
                 )}
               </div>
             );
@@ -820,6 +1102,12 @@ function readAsDataUrl(file: File): Promise<string> {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+function formatNumber(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  return String(n);
 }
 
 function humanSize(bytes: number): string {

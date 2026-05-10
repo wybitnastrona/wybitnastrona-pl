@@ -32,6 +32,7 @@ export async function POST(req: Request) {
       {
         error:
           "Brak tokenu GitHub. Zaloguj sie ponownie przez GitHub aby uzyskac dostep do repos.",
+        code: "github_token_missing",
       },
       { status: 403 },
     );

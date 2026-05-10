@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { LoginForm } from "@/components/auth/login-form";
 import { SignupForm } from "@/components/auth/signup-form";
 import { GoogleButton } from "@/components/auth/google-button";
+import { GithubButton } from "@/components/auth/github-button";
 
 type AuthMode = "login" | "signup";
 
@@ -55,8 +56,10 @@ export function AuthModal({
           </div>
 
           <div className="flex flex-col gap-3">
-            {/* Google — always visible and prominent */}
+            {/* OAuth providers — Google + GitHub. GitHub is required for the
+                "Push to GitHub" / "Deploy to Pages" features in workspace. */}
             <GoogleButton label="Kontynuuj z Google" />
+            <GithubButton label="Kontynuuj z GitHub" />
 
             {!emailMode && (
               <>

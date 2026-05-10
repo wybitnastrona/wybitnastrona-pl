@@ -19,21 +19,9 @@ type Props = {
 
 export function ProjectSwitcher({ currentProject }: Props) {
   const [open, setOpen] = useState(false);
-  const [projects, setProjects] = useState<ProjectListItem[]>([]);
-  const [loading, setLoading] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    setLoading(true);
-    fetch("/api/projects/list")
-      .then((r) => r.json())
-      .then((data: ProjectListItem[]) => setProjects(data))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [open]);
-
-  // Close on outside click
+  // Close on outside click.
   useEffect(() => {
     if (!open) return;
     function handleClick(e: MouseEvent) {
@@ -129,54 +117,14 @@ export function ProjectSwitcher({ currentProject }: Props) {
           </Link>
         </div>
 
-        {/* Projects list */}
+        {/* Projects list — only mounted while open so initial loading state
+            can be set during render without setState-in-effect. */}
         <div className="flex-1 overflow-y-auto px-2 py-2">
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-            </div>
-          ) : projects.length === 0 ? (
-            <p className="px-2 py-4 text-center text-xs text-muted-foreground">
-              Brak innych projektów
-            </p>
-          ) : (
-            <ul className="space-y-0.5">
-              {projects.map((p) => (
-                <li key={p.id}>
-                  <Link
-                    href={`/project/${p.id}`}
-                    onClick={() => setOpen(false)}
-                    className={`flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-sm transition hover:bg-white/5 ${
-                      p.id === currentProject.id
-                        ? "bg-beige/8 text-foreground"
-                        : "text-foreground/80"
-                    }`}
-                  >
-                    <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded bg-beige/10">
-                      {p.is_public ? (
-                        <Globe className="h-3 w-3 text-beige/60" />
-                      ) : (
-                        <LayoutTemplate className="h-3 w-3 text-beige/60" />
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-medium leading-tight">
-                        {p.title}
-                      </p>
-                      <p className="mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground">
-                        <Clock className="h-2.5 w-2.5" />
-                        {formatDate(p.updated_at)}
-                      </p>
-                    </div>
-                    {p.id === currentProject.id && (
-                      <span className="shrink-0 self-center rounded-full bg-beige/20 px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-beige/80">
-                        aktywny
-                      </span>
-                    )}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+          {open && (
+            <ProjectsList
+              currentProjectId={currentProject.id}
+              onSelect={() => setOpen(false)}
+            />
           )}
         </div>
 
@@ -192,6 +140,85 @@ export function ProjectSwitcher({ currentProject }: Props) {
         </div>
       </div>
     </>
+  );
+}
+
+function ProjectsList({
+  currentProjectId,
+  onSelect,
+}: {
+  currentProjectId: string;
+  onSelect: () => void;
+}) {
+  const [projects, setProjects] = useState<ProjectListItem[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/projects/list")
+      .then((r) => r.json())
+      .then((data: ProjectListItem[]) => {
+        if (!cancelled) setProjects(data);
+      })
+      .catch(() => {
+        if (!cancelled) setProjects([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (projects === null) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+  if (projects.length === 0) {
+    return (
+      <p className="px-2 py-4 text-center text-xs text-muted-foreground">
+        Brak innych projektów
+      </p>
+    );
+  }
+  return (
+    <ul className="space-y-0.5">
+      {projects.map((p) => (
+        <li key={p.id}>
+          <Link
+            href={`/project/${p.id}`}
+            onClick={onSelect}
+            className={`flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-sm transition hover:bg-white/5 ${
+              p.id === currentProjectId
+                ? "bg-beige/8 text-foreground"
+                : "text-foreground/80"
+            }`}
+          >
+            <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded bg-beige/10">
+              {p.is_public ? (
+                <Globe className="h-3 w-3 text-beige/60" />
+              ) : (
+                <LayoutTemplate className="h-3 w-3 text-beige/60" />
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-medium leading-tight">
+                {p.title}
+              </p>
+              <p className="mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground">
+                <Clock className="h-2.5 w-2.5" />
+                {formatDate(p.updated_at)}
+              </p>
+            </div>
+            {p.id === currentProjectId && (
+              <span className="shrink-0 self-center rounded-full bg-beige/20 px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-beige/80">
+                aktywny
+              </span>
+            )}
+          </Link>
+        </li>
+      ))}
+    </ul>
   );
 }
 

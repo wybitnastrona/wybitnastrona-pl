@@ -62,7 +62,31 @@ export function CreationHero() {
   const [model, setModel] = useState<AiModelId>(DEFAULT_MODEL_ID);
   const [template, setTemplate] = useState<TemplateId>(DEFAULT_TEMPLATE);
   const [submitting, setSubmitting] = useState(false);
+  const [enhancing, setEnhancing] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
+
+  async function handleEnhancePrompt() {
+    const trimmed = prompt.trim();
+    if (!trimmed || enhancing) return;
+    setEnhancing(true);
+    try {
+      const res = await fetch("/api/enhance-prompt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: trimmed }),
+      });
+      const data = (await res.json()) as { enhanced?: string; error?: string };
+      if (res.ok && data.enhanced) {
+        setPrompt(data.enhanced);
+      } else {
+        console.warn("[enhance-prompt]", data.error);
+      }
+    } catch (err) {
+      console.error("[enhance-prompt]", err);
+    } finally {
+      setEnhancing(false);
+    }
+  }
 
   useEffect(() => {
     const ta = textareaRef.current;
@@ -219,7 +243,12 @@ export function CreationHero() {
         )}
 
         <div className="flex flex-wrap items-center gap-1.5 px-3 pb-3 sm:px-4 sm:pb-4">
-          <PlusMenu onAttachFile={() => fileInputRef.current?.click()} />
+          <PlusMenu
+            onAttachFile={() => fileInputRef.current?.click()}
+            onEnhance={handleEnhancePrompt}
+            enhancing={enhancing}
+            canEnhance={prompt.trim().length > 0}
+          />
 
           {/* Hidden file input */}
           <input
@@ -342,7 +371,17 @@ export function CreationHero() {
   );
 }
 
-function PlusMenu({ onAttachFile }: { onAttachFile: () => void }) {
+function PlusMenu({
+  onAttachFile,
+  onEnhance,
+  enhancing,
+  canEnhance,
+}: {
+  onAttachFile: () => void;
+  onEnhance: () => void;
+  enhancing: boolean;
+  canEnhance: boolean;
+}) {
   const settings = useSettings();
   return (
     <DropdownMenu>
@@ -355,7 +394,7 @@ function PlusMenu({ onAttachFile }: { onAttachFile: () => void }) {
       <DropdownMenuContent align="start" sideOffset={8} className="w-56">
         <DropdownMenuItem onClick={onAttachFile}>
           <FileUp className="h-3.5 w-3.5" />
-          Zalącz plik
+          Załącz plik
         </DropdownMenuItem>
         <DropdownMenuItem disabled>
           <FigmaIcon className="h-3.5 w-3.5" />
@@ -364,9 +403,16 @@ function PlusMenu({ onAttachFile }: { onAttachFile: () => void }) {
             Wkrótce
           </span>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => settings.open("knowledge")}>
-          <Lightbulb className="h-3.5 w-3.5" />
-          Wzmocnij prompt
+        <DropdownMenuItem
+          onClick={onEnhance}
+          disabled={!canEnhance || enhancing}
+        >
+          {enhancing ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Lightbulb className="h-3.5 w-3.5" />
+          )}
+          {enhancing ? "Ulepszam…" : "Wzmocnij prompt"}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => settings.open("applications")}>

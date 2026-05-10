@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Clock, GitCompare, RotateCcw, X } from "lucide-react";
-import { DiffView } from "./diff-view";
+import { useEffect, useMemo, useState } from "react";
+import { Clock, GitCompare, RotateCcw } from "lucide-react";
+import { DiffModal, type PendingChange } from "./diff-modal";
 import type { ProjectFiles } from "@/lib/types/project";
 
 type Snapshot = {
@@ -137,40 +137,54 @@ export function SnapshotPanel({ projectId, currentFiles, onRestored }: Props) {
         ))}
       </ul>
 
-      {diffView && currentFiles && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="flex h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-beige/15 bg-card shadow-2xl">
-            <div className="flex items-center justify-between border-b border-beige/10 px-4 py-3">
-              <h3 className="text-sm font-medium">
-                Porównanie wersji — wcześniejsza vs aktualna
-              </h3>
-              <button
-                type="button"
-                onClick={() => setDiffView(null)}
-                className="cursor-pointer rounded-md p-1.5 text-muted-foreground hover:bg-card-hover hover:text-foreground"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="flex-1 space-y-3 overflow-auto p-4">
-              {pickChangedFiles(diffView.files, currentFiles).map((path) => (
-                <DiffView
-                  key={path}
-                  path={path}
-                  before={diffView.files[path]?.code ?? ""}
-                  after={currentFiles[path]?.code ?? ""}
-                />
-              ))}
-              {pickChangedFiles(diffView.files, currentFiles).length === 0 && (
-                <p className="text-center text-sm text-muted-foreground">
-                  Brak różnic między wersjami.
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <SnapshotDiffModal
+        diffView={diffView}
+        currentFiles={currentFiles}
+        onClose={() => setDiffView(null)}
+        onRestore={async () => {
+          if (!diffView) return;
+          await handleRestore(diffView.snapshotId);
+          setDiffView(null);
+        }}
+      />
     </div>
+  );
+}
+
+function SnapshotDiffModal({
+  diffView,
+  currentFiles,
+  onClose,
+  onRestore,
+}: {
+  diffView: { snapshotId: string; files: ProjectFiles } | null;
+  currentFiles?: ProjectFiles;
+  onClose: () => void;
+  onRestore: () => Promise<void>;
+}) {
+  const changes = useMemo<PendingChange[]>(() => {
+    if (!diffView || !currentFiles) return [];
+    return pickChangedFiles(diffView.files, currentFiles).map((path) => ({
+      path,
+      // "before" = snapshot (would-be-restored content)
+      // "after"  = current files (what we have now)
+      before: diffView.files[path]?.code ?? "",
+      after: currentFiles[path]?.code ?? "",
+    }));
+  }, [diffView, currentFiles]);
+
+  if (!diffView || !currentFiles) return null;
+  return (
+    <DiffModal
+      open={true}
+      changes={changes}
+      onAccept={() => {
+        // For now, "Accept" = restore the entire snapshot (all-or-nothing).
+        // Per-file selective restore would require a new API endpoint.
+        void onRestore();
+      }}
+      onReject={onClose}
+    />
   );
 }
 

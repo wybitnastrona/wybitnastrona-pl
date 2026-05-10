@@ -1,9 +1,9 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, ExternalLink, Sparkles } from "lucide-react";
+import { ExternalLink, Sparkles } from "lucide-react";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { SandpackRunner } from "@/components/sandpack/sandpack-runner";
+import { RemixButton } from "@/components/showcase/remix-button";
 import { getProjectBySlug } from "@/lib/projects";
 import { createClient } from "@/lib/supabase/server";
 import { logProjectEvent } from "@/lib/analytics-server";
@@ -40,7 +40,6 @@ export default async function PublicSharePage({ params }: { params: Params }) {
   const subdomainUrl = rootDomain.includes("localhost")
     ? `http://${slug}.${rootDomain}`
     : `https://${slug}.${rootDomain}`;
-  const remixUrl = `/?prompt=${encodeURIComponent(project.prompt)}`;
 
   return (
     <>
@@ -71,13 +70,7 @@ export default async function PublicSharePage({ params }: { params: Params }) {
                 <ExternalLink className="h-3.5 w-3.5" />
                 Otworz live
               </a>
-              <Link
-                href={remixUrl}
-                className="inline-flex h-9 items-center gap-2 rounded-lg bg-beige px-4 text-sm font-medium text-beige-foreground transition hover:bg-beige/90"
-              >
-                <ArrowRight className="h-3.5 w-3.5" />
-                Remiksuj
-              </Link>
+              <RemixButton projectId={project.id} />
             </div>
           </div>
 

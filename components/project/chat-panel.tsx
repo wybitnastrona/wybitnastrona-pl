@@ -127,6 +127,11 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     setMode(newMode);
   }
 
+  // Jednorazowe nadpisanie trybu na potrzeby konkretnego wyslanego komunikatu.
+  // Uzywane przez "Kontynuuj generowanie" — chcemy wyslac jedna wiadomosc w
+  // trybie 'continue', ale nie zmieniac stalego trybu UI.
+  const oneShotModeRef = useRef<"continue" | null>(null);
+
   // Czy mamy zapisane wiadomosci w bazie? Jezeli tak -> nie auto-startujemy generacji.
   const hasStoredHistory = (initialMessages?.length ?? 0) > 0;
 
@@ -139,11 +144,11 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     () =>
       new DefaultChatTransport({
         api: "/api/generate",
-        body: () => ({
-          projectId,
-          model,
-          mode: modeRef.current,
-        }),
+        body: () => {
+          const m = oneShotModeRef.current ?? modeRef.current;
+          oneShotModeRef.current = null;
+          return { projectId, model, mode: m };
+        },
       }),
     [projectId, model],
   );
@@ -431,6 +436,32 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     // Refetch each time a stream finishes — that's when a new snapshot appears.
   }, [projectId, isStreaming]);
 
+  // ─── "Kontynuuj generowanie" — wznawia przerwany run ───────────────────────
+  const continueGeneration = useCallback(() => {
+    if (isStreaming) return;
+    oneShotModeRef.current = "continue";
+    sendMessage({
+      text:
+        "Zostałeś przerwany w trakcie poprzedniej generacji (timeout / limit kroków). " +
+        "Sprawdź listę istniejących plików w systemowym kontekście i dokończ brakujące " +
+        "elementy zgodnie z planem. Nie przerabiaj plików, które już są kompletne.",
+    });
+  }, [isStreaming, sendMessage]);
+
+  // Heurystyka: "byc moze nie skonczone". Pokazujemy CTA gdy:
+  //  - mamy juz pliki (cos zostalo zbudowane),
+  //  - ostatnia wiadomosc nalezy do AI (nie czekamy na odpowiedz),
+  //  - nie streamujemy,
+  //  - liczba plikow sugeruje, ze AI wygenerowalo cos sensownego.
+  const lastMessage = messages[messages.length - 1];
+  const showContinueCta =
+    !isStreaming &&
+    hasFiles &&
+    !!lastMessage &&
+    lastMessage.role === "assistant" &&
+    mode !== "discuss" &&
+    mode !== "plan";
+
   const handleRevertToMessage = useCallback(
     async (messageId: string) => {
       const snapshotId = messageSnapshots[messageId];
@@ -575,6 +606,22 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
               )}
             </div>
           )}
+
+        {showContinueCta && (
+          <button
+            type="button"
+            onClick={continueGeneration}
+            className="group flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg border border-beige/15 bg-beige/5 px-3 py-2 text-left text-xs text-beige/90 transition hover:border-beige/30 hover:bg-beige/10"
+            aria-label="Kontynuuj generowanie"
+          >
+            <span className="flex items-center gap-2">
+              <RotateCcw className="h-3.5 w-3.5 text-beige/70 group-hover:text-beige" />
+              <span className="font-medium text-foreground">Kontynuuj generowanie</span>
+              <span className="text-muted-foreground">— dokończ brakujące pliki</span>
+            </span>
+            <ArrowUp className="h-3.5 w-3.5 rotate-45 text-muted-foreground group-hover:text-beige" />
+          </button>
+        )}
 
         {error && (
           <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">

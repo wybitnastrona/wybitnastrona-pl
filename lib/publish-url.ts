@@ -1,7 +1,7 @@
 /**
  * Wybiera domene publikacji dla opublikowanych stron.
  * Priorytet:
- * 1) NEXT_PUBLIC_PUBLISH_DOMAIN (np. wybitny.host) - jezeli ustawiona,
+ * 1) NEXT_PUBLIC_PUBLISH_DOMAIN (np. wybitny.website) - jezeli ustawiona,
  * 2) NEXT_PUBLIC_ROOT_DOMAIN (np. wybitnastrona.pl) - fallback,
  * 3) "localhost:3000" - dev fallback.
  */

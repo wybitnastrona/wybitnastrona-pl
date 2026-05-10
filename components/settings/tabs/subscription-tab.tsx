@@ -15,7 +15,7 @@ const PLANS = [
     features: [
       "Generator stron z AI",
       "Publiczne projekty",
-      "Subdomena na wybitny.host",
+      "Subdomena na wybitny.website",
       "Limit 1 mln tokenow / miesiac",
     ],
   },

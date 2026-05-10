@@ -1,9 +1,17 @@
 import { NextResponse } from "next/server";
 import { generateText } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
+import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
+
+// Soft per-user rate limit (in-memory, best-effort). Chroni przed klikaniem
+// "Ulepsz" 100 razy w sekundę. Nie zastapuje kontroli kosztow Anthropic, ale
+// blokuje najprostsze naduzycia.
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX_HITS = 12;
+const userHits = new Map<string, number[]>();
 
 const SYSTEM_PROMPT = `Jestes asystentem ulepszajacym prompty do generatora stron internetowych.
 Przeksztalcasz krotki, ogolny prompt uzytkownika w bardziej szczegolowy, konkretny prompt
@@ -19,6 +27,29 @@ Zasady:
 - NIE dodawaj wstepu typu "Oto ulepszony prompt:" — zwroc tylko sam prompt`;
 
 export async function POST(req: Request) {
+  // Autoryzacja — bez tego ktokolwiek z internetu moglby palic nasze tokeny Claude.
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Rate limit per user.
+  const now = Date.now();
+  const hits = (userHits.get(user.id) ?? []).filter(
+    (t) => now - t < RATE_LIMIT_WINDOW_MS,
+  );
+  if (hits.length >= RATE_LIMIT_MAX_HITS) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded. Sprobuj za chwile." },
+      { status: 429 },
+    );
+  }
+  hits.push(now);
+  userHits.set(user.id, hits);
+
   let prompt: string;
   try {
     const body = (await req.json()) as { prompt?: string };

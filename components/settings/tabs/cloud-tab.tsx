@@ -8,7 +8,7 @@ const PILLARS = [
     icon: Globe,
     title: "Hosting i domeny",
     description:
-      "Aplikacje i opublikowane projekty hostujemy na Vercel. Subdomeny *.wybitnastrona.pl i *.wybitny.host dzialaja od razu, bez konfiguracji.",
+      "Aplikacje i opublikowane projekty hostujemy na Vercel. Subdomeny *.wybitnastrona.pl i *.wybitny.website dzialaja od razu, bez konfiguracji.",
     actionLabel: "Otworz panel domen",
     actionHref: "https://vercel.com/docs/domains",
   },

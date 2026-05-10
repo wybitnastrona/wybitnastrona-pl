@@ -13,7 +13,7 @@ export type GenerationJob = {
   project_id: string;
   user_id: string;
   status: GenerationJobStatus;
-  mode: "plan" | "build" | "discuss";
+  mode: "plan" | "build" | "discuss" | "continue";
   model: string;
   current_step: number;
   total_steps: number | null;
@@ -32,7 +32,7 @@ export async function createJob(
   opts: {
     projectId: string;
     userId: string;
-    mode: "plan" | "build" | "discuss";
+    mode: "plan" | "build" | "discuss" | "continue";
     model: string;
   },
 ): Promise<string> {

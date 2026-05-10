@@ -16,75 +16,13 @@ import { buildRagContext } from "@/lib/rag";
 import { logProjectEvent } from "@/lib/analytics-server";
 import { fetchUnsplashImage } from "@/lib/unsplash";
 import { createJob, bumpJob, finishJob } from "@/lib/generation-jobs";
+import {
+  buildSystemPrompt,
+  type GenerationMode,
+} from "@/lib/ai-prompts";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
-
-type GenerationMode = "build" | "plan" | "discuss";
-
-const BASE_PROMPT = `Jestes asystentem wybitnastrona.pl — generatorem stron internetowych.
-
-ZADANIE
-Generujesz aplikacje React (TypeScript + JSX) renderowane w Sandpack, ktore odpowiadaja na prompt uzytkownika.
-
-STACK
-- React 19 + TypeScript (.tsx)
-- Tailwind CSS przez CDN (klasy uzywaj swobodnie, sa juz dostepne)
-- Bez zaleznosci NPM innych niz react, react-dom (chyba ze uzytkownik wprost poprosi)
-- Pliki maja sciezki absolutne zaczynajace sie od "/" (np. "/App.tsx", "/components/Hero.tsx")
-- Persystencja danych: jezeli uzytkownik prosi o backend / baze / tabele, zaproponuj uzycie Supabase (nie nazywaj go "Bolt Database").
-
-NARZEDZIA
-1) showPlan(steps[]) - PRZED implementacja zwroc liste konkretnych krokow ktore wykonasz.
-2) writeFile(path, content) - tworzy lub nadpisuje NOWY plik
-3) patchFile(path, edits[]) - edytuje ISTNIEJACY plik przez search/replace (szybsze niz writeFile)
-4) readFile(path) - odczytuje zawartosc istniejacego pliku (uzyj przed patchFile)
-5) deleteFile(path) - usuwa plik
-6) fetchImage(query) - pobiera URL zdjecia z Unsplash pasujacego do query (po angielsku). Uzyj zamiast placeholderow koloru gdy potrzebujesz realnego zdjecia.
-
-ZASADY
-- Najpierw wywolaj showPlan z lista krokow.
-- Glowny plik to /App.tsx (export default function App)
-- /index.tsx i /index.html sa juz utworzone, NIE nadpisuj ich
-- Stosuj nowoczesny, estetyczny design (dark mode lub ciekawa paleta), zaokraglone rogi, dobra typografia
-- Komponenty wydzielaj do osobnych plikow w /components/*.tsx jezeli sa dluzsze niz ~80 linii
-- Nie uzywaj nazwy "Bolt" w odpowiedziach.
-- Jezyk odpowiedzi: polski.
-
-OBRAZY (VISION):
-- Jezeli uzytkownik dolaczyl obraz, traktuj go jako referencje wizualna.
-- Odtworz layout, kolory i typografie 1:1 z obrazu uzywajac Tailwind CSS.
-- Jezeli obraz pokazuje mockup UI, zaimplementuj go jako React komponenty.
-`;
-
-const PLAN_ONLY_SUFFIX = `
-TRYB: PLAN.
-W tym trybie WYLACZNIE wywolaj narzedzie showPlan z lista krokow (3-10 krokow).
-NIE pisz plikow przez writeFile.
-Po wywolaniu showPlan dodaj krotkie podsumowanie po polsku (1-3 zdania) co planujesz
-zbudowac i napisz krotko "Kliknij Zatwierdz aby rozpoczac budowanie.".
-`;
-
-const BUILD_SUFFIX = `
-TRYB: BUILD.
-Uzytkownik zatwierdzil plan. Przejdz od razu do implementacji:
-1) Dla NOWYCH plikow: writeFile(path, content).
-2) Dla ISTNIEJACYCH plikow: uzyj patchFile(path, edits[]) — szybsze i tansze niz writeFile calego pliku.
-3) Jezeli nie pamietasz dokladnej tresci istniejacego pliku, wywolaj readFile(path) zanim uzyjesz patchFile.
-4) Krotkie podsumowanie po polsku co zbudowales.
-NIE wywoluj showPlan ponownie — plan juz zostal pokazany i zatwierdzony.
-`;
-
-const DISCUSS_SUFFIX = `
-TRYB: DISCUSS.
-W tym trybie ROZMAWIASZ z uzytkownikiem o kodzie projektu — odpowiadasz na pytania, doradzasz,
-proponujesz rozwiazania, tlumaczysz fragmenty kodu.
-- NIE pisz, NIE edytuj, NIE usuwaj zadnych plikow.
-- Mozesz uzyc readFile(path) aby przeczytac biezacy plik gdy uzytkownik o to pyta.
-- Odpowiadaj zwiezle, w jezyku polskim, z konkretnymi cytatami z kodu gdy to pomocne.
-- Jezeli uzytkownik prosi o zmiane w kodzie, zasugeruj zeby przelaczyl tryb na "Build"
-  (przycisk obok pola czatu) i wytlumacz co dokladnie zostanie zmienione.
-`;
 
 const writeFileSchema = z.object({
   path: z
@@ -149,12 +87,6 @@ const readFileSchema = z.object({
     .describe('Absolutna sciezka pliku zaczynajaca sie od "/"'),
 });
 
-function buildSystemPrompt(mode: GenerationMode): string {
-  if (mode === "plan") return BASE_PROMPT + PLAN_ONLY_SUFFIX;
-  if (mode === "discuss") return BASE_PROMPT + DISCUSS_SUFFIX;
-  return BASE_PROMPT + BUILD_SUFFIX;
-}
-
 export async function POST(req: Request) {
   const supabase = await createClient();
   const {
@@ -185,7 +117,9 @@ export async function POST(req: Request) {
       ? "plan"
       : body.mode === "discuss"
         ? "discuss"
-        : "build";
+        : body.mode === "continue"
+          ? "continue"
+          : "build";
   const modelDef = getModel(modelId);
 
   if (!projectId || !messages?.length) {
@@ -196,11 +130,10 @@ export async function POST(req: Request) {
   }
 
   // ─── Sprawdz saldo punktow ──────────────────────────────────────────────────
-  // Tryb "plan" kosztuje polowe (zaokraglonej w gore) punktow modelu.
-  // Discuss mode is read-only, plan mode produces only a list, build runs the
-  // full pipeline. Charge accordingly.
+  // build/continue: pelny koszt (continue dokancza projekt -> liczy sie jak build).
+  // plan: polowa.  discuss: 1/3.
   const pointsRequired =
-    mode === "build"
+    mode === "build" || mode === "continue"
       ? modelDef.pointCost
       : mode === "plan"
         ? Math.ceil(modelDef.pointCost / 2)
@@ -233,7 +166,7 @@ export async function POST(req: Request) {
   // ─── Pobierz projekt ────────────────────────────────────────────────────────
   const { data: project, error: projectError } = await supabase
     .from("projects")
-    .select("id, user_id, files, prompt, locked_files")
+    .select("id, user_id, files, prompt, locked_files, template")
     .eq("id", projectId)
     .maybeSingle();
 
@@ -247,6 +180,7 @@ export async function POST(req: Request) {
       p.startsWith("/") ? p : `/${p}`,
     ),
   );
+  const projectTemplate = (project.template as string | null) ?? "react-ts";
   const modelMessages = await convertToModelMessages(messages);
   const anthropicModel = resolveAnthropicModel(modelId);
 
@@ -259,6 +193,7 @@ export async function POST(req: Request) {
   });
 
   // Inject existing file paths so AI knows which files can be patched vs created.
+  // W trybie 'continue' lista jest *kluczowa* — to dane wejsciowe dla "doroboty".
   const existingPaths = Object.keys(files);
   const fileListContext =
     existingPaths.length > 0
@@ -428,17 +363,28 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: anthropic(anthropicModel),
-    system: buildSystemPrompt(mode) + fileListContext + lockedContext + ragContext,
+    system:
+      buildSystemPrompt(mode, projectTemplate) +
+      fileListContext +
+      lockedContext +
+      ragContext,
     messages: modelMessages,
     stopWhen: stepCountIs(
-      mode === "plan" ? 4 : mode === "discuss" ? 6 : 30,
+      mode === "plan"
+        ? 4
+        : mode === "discuss"
+          ? 6
+          : mode === "continue"
+            ? 30
+            : 30,
     ),
     tools:
       mode === "plan"
         ? planOnlyTools
         : mode === "discuss"
           ? discussTools
-          : buildTools,
+          : buildTools, // 'build' AND 'continue' share full tool set
+
     onFinish: async ({ totalUsage, response }) => {
       // Real token usage from the model run.
       const inputTokens = totalUsage?.inputTokens ?? undefined;
@@ -474,7 +420,8 @@ export async function POST(req: Request) {
         },
       });
 
-      if (mode === "plan" || mode === "discuss") {
+      const isReadOnly = mode === "plan" || mode === "discuss";
+      if (isReadOnly) {
         // Tryb plan/discuss: odejmij oplate, zadne pliki nie sa zapisywane.
         await supabase
           .rpc("deduct_points", {

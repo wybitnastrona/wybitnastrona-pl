@@ -45,6 +45,11 @@ export type SandpackRunnerProps = {
    * wyboru elementu i przełącza na widok podglądu.
    */
   onRequestPreviewPickMode?: () => void;
+  /**
+   * Gdy true (zakładka „Podgląd”): zwęża eksplorator + edytor do zera, ale zostawia
+   * je w DOM — żeby bundler Sandpacka nie przechodził w „idle”.
+   */
+  collapseChrome?: boolean;
 };
 
 export function SandpackRunner(props: SandpackRunnerProps) {

@@ -186,8 +186,10 @@ export function WorkspaceCanvas({
   // Fail-safe: jeśli template nieznany lub nie ma flagi webContainerOnly → Sandpack
   const useWC = templateDef?.webContainerOnly === true;
 
-  const sandpackMode: SandpackViewMode =
-    view === "code" ? "code" : "preview";
+  // Zawsze "split": jednoczesny mount edytora + podglądu utrzymuje klienta bundlera.
+  // Tryb sam "preview" odmontowuje CodeEditor i potrafi przejść w status "idle",
+  // wtedy dispatch/updateFile kończy się błędem: "dispatch cannot be called while in idle mode".
+  const sandpackMode: SandpackViewMode = "split";
 
   async function handleOpenLive() {
     setOpening(true);
@@ -278,6 +280,7 @@ export function WorkspaceCanvas({
             <SandpackRunner
               files={project.files}
               viewMode={sandpackMode}
+              collapseChrome={view === "preview"}
               selectMode={view === "preview" && selectMode}
               onElementPick={onElementPick}
               projectId={project.id}

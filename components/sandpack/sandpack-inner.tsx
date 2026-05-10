@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { mergeSandpackProjectFiles } from "@/lib/sandpack/merge-preview-files";
 import { STARTER_DEPENDENCIES } from "@/lib/sandpack/starter";
+import { cn } from "@/lib/utils";
 import { SandpackSaver } from "./sandpack-saver";
 import { SandpackContextFileExplorer } from "./sandpack-context-file-explorer";
 import type { SandpackRunnerProps } from "./sandpack-runner";
@@ -65,6 +66,7 @@ export function SandpackInner({
   projectId,
   isGenerating = false,
   onRequestPreviewPickMode,
+  collapseChrome = false,
 }: SandpackRunnerProps) {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [terminalOpen, setTerminalOpen] = useState(true);
@@ -121,6 +123,7 @@ export function SandpackInner({
             projectId={projectId}
             readOnly={isGenerating}
             onRequestPreviewPickMode={onRequestPreviewPickMode}
+            collapseChrome={collapseChrome}
           />
         )}
 
@@ -227,6 +230,7 @@ function SplitView({
   projectId,
   readOnly = false,
   onRequestPreviewPickMode,
+  collapseChrome = false,
 }: {
   selectMode: boolean;
   onElementPick?: (info: { x: number; y: number }) => void;
@@ -234,10 +238,21 @@ function SplitView({
   projectId?: string;
   readOnly?: boolean;
   onRequestPreviewPickMode?: () => void;
+  collapseChrome?: boolean;
 }) {
+  const collapseAsideCls =
+    "md:w-0 md:min-w-0 md:max-w-0 md:shrink md:overflow-hidden md:border-0 md:p-0 md:opacity-0 md:pointer-events-none";
+  const collapseEditorCls =
+    "w-0 min-w-0 max-w-0 shrink flex-none overflow-hidden border-0 opacity-0 pointer-events-none";
+
   return (
     <div className="flex h-full w-full">
-      <aside className="hidden h-full w-[200px] shrink-0 border-r border-beige/10 md:block">
+      <aside
+        className={cn(
+          "hidden h-full w-[200px] shrink-0 border-r border-beige/10 md:block lg:w-[220px]",
+          collapseChrome && collapseAsideCls,
+        )}
+      >
         <SandpackContextFileExplorer
           projectId={projectId}
           readOnly={readOnly}
@@ -245,12 +260,18 @@ function SplitView({
           style={{ height: "100%" }}
         />
       </aside>
-      <div className="flex min-w-0 flex-1 border-r border-beige/10">
+      <div
+        className={cn(
+          "flex min-w-0 flex-1 border-r border-beige/10",
+          collapseChrome && collapseEditorCls,
+        )}
+      >
         <SandpackCodeEditor
           showTabs
           showLineNumbers
           showInlineErrors
           wrapContent={false}
+          readOnly={readOnly}
           style={{ height: "100%", width: "100%" }}
         />
       </div>

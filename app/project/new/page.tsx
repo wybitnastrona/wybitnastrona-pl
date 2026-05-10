@@ -32,9 +32,15 @@ export default async function NewProjectPage({
     ? params.template[0]
     : params.template;
 
-  const project = await createProject(
-    prompt,
-    rawTemplate as TemplateId | undefined,
-  );
+  let project;
+  try {
+    project = await createProject(
+      prompt,
+      rawTemplate as TemplateId | undefined,
+    );
+  } catch (err) {
+    console.error("[new-project] createProject failed:", err);
+    redirect("/");
+  }
   redirect(`/project/${project.id}`);
 }

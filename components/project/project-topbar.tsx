@@ -32,6 +32,7 @@ import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -150,56 +151,62 @@ export function ProjectTopbar({
             <MoreHorizontal className="h-4 w-4" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" sideOffset={6} className="w-56">
-            <DropdownMenuLabel className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-              Domeny i hosting
-            </DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => setDomainsOpen(true)}>
-              <Globe className="h-3.5 w-3.5" />
-              Domeny
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-              Eksport
-            </DropdownMenuLabel>
-            <DropdownMenuItem
-              onClick={() =>
-                window.open(`/api/export/zip?projectId=${project.id}`, "_blank")
-              }
-            >
-              <FileArchive className="h-3.5 w-3.5" />
-              Pobierz ZIP
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setGithubOpen(true)}>
-              <GithubIcon className="h-3.5 w-3.5" />
-              Push do GitHub
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() =>
-                window.open(`/api/projects/${project.id}/export`, "_blank")
-              }
-            >
-              <Download className="h-3.5 w-3.5" />
-              Wyeksportuj projekt
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => router.push(`/project/${project.id}/analytics`)}
-            >
-              <BarChart3 className="h-3.5 w-3.5" />
-              Analityka
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => router.push(`/project/${project.id}/variants`)}
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              A/B test (3 warianty)
-            </DropdownMenuItem>
-            {previewUrl && (
-              <DropdownMenuItem onClick={() => window.open(previewUrl, "_blank")}>
-                <Smartphone className="h-3.5 w-3.5" />
-                Otwórz live
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                Domeny i hosting
+              </DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => setDomainsOpen(true)}>
+                <Globe className="h-3.5 w-3.5" />
+                Domeny
               </DropdownMenuItem>
-            )}
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                Eksport
+              </DropdownMenuLabel>
+              <DropdownMenuItem
+                onClick={() =>
+                  window.open(`/api/export/zip?projectId=${project.id}`, "_blank")
+                }
+              >
+                <FileArchive className="h-3.5 w-3.5" />
+                Pobierz ZIP
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setGithubOpen(true)}>
+                <GithubIcon className="h-3.5 w-3.5" />
+                Push do GitHub
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() =>
+                  window.open(`/api/projects/${project.id}/export`, "_blank")
+                }
+              >
+                <Download className="h-3.5 w-3.5" />
+                Wyeksportuj projekt
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuItem
+                onClick={() => router.push(`/project/${project.id}/analytics`)}
+              >
+                <BarChart3 className="h-3.5 w-3.5" />
+                Analityka
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => router.push(`/project/${project.id}/variants`)}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                A/B test (3 warianty)
+              </DropdownMenuItem>
+              {previewUrl && (
+                <DropdownMenuItem onClick={() => window.open(previewUrl, "_blank")}>
+                  <Smartphone className="h-3.5 w-3.5" />
+                  Otwórz live
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
 

@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
@@ -482,33 +483,35 @@ function ModelSelector({
         <ChevronDown className="h-3 w-3 opacity-60" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" sideOffset={8} className="w-72">
-        <DropdownMenuLabel className="px-2 py-1 text-xs uppercase tracking-wider text-muted-foreground">
-          Anthropic Claude
-        </DropdownMenuLabel>
-        {AI_MODELS.map((m) => (
-          <DropdownMenuItem
-            key={m.id}
-            disabled={!m.available}
-            onClick={() => m.available && onChange(m.id)}
-            className={
-              value === m.id
-                ? "flex-col items-start bg-beige/10 text-beige"
-                : "flex-col items-start"
-            }
-          >
-            <div className="flex w-full items-center gap-2">
-              <span className="font-medium">{m.label}</span>
-              {m.badge && (
-                <span className="ml-auto rounded-full border border-beige/25 px-1.5 py-0 text-[9px] uppercase tracking-wider text-beige/80">
-                  {badgeLabel[m.badge] ?? m.badge}
-                </span>
-              )}
-            </div>
-            <p className="text-[10px] text-muted-foreground">
-              {m.description}
-            </p>
-          </DropdownMenuItem>
-        ))}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="px-2 py-1 text-xs uppercase tracking-wider text-muted-foreground">
+            Anthropic Claude
+          </DropdownMenuLabel>
+          {AI_MODELS.map((m) => (
+            <DropdownMenuItem
+              key={m.id}
+              disabled={!m.available}
+              onClick={() => m.available && onChange(m.id)}
+              className={
+                value === m.id
+                  ? "flex-col items-start bg-beige/10 text-beige"
+                  : "flex-col items-start"
+              }
+            >
+              <div className="flex w-full items-center gap-2">
+                <span className="font-medium">{m.label}</span>
+                {m.badge && (
+                  <span className="ml-auto rounded-full border border-beige/25 px-1.5 py-0 text-[9px] uppercase tracking-wider text-beige/80">
+                    {badgeLabel[m.badge] ?? m.badge}
+                  </span>
+                )}
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                {m.description}
+              </p>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );

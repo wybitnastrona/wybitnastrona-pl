@@ -5,6 +5,7 @@ import { CreditCard, Gift, LayoutGrid, LogOut, Settings } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -58,32 +59,40 @@ export function UserMenu({ variant = "navbar" }: UserMenuProps) {
         sideOffset={8}
         className="w-56 border-beige/20 bg-card"
       >
-        <DropdownMenuLabel className="px-2 py-1.5 text-xs uppercase tracking-wider text-muted-foreground">
-          {email || "Konto"}
-        </DropdownMenuLabel>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="px-2 py-1.5 text-xs uppercase tracking-wider text-muted-foreground">
+            {email || "Konto"}
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator className="bg-beige/10" />
-        <DropdownMenuItem onClick={() => settings.open("general")}>
-          <Settings className="h-4 w-4" />
-          Ustawienia
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => settings.open("subscription")}>
-          <Gift className="h-4 w-4 text-beige/80" />
-          <span className="text-beige/90">Zdobadz darmowe tokeny</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => settings.open("subscription")}>
-          <CreditCard className="h-4 w-4" />
-          Moja subskrypcja
-        </DropdownMenuItem>
+        <DropdownMenuGroup>
+          <DropdownMenuItem onClick={() => settings.open("general")}>
+            <Settings className="h-4 w-4" />
+            Ustawienia
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => settings.open("subscription")}>
+            <Gift className="h-4 w-4 text-beige/80" />
+            <span className="text-beige/90">Zdobadz darmowe tokeny</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => settings.open("subscription")}>
+            <CreditCard className="h-4 w-4" />
+            Moja subskrypcja
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator className="bg-beige/10" />
-        <DropdownMenuItem onClick={() => router.push("/dashboard")}>
-          <LayoutGrid className="h-4 w-4" />
-          Wszystkie projekty
-        </DropdownMenuItem>
+        <DropdownMenuGroup>
+          <DropdownMenuItem onClick={() => router.push("/dashboard")}>
+            <LayoutGrid className="h-4 w-4" />
+            Wszystkie projekty
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator className="bg-beige/10" />
-        <DropdownMenuItem onClick={() => void signOut()}>
-          <LogOut className="h-4 w-4" />
-          Wyloguj sie
-        </DropdownMenuItem>
+        <DropdownMenuGroup>
+          <DropdownMenuItem onClick={() => void signOut()}>
+            <LogOut className="h-4 w-4" />
+            Wyloguj sie
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );

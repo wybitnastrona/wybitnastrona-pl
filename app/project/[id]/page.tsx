@@ -38,6 +38,14 @@ export default async function ProjectPage({
     notFound();
   }
 
+  // Pobierz plan subskrypcji uzytkownika — decyduje o dostepnych modelach AI.
+  const { data: profileRow } = await supabase
+    .from("profiles")
+    .select("plan")
+    .eq("id", user.id)
+    .maybeSingle();
+  const userPlan = (profileRow?.plan as string | null) ?? "free";
+
   const storedMessages = await listChatMessages(id);
   // Wiadomosci sa przechowywane w bazie zgodnie z formatem UIMessage z @ai-sdk.
   // Cast do UIMessage[] — runtime gwarantuje odpowiedni ksztalt parts (wpisy
@@ -64,6 +72,7 @@ export default async function ProjectPage({
       domainPartnerUrl={domainPartnerUrl}
       initialModel={sp.model}
       initialMode={sp.mode === "plan" ? "plan" : "build"}
+      userPlan={userPlan}
     />
   );
 }

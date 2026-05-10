@@ -73,6 +73,8 @@ type ChatPanelProps = {
   wizardBlocked?: boolean;
   /** Notifies the parent whenever the streaming state changes. */
   onStreamingChange?: (streaming: boolean) => void;
+  /** Plan subskrypcji ('free' | 'pro' | 'team'). Free = tylko Haiku. */
+  userPlan?: string;
 };
 
 export type ChatPanelHandle = {
@@ -103,15 +105,33 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     initialMode,
     wizardBlocked,
     onStreamingChange,
+    userPlan = "free",
   },
   ref,
 ) {
   const router = useRouter();
   const [input, setInput] = useState("");
   const [mode, setMode] = useState<ChatMode>(initialMode ?? "build");
-  const [model, setModel] = useState<AiModelId>(
-    (initialModel as AiModelId | undefined) ?? DEFAULT_MODEL_ID,
-  );
+  const isPro = userPlan === "pro" || userPlan === "team";
+
+  // Na planie Free wymuszamy Haiku — ignorujemy initialModel jezeli wskazuje Pro model.
+  const resolvedInitialModel: AiModelId = (() => {
+    const m = (initialModel as AiModelId | undefined) ?? DEFAULT_MODEL_ID;
+    if (!isPro) {
+      const def = AI_MODELS.find((x) => x.id === m);
+      return def?.requiresPro ? DEFAULT_MODEL_ID : m;
+    }
+    return m;
+  })();
+
+  const [model, setModel] = useState<AiModelId>(resolvedInitialModel);
+
+  // Jezeli model zostal ustawiony na Pro-only przez starsze URL, resetuj go.
+  function handleModelChange(id: AiModelId) {
+    const def = AI_MODELS.find((x) => x.id === id);
+    if (!isPro && def?.requiresPro) return; // zignoruj
+    setModel(id);
+  }
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   // Track which plan cards have been acted on (approved/skipped)
   const [consumedPlans, setConsumedPlans] = useState<Set<number>>(new Set());
@@ -737,8 +757,9 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
 
             <ModelSelector
               value={model}
-              onChange={setModel}
+              onChange={handleModelChange}
               currentLabel={modelDef.labelShort}
+              isPro={isPro}
             />
 
             <SelectModeButton
@@ -782,10 +803,12 @@ function ModelSelector({
   value,
   onChange,
   currentLabel,
+  isPro = false,
 }: {
   value: AiModelId;
   onChange: (id: AiModelId) => void;
   currentLabel: string;
+  isPro?: boolean;
 }) {
   const badgeLabel: Record<string, string> = {
     new: "Nowy",
@@ -808,30 +831,41 @@ function ModelSelector({
           <DropdownMenuLabel className="px-2 py-1 text-xs uppercase tracking-wider text-muted-foreground">
             Anthropic Claude
           </DropdownMenuLabel>
-          {AI_MODELS.map((m) => (
-            <DropdownMenuItem
-              key={m.id}
-              disabled={!m.available}
-              onClick={() => m.available && onChange(m.id)}
-              className={
-                value === m.id
-                  ? "flex-col items-start bg-beige/10 text-beige"
-                  : "flex-col items-start"
-              }
-            >
-              <div className="flex w-full items-center gap-2">
-                <span className="font-medium">{m.label}</span>
-                {m.badge && (
-                  <span className="ml-auto rounded-full border border-beige/25 px-1.5 py-0 text-[9px] uppercase tracking-wider text-beige/80">
-                    {badgeLabel[m.badge] ?? m.badge}
-                  </span>
-                )}
-              </div>
-              <p className="text-[10px] text-muted-foreground">
-                {m.description}
-              </p>
-            </DropdownMenuItem>
-          ))}
+          {AI_MODELS.map((m) => {
+            const locked = !!m.requiresPro && !isPro;
+            return (
+              <DropdownMenuItem
+                key={m.id}
+                disabled={!m.available || locked}
+                onClick={() => !locked && m.available && onChange(m.id)}
+                className={
+                  value === m.id
+                    ? "flex-col items-start bg-beige/10 text-beige"
+                    : locked
+                      ? "flex-col items-start opacity-50"
+                      : "flex-col items-start"
+                }
+              >
+                <div className="flex w-full items-center gap-2">
+                  <span className="font-medium">{m.label}</span>
+                  {locked ? (
+                    <span className="ml-auto rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 py-0 text-[9px] uppercase tracking-wider text-amber-400">
+                      Pro
+                    </span>
+                  ) : m.badge ? (
+                    <span className="ml-auto rounded-full border border-beige/25 px-1.5 py-0 text-[9px] uppercase tracking-wider text-beige/80">
+                      {badgeLabel[m.badge] ?? m.badge}
+                    </span>
+                  ) : null}
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  {locked
+                    ? "Dostępny w planie Pro — przejdź do ustawień."
+                    : m.description}
+                </p>
+              </DropdownMenuItem>
+            );
+          })}
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>

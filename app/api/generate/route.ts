@@ -11,7 +11,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { updateProjectFiles, createSnapshot } from "@/lib/projects";
 import type { ProjectFiles } from "@/lib/types/project";
-import { getModel, resolveAnthropicModel, type AiModelId } from "@/lib/ai-models";
+import { AI_MODELS, getModel, resolveAnthropicModel, type AiModelId } from "@/lib/ai-models";
 import { buildRagContext } from "@/lib/rag";
 import { logProjectEvent } from "@/lib/analytics-server";
 import { fetchUnsplashImage } from "@/lib/unsplash";
@@ -87,6 +87,55 @@ const readFileSchema = z.object({
     .describe('Absolutna sciezka pliku zaczynajaca sie od "/"'),
 });
 
+/**
+ * Sanitize messages loaded from the DB before sending to the AI provider.
+ *
+ * Problem: when a generation is interrupted (timeout / error) mid-stream,
+ * the AI SDK stores tool-call parts whose `input` is still an accumulated
+ * JSON **string** instead of a parsed object.  Anthropic's API rejects these
+ * with "tool_use.input: Input should be an object".
+ *
+ * Fix:
+ * - For every tool part (type starts with "tool-") whose `input` is a string,
+ *   try JSON.parse; fall back to {} if parsing fails.
+ * - Drop tool parts that are still in "input-streaming" state (incomplete
+ *   streaming fragment — no useful data, will cause orphaned tool calls).
+ */
+function sanitizeMessagesForAI(messages: UIMessage[]): UIMessage[] {
+  return messages.map((message) => {
+    if (message.role !== "assistant") return message;
+
+    const sanitizedParts = message.parts
+      .filter((part) => {
+        const p = part as Record<string, unknown>;
+        const type = typeof p.type === "string" ? p.type : "";
+        if (!type.startsWith("tool-") && type !== "dynamic-tool") return true;
+        // Drop incomplete streaming fragments — they have no parseable input.
+        return p.state !== "input-streaming";
+      })
+      .map((part) => {
+        const p = part as Record<string, unknown>;
+        const type = typeof p.type === "string" ? p.type : "";
+        if (!type.startsWith("tool-") && type !== "dynamic-tool") return part;
+
+        // Ensure `input` is always a plain object, never a string.
+        if (typeof p.input === "string") {
+          try {
+            return { ...p, input: JSON.parse(p.input as string) };
+          } catch {
+            return { ...p, input: {} };
+          }
+        }
+        if (p.input === null || p.input === undefined) {
+          return { ...p, input: {} };
+        }
+        return part;
+      });
+
+    return { ...message, parts: sanitizedParts } as UIMessage;
+  });
+}
+
 export async function POST(req: Request) {
   const supabase = await createClient();
   const {
@@ -120,7 +169,7 @@ export async function POST(req: Request) {
         : body.mode === "continue"
           ? "continue"
           : "build";
-  const modelDef = getModel(modelId);
+  const modelDef = getModel(modelId); // pointCost based on requested model (UI already locked)
 
   if (!projectId || !messages?.length) {
     return NextResponse.json(
@@ -141,7 +190,7 @@ export async function POST(req: Request) {
 
   const { data: profileRow, error: profileErr } = await supabase
     .from("profiles")
-    .select("points")
+    .select("points, plan")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -150,6 +199,15 @@ export async function POST(req: Request) {
   }
 
   const currentPoints = (profileRow?.points as number | null) ?? 0;
+  const userPlan = (profileRow?.plan as string | null) ?? "free";
+  const isPro = userPlan === "pro" || userPlan === "team";
+
+  // Wymuszenie Haiku dla planu Free — zapobiega obejsciu restrickcji przez URL/API.
+  const effectiveModelId: AiModelId = (() => {
+    if (isPro) return modelId;
+    const def = AI_MODELS.find((m) => m.id === modelId);
+    return def?.requiresPro ? ("claude-haiku-4-5" as AiModelId) : modelId;
+  })();
 
   if (currentPoints < pointsRequired) {
     return NextResponse.json(
@@ -181,15 +239,18 @@ export async function POST(req: Request) {
     ),
   );
   const projectTemplate = (project.template as string | null) ?? "react-ts";
-  const modelMessages = await convertToModelMessages(messages);
-  const anthropicModel = resolveAnthropicModel(modelId);
+  const modelMessages = await convertToModelMessages(
+    sanitizeMessagesForAI(messages),
+    { ignoreIncompleteToolCalls: true },
+  );
+  const anthropicModel = resolveAnthropicModel(effectiveModelId);
 
   // ─── Create generation job for Realtime progress tracking ───────────────────
   const jobId = await createJob(supabase, {
     projectId,
     userId: user.id,
     mode,
-    model: modelId,
+    model: effectiveModelId,
   });
 
   // Inject existing file paths so AI knows which files can be patched vs created.

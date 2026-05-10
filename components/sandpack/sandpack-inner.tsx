@@ -53,9 +53,6 @@ const wybitnaTheme: SandpackTheme = {
   },
 };
 
-/** Tailwind CSS via externalResources (CSP-safe). */
-const EXTERNAL_RESOURCES = ["https://cdn.tailwindcss.com"];
-
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 export function SandpackInner({
@@ -85,10 +82,10 @@ export function SandpackInner({
         recompileDelay: 800,
         autorun: true,
         autoReload: true,
-        externalResources: EXTERNAL_RESOURCES,
-        // Use the official Sandpack bundler CDN — more reliable than the default
+        // Tailwind CDN jest juz wstrzykniety bezposrednio w index.html
+        // (lib/sandpack/starter.ts) — laduje sie niezawodnie jako pierwszy
+        // skrypt, zanim React wyrenderuje DOM.
         bundlerURL: "https://sandpack-bundler.codesandbox.io",
-        // Delay bundler initialisation until preview is first shown
         initMode: "lazy",
       }}
     >

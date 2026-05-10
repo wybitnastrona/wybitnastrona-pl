@@ -22,6 +22,8 @@ export type AiModelDef = {
   /** Koszt jednego zapytania w punktach uzytkownika. */
   pointCost: number;
   available: boolean;
+  /** Jezeli true — model wymaga planu Pro lub Team (niedostepny w Free). */
+  requiresPro?: boolean;
 };
 
 export const AI_MODELS: AiModelDef[] = [
@@ -40,9 +42,10 @@ export const AI_MODELS: AiModelDef[] = [
     label: "Claude Sonnet 4.6",
     labelShort: "Sonnet 4.6",
     anthropicModel: "claude-sonnet-4-5",
-    description: "Domyslny model — najlepszy balans szybkosci i jakosci kodu.",
+    description: "Najlepszy balans szybkosci i jakosci kodu. Wymaga planu Pro.",
     pointCost: 25,
     available: true,
+    requiresPro: true,
   },
   {
     id: "claude-opus-4-6",
@@ -50,10 +53,11 @@ export const AI_MODELS: AiModelDef[] = [
     labelShort: "Opus 4.6",
     anthropicModel: "claude-opus-4-5",
     description:
-      "Zaawansowane projekty, refaktoring architektury, skomplikowane logiki.",
+      "Zaawansowane projekty, refaktoring architektury. Wymaga planu Pro.",
     badge: "powerful",
     pointCost: 60,
     available: true,
+    requiresPro: true,
   },
   {
     id: "claude-opus-4-7",
@@ -61,14 +65,16 @@ export const AI_MODELS: AiModelDef[] = [
     labelShort: "Opus 4.7",
     anthropicModel: "claude-opus-4-5",
     description:
-      "Najnowszy model Opus. Maksymalna jakosc na zlozonych zadaniach.",
+      "Maksymalna jakosc na zlozonych zadaniach. Wymaga planu Pro.",
     badge: "new",
     pointCost: 80,
     available: true,
+    requiresPro: true,
   },
 ];
 
-export const DEFAULT_MODEL_ID: AiModelId = "claude-sonnet-4-6";
+/** Domyslny model — Haiku 4.5 dostepny dla wszystkich planow (w tym Free). */
+export const DEFAULT_MODEL_ID: AiModelId = "claude-haiku-4-5";
 
 export function getModel(id: AiModelId | string | undefined): AiModelDef {
   return (

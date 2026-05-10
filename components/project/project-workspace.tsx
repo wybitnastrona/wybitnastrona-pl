@@ -24,6 +24,8 @@ type Props = {
   domainPartnerUrl: string;
   initialModel?: string;
   initialMode?: "build" | "plan";
+  /** Plan subskrypcji zalogowanego uzytkownika ('free' | 'pro' | 'team'). */
+  userPlan?: string;
 };
 
 export function ProjectWorkspace({
@@ -35,6 +37,7 @@ export function ProjectWorkspace({
   domainPartnerUrl,
   initialModel,
   initialMode,
+  userPlan = "free",
 }: Props) {
   const hasFiles =
     Object.keys(project.files ?? {}).filter(
@@ -174,6 +177,7 @@ export function ProjectWorkspace({
             initialMode={initialMode}
             wizardBlocked={wizardActive}
             onStreamingChange={setStreaming}
+            userPlan={userPlan}
           />
         </div>
 

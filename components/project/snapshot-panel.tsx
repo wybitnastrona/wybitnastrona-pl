@@ -30,7 +30,6 @@ export function SnapshotPanel({ projectId, currentFiles, onRestored }: Props) {
   } | null>(null);
 
   useEffect(() => {
-    setLoading(true);
     fetch(`/api/projects/${projectId}/snapshots`)
       .then((r) => r.json())
       .then((data: Snapshot[]) => setSnapshots(data))

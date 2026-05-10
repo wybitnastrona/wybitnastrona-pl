@@ -20,7 +20,6 @@ export function KnowledgeTab() {
   const [error, setError] = useState<string | null>(null);
 
   async function load() {
-    setLoading(true);
     try {
       const res = await fetch("/api/knowledge");
       const data = (await res.json()) as { docs?: KnowledgeDoc[]; error?: string };
@@ -31,6 +30,7 @@ export function KnowledgeTab() {
   }
 
   useEffect(() => {
+    // loading zainicjowany jako true — nie trzeba go ustawiać synchronicznie
     void load();
   }, []);
 
@@ -48,6 +48,7 @@ export function KnowledgeTab() {
       if (data.ok) {
         setTitle("");
         setContent("");
+        setLoading(true);
         await load();
       } else {
         setError(data.error ?? "Nie udało się zapisać.");
@@ -60,6 +61,7 @@ export function KnowledgeTab() {
   async function handleDelete(id: string) {
     if (!confirm("Usunąć dokument z bazy wiedzy?")) return;
     await fetch(`/api/knowledge?id=${id}`, { method: "DELETE" });
+    setLoading(true);
     await load();
   }
 

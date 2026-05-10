@@ -41,7 +41,6 @@ const MODELS = [
 
 export function CreationHero() {
   const router = useRouter();
-  const settings = useSettings();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const [prompt, setPrompt] = useState("");

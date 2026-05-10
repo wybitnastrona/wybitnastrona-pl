@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { Smartphone, X } from "lucide-react";
 
@@ -17,11 +17,11 @@ type Props = {
  */
 export function MobileQrButton({ previewUrl, isExpo }: Props) {
   const [open, setOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    setIsMobile(window.matchMedia("(max-width: 640px)").matches);
-  }, []);
+  const [isMobile] = useState(() =>
+    typeof window !== "undefined"
+      ? window.matchMedia("(max-width: 640px)").matches
+      : false,
+  );
 
   if (!previewUrl) return null;
 

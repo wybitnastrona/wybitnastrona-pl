@@ -120,21 +120,22 @@ export function ProjectWorkspace({
 
       {/*
         Mobile: single column, 2 rows (chat on top, canvas below).
-        Desktop (lg+): chat | drag-handle | canvas, rows collapse to 1fr.
-        The drag handle has display:none on mobile so it's absent from the grid.
+        Desktop (lg+): chat | drag-handle | canvas side by side.
+        The <style> tag is a sibling — NOT inside the grid — so it doesn't
+        consume a grid cell. The drag handle has display:none on mobile so it
+        is also absent from the grid flow there.
       */}
+      <style>{`
+        .ws-grid { grid-template-columns: 1fr; grid-template-rows: 40vh 1fr; }
+        @media (min-width: 1024px) {
+          .ws-grid { grid-template-columns: var(--chat-w) 5px 1fr; grid-template-rows: 1fr; }
+        }
+      `}</style>
+
       <div
         className="ws-grid grid min-h-0 flex-1"
-        style={
-          {
-            "--chat-w": `${chatWidth}px`,
-            gridTemplateColumns: "1fr",
-            gridTemplateRows: "40vh 1fr",
-          } as React.CSSProperties
-        }
+        style={{ "--chat-w": `${chatWidth}px` } as React.CSSProperties}
       >
-        <style>{`@media(min-width:1024px){.ws-grid{grid-template-columns:var(--chat-w) 5px 1fr;grid-template-rows:1fr}}`}</style>
-
         <div className="min-h-0 border-b border-beige/10 lg:border-b-0">
           {wizardActive ? (
             <WizardPanel
@@ -158,7 +159,7 @@ export function ProjectWorkspace({
           )}
         </div>
 
-        {/* Drag handle — hidden on mobile, so it doesn't consume a grid row */}
+        {/* Drag handle — display:none on mobile so it's absent from the grid */}
         <div
           className="relative hidden cursor-col-resize lg:block"
           onMouseDown={startResize}

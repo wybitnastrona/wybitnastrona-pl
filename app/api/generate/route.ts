@@ -200,63 +200,63 @@ export async function POST(req: Request) {
     query: lastUserText,
   });
 
+  // In plan mode only expose showPlan — writeFile/deleteFile/fetchImage are
+  // intentionally omitted so the AI literally cannot call them regardless of
+  // what the system prompt says. This is the only reliable guard.
+  const planOnlyTools = {
+    showPlan: tool({
+      description:
+        "Wyswietla uzytkownikowi liste krokow przed implementacja. Wywoluj DOKLADNIE raz.",
+      inputSchema: showPlanSchema,
+      execute: async ({ steps }) => {
+        return { ok: true, steps };
+      },
+    }),
+  };
+
+  const buildTools = {
+    showPlan: tool({
+      description:
+        "Wyswietla uzytkownikowi liste krokow przed implementacja. Wywoluj raz na poczatku.",
+      inputSchema: showPlanSchema,
+      execute: async ({ steps }) => {
+        return { ok: true, steps };
+      },
+    }),
+    writeFile: tool({
+      description: "Tworzy lub nadpisuje plik. Sciezka absolutna od '/'.",
+      inputSchema: writeFileSchema,
+      execute: async ({ path, content }) => {
+        const normalized = path.startsWith("/") ? path : `/${path}`;
+        files[normalized] = { code: content };
+        return { ok: true, path: normalized, bytes: content.length };
+      },
+    }),
+    deleteFile: tool({
+      description: "Usuwa plik z projektu.",
+      inputSchema: deleteFileSchema,
+      execute: async ({ path }) => {
+        const normalized = path.startsWith("/") ? path : `/${path}`;
+        delete files[normalized];
+        return { ok: true, path: normalized };
+      },
+    }),
+    fetchImage: tool({
+      description:
+        "Fetches a real photo URL from Unsplash matching the query. Returns { url, alt, credit, creditUrl }. Use this instead of gray placeholder images.",
+      inputSchema: fetchImageSchema,
+      execute: async ({ query, orientation }) => {
+        return fetchUnsplashImage(query, orientation);
+      },
+    }),
+  };
+
   const result = streamText({
     model: anthropic(anthropicModel),
     system: buildSystemPrompt(mode) + ragContext,
     messages: modelMessages,
-    stopWhen: stepCountIs(mode === "plan" ? 3 : 14),
-    // Faza 1.3: AI SDK v6 streamuje czesciowe argumenty tool calls domyslnie.
-    // Klient widzi pisanie pliku znak po znaku (typewriter effect) przez state=input-streaming.
-    tools: {
-      showPlan: tool({
-        description:
-          "Wyswietla uzytkownikowi liste krokow przed implementacja. Wywoluj raz na poczatku.",
-        inputSchema: showPlanSchema,
-        execute: async ({ steps }) => {
-          return { ok: true, steps };
-        },
-      }),
-      writeFile: tool({
-        description: "Tworzy lub nadpisuje plik. Sciezka absolutna od '/'.",
-        inputSchema: writeFileSchema,
-        execute: async ({ path, content }) => {
-          if (mode === "plan") {
-            return {
-              ok: false,
-              skipped: true,
-              reason: "Tryb Plan - nie tworze plikow.",
-            };
-          }
-          const normalized = path.startsWith("/") ? path : `/${path}`;
-          files[normalized] = { code: content };
-          return { ok: true, path: normalized, bytes: content.length };
-        },
-      }),
-      deleteFile: tool({
-        description: "Usuwa plik z projektu.",
-        inputSchema: deleteFileSchema,
-        execute: async ({ path }) => {
-          if (mode === "plan") {
-            return {
-              ok: false,
-              skipped: true,
-              reason: "Tryb Plan - nie usuwam plikow.",
-            };
-          }
-          const normalized = path.startsWith("/") ? path : `/${path}`;
-          delete files[normalized];
-          return { ok: true, path: normalized };
-        },
-      }),
-      fetchImage: tool({
-        description:
-          "Fetches a real photo URL from Unsplash matching the query. Returns { url, alt, credit, creditUrl }. Use this instead of gray placeholder images.",
-        inputSchema: fetchImageSchema,
-        execute: async ({ query, orientation }) => {
-          return fetchUnsplashImage(query, orientation);
-        },
-      }),
-    },
+    stopWhen: stepCountIs(mode === "plan" ? 2 : 14),
+    tools: mode === "plan" ? planOnlyTools : buildTools,
     onFinish: async () => {
       // Faza 2.7: trackuj kazde zapytanie.
       void logProjectEvent(supabase, {

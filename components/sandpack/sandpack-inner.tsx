@@ -82,6 +82,8 @@ export function SandpackInner({
         autorun: true,
         autoReload: true,
         externalResources: EXTERNAL_RESOURCES,
+        // Use the official Sandpack bundler CDN — more reliable than the default
+        bundlerURL: "https://sandpack-bundler.codesandbox.io",
       }}
     >
       {projectId && (

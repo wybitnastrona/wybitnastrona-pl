@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { ArrowLeft, ArrowRight, Check, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowLeft, ArrowRight, Check, Loader2, Sparkles } from "lucide-react";
 import {
   detectIndustry,
   getQuestions,
   buildEnrichedPrompt,
+  type Question,
 } from "@/lib/questionnaire";
 
 type Props = {
@@ -18,18 +19,50 @@ type Props = {
 };
 
 export function WizardPanel({ initialPrompt, onComplete, onSkip }: Props) {
-  const industry = detectIndustry(initialPrompt);
-  const questions = getQuestions(industry);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
 
+  // Fetch AI-generated questions; fall back to presets if API fails
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchQuestions() {
+      try {
+        const res = await fetch("/api/questionnaire", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: initialPrompt }),
+        });
+        if (!res.ok) throw new Error("API error");
+        const data = (await res.json()) as { questions?: Question[] };
+        if (!cancelled && Array.isArray(data.questions) && data.questions.length > 0) {
+          setQuestions(data.questions);
+          return;
+        }
+      } catch {
+        // ignore — fall through to preset
+      }
+      if (!cancelled) {
+        const industry = detectIndustry(initialPrompt);
+        setQuestions(getQuestions(industry));
+      }
+    }
+    void fetchQuestions().finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [initialPrompt]);
+
   const question = questions[step];
   const isLast = step === questions.length - 1;
-  const currentAnswer = answers[question.id];
-  const hasAnswer = question.type === "single"
-    ? typeof currentAnswer === "string" && currentAnswer.length > 0
-    : Array.isArray(currentAnswer) && currentAnswer.length > 0;
+  const currentAnswer = question ? answers[question.id] : undefined;
+  const hasAnswer = !question
+    ? false
+    : question.type === "single"
+      ? typeof currentAnswer === "string" && currentAnswer.length > 0
+      : Array.isArray(currentAnswer) && currentAnswer.length > 0;
 
   function toggleOption(value: string) {
     if (question.type === "single") {
@@ -54,13 +87,44 @@ export function WizardPanel({ initialPrompt, onComplete, onSkip }: Props) {
 
   function handleNext() {
     if (isLast) {
-      onComplete(buildEnrichedPrompt(initialPrompt, answers));
+      onComplete(buildEnrichedPrompt(initialPrompt, answers, questions));
     } else {
       setStep((s) => s + 1);
     }
   }
 
   const progressPct = Math.round(((step + 1) / questions.length) * 100);
+
+  if (loading || !question) {
+    return (
+      <div className="flex h-full flex-col bg-background">
+        <div className="border-b border-beige/10 px-5 py-4">
+          <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 text-beige/70" />
+              Dostosuj projekt
+            </span>
+          </div>
+          <div className="h-1 w-full overflow-hidden rounded-full bg-beige/10">
+            <div className="h-1 animate-pulse rounded-full bg-beige/30" style={{ width: "30%" }} />
+          </div>
+        </div>
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin text-beige/50" />
+          <p className="text-sm">Przygotowuję pytania dla Twojego projektu…</p>
+        </div>
+        <div className="border-t border-beige/10 px-5 py-4">
+          <button
+            type="button"
+            onClick={onSkip}
+            className="h-8 cursor-pointer rounded-lg border border-transparent px-3 text-xs text-muted-foreground transition hover:text-foreground"
+          >
+            Pomiń i generuj od razu
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full flex-col bg-background">

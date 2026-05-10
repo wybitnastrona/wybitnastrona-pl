@@ -223,39 +223,50 @@ export function getQuestions(industry: Industry): Question[] {
 
 // ─── Prompt enrichment ───────────────────────────────────────────────────────
 
-const STYLE_LABELS: Record<string, string> = {
-  "dark-energetic": "mroczny i energetyczny (ciemne tło, neonowe akcenty)",
-  "light-minimal": "jasny i minimalistyczny (biel, dużo przestrzeni)",
-  "warm-cozy": "ciepły i przytulny (beże, zieleń, naturalne materiały)",
-  "bold-colorful": "odważny i kolorowy (mocne kolory, dynamiczne kąty)",
-};
-
+/**
+ * Builds an enriched prompt from the original user prompt and wizard answers.
+ * Works with both static (preset) and dynamic (AI-generated) questions —
+ * it reads question/option labels from the question bank passed in.
+ */
 export function buildEnrichedPrompt(
   originalPrompt: string,
   answers: Record<string, string | string[]>,
+  questions?: Question[],
 ): string {
-  const lines: string[] = [originalPrompt, "", "Dodatkowe wymagania:"];
+  const lines: string[] = [originalPrompt, "", "Dodatkowe wymagania od użytkownika:"];
+  let hasAny = false;
 
-  const style = answers["style"] as string | undefined;
-  if (style && STYLE_LABELS[style]) {
-    lines.push(`- Styl wizualny: ${STYLE_LABELS[style]}`);
+  for (const [qId, ans] of Object.entries(answers)) {
+    if (!ans || (Array.isArray(ans) && ans.length === 0)) continue;
+
+    // Find matching question for human-readable label
+    const q = questions?.find((qq) => qq.id === qId);
+
+    if (Array.isArray(ans)) {
+      // Multi-select: resolve option labels if available
+      const labels = ans.map((v) => {
+        const opt = q?.options.find((o) => o.value === v);
+        return opt ? opt.label : v;
+      });
+      if (q) {
+        lines.push(`- ${q.text}: ${labels.join(", ")}`);
+      } else {
+        lines.push(`- ${qId}: ${labels.join(", ")}`);
+      }
+    } else {
+      // Single-select
+      const opt = q?.options.find((o) => o.value === ans);
+      const label = opt ? opt.label : ans;
+      const desc = opt?.description ? ` (${opt.description})` : "";
+      if (q) {
+        lines.push(`- ${q.text}: ${label}${desc}`);
+      } else {
+        lines.push(`- ${qId}: ${label}`);
+      }
+    }
+    hasAny = true;
   }
 
-  const sections = answers["sections"] as string[] | undefined;
-  if (sections && sections.length > 0) {
-    lines.push(`- Sekcje do uwzględnienia: ${sections.join(", ")}`);
-  }
-
-  const content = answers["content"] as string | undefined;
-  if (content === "generate") {
-    lines.push(
-      "- Użyj przykładowych danych (fikcyjne imiona, ceny, opinie) — użytkownik podmieni je później.",
-    );
-  } else if (content === "provide") {
-    lines.push(
-      "- Zaznacz miejsca do uzupełnienia komentarzem {/* TODO: wstaw dane */}.",
-    );
-  }
-
+  if (!hasAny) return originalPrompt;
   return lines.join("\n");
 }

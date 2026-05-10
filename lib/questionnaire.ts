@@ -27,13 +27,17 @@ export type Question = {
 
 // ─── Industry detection ──────────────────────────────────────────────────────
 
+// Order matters — more specific patterns first.
+// Ecommerce is checked before fitness so "sklep z odzieżą sportową" doesn't
+// accidentally match the fitness "sport" keyword.
 const INDUSTRY_KEYWORDS: Record<Industry, RegExp> = {
-  fitness: /trener|fitness|silownia|gym|sport|dieta|trening|wellness|yoga|pilates/i,
   ecommerce: /sklep|sprzeda|e-commerce|koszyk|produkt|zakup|shop|store|butik/i,
   restaurant: /restauracja|kawiarnia|menu|bistro|catering|jedzenie|food|bar|pub|pizzeria/i,
   portfolio: /portfolio|freelancer|fotograf|grafik|projektant|designer|agencja|architekt/i,
-  saas: /saas|aplikacja|dashboard|startup|platforma|software|api|crm|erp|narzedzie/i,
+  saas: /saas|dashboard|startup|platforma|software|crm|erp/i,
   blog: /blog|artykul|wpis|newsy|magazyn|content|poradnik|przepisy/i,
+  // Fitness keywords narrowed — "sport" alone is too generic (matches "sportową" in clothing)
+  fitness: /trener\s+personal|personal\s+train|fitness|si[lł]owni|gym|trening|wellness|yoga|pilates/i,
   other: /.*/,
 };
 

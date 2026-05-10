@@ -50,7 +50,7 @@ const REACT_TS_STACK = `STACK: React 19 + TypeScript (Sandpack)
 - Tailwind CSS przez CDN — klas uzywaj swobodnie, biblioteka jest juz w runtime.
 - BEZ dodatkowych zaleznosci NPM oprocz react/react-dom (chyba ze user wyraznie poprosi).
 - Glowny plik: /App.tsx (export default function App).
-- /index.tsx i /index.html sa juz utworzone — NIE nadpisuj ich.
+- /index.tsx i /index.html sa juz utworzone — NIE nadpisuj ich. Jesli musisz dotknac /index.html, ZAWSZE zostaw w <head> skrypt: <script src="https://cdn.tailwindcss.com"></script> (bez niego caly wyglad Tailwinda znika).
 - Komponenty trzymaj w /components/*.tsx.
 - Routing: jezeli uzytkownik chce wielu "stron", uzyj prostego state-based switchera (nie react-router).`;
 

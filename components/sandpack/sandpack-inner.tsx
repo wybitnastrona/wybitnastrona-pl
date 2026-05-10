@@ -17,6 +17,7 @@ import {
   MousePointer2,
   Terminal as TerminalIcon,
 } from "lucide-react";
+import { mergeSandpackProjectFiles } from "@/lib/sandpack/merge-preview-files";
 import { STARTER_DEPENDENCIES } from "@/lib/sandpack/starter";
 import { SandpackSaver } from "./sandpack-saver";
 import type { SandpackRunnerProps } from "./sandpack-runner";
@@ -71,7 +72,7 @@ export function SandpackInner({
     <SandpackProvider
       template="react-ts"
       theme={wybitnaTheme}
-      files={files}
+      files={mergeSandpackProjectFiles(files)}
       customSetup={{
         dependencies: STARTER_DEPENDENCIES,
         // Explicitly declare entry so the bundler doesn't guess create-react-app

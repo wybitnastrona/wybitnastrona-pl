@@ -45,7 +45,30 @@ export async function createProject(
     .select("*")
     .single();
 
-  if (error) throw error;
+  if (error) {
+    // PostgreSQL error 42703 = "column does not exist" — schema is behind migrations.
+    // Fall back to minimal insert (without new columns) so the user can still create projects.
+    if ((error as { code?: string }).code === "42703") {
+      console.warn(
+        "[createProject] Missing column — falling back to minimal insert. " +
+          "Run the schema migration in Supabase Dashboard. Error:",
+        error.message,
+      );
+      const { data: data2, error: error2 } = await supabase
+        .from("projects")
+        .insert({
+          user_id: user.id,
+          prompt,
+          title: deriveTitle(prompt),
+          files: template.getFiles(),
+        })
+        .select("*")
+        .single();
+      if (error2) throw error2;
+      return data2 as Project;
+    }
+    throw error;
+  }
   return data as Project;
 }
 

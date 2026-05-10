@@ -62,6 +62,8 @@ type Props = {
   onFixError?: (hint: string, opts: { auto: boolean }) => void;
   /** True jezeli AI obecnie generuje — auto-fix nie wystartuje wtedy. */
   isStreaming?: boolean;
+  /** Z menu plików: włącza tryb „wskaż w podglądzie” (jak Target all). */
+  onActivatePreviewPickMode?: () => void;
 };
 
 export function WorkspaceCanvas({
@@ -71,6 +73,7 @@ export function WorkspaceCanvas({
   onElementPick,
   onFixError,
   isStreaming = false,
+  onActivatePreviewPickMode,
 }: Props) {
   const router = useRouter();
   const [view, setView] = useState<WorkspaceView>("preview");
@@ -279,6 +282,10 @@ export function WorkspaceCanvas({
               onElementPick={onElementPick}
               projectId={project.id}
               isGenerating={buildFile !== null}
+              onRequestPreviewPickMode={() => {
+                setView("preview");
+                onActivatePreviewPickMode?.();
+              }}
             />
           </div>
         )}

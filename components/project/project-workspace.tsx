@@ -197,6 +197,7 @@ export function ProjectWorkspace({
             onElementPick={handleElementPick}
             onFixError={handleFixError}
             isStreaming={streaming}
+            onActivatePreviewPickMode={() => setSelectMode(true)}
           />
         </div>
       </div>

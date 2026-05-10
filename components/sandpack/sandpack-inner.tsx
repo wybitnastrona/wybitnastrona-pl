@@ -5,7 +5,6 @@ import {
   SandpackProvider,
   SandpackPreview,
   SandpackCodeEditor,
-  SandpackFileExplorer,
   SandpackConsole,
   type SandpackTheme,
 } from "@codesandbox/sandpack-react";
@@ -20,6 +19,7 @@ import {
 import { mergeSandpackProjectFiles } from "@/lib/sandpack/merge-preview-files";
 import { STARTER_DEPENDENCIES } from "@/lib/sandpack/starter";
 import { SandpackSaver } from "./sandpack-saver";
+import { SandpackContextFileExplorer } from "./sandpack-context-file-explorer";
 import type { SandpackRunnerProps } from "./sandpack-runner";
 
 const wybitnaTheme: SandpackTheme = {
@@ -64,6 +64,7 @@ export function SandpackInner({
   hideInternalNavigator = false,
   projectId,
   isGenerating = false,
+  onRequestPreviewPickMode,
 }: SandpackRunnerProps) {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [terminalOpen, setTerminalOpen] = useState(true);
@@ -105,6 +106,7 @@ export function SandpackInner({
             onToggleTerminal={() => setTerminalOpen((v) => !v)}
             projectId={projectId}
             readOnly={isGenerating}
+            onRequestPreviewPickMode={onRequestPreviewPickMode}
           />
         )}
 
@@ -113,6 +115,9 @@ export function SandpackInner({
             selectMode={selectMode}
             onElementPick={onElementPick}
             hideInternalNavigator={hideInternalNavigator}
+            projectId={projectId}
+            readOnly={isGenerating}
+            onRequestPreviewPickMode={onRequestPreviewPickMode}
           />
         )}
 
@@ -136,17 +141,24 @@ function CodeView({
   onToggleTerminal,
   projectId,
   readOnly = false,
+  onRequestPreviewPickMode,
 }: {
   terminalOpen: boolean;
   onToggleTerminal: () => void;
   projectId?: string;
   readOnly?: boolean;
+  onRequestPreviewPickMode?: () => void;
 }) {
   return (
     <div className="flex h-full w-full">
       {/* File explorer — ukryty na mobile, oddzielony cienka linia */}
       <aside className="hidden h-full w-[200px] shrink-0 border-r border-beige/10 md:block lg:w-[220px]">
-        <SandpackFileExplorer style={{ height: "100%" }} />
+        <SandpackContextFileExplorer
+          projectId={projectId}
+          readOnly={readOnly}
+          onTargetAll={onRequestPreviewPickMode}
+          style={{ height: "100%" }}
+        />
       </aside>
 
       {/* Edytor + terminal (kolumna) */}
@@ -209,15 +221,26 @@ function SplitView({
   selectMode,
   onElementPick,
   hideInternalNavigator,
+  projectId,
+  readOnly = false,
+  onRequestPreviewPickMode,
 }: {
   selectMode: boolean;
   onElementPick?: (info: { x: number; y: number }) => void;
   hideInternalNavigator: boolean;
+  projectId?: string;
+  readOnly?: boolean;
+  onRequestPreviewPickMode?: () => void;
 }) {
   return (
     <div className="flex h-full w-full">
       <aside className="hidden h-full w-[200px] shrink-0 border-r border-beige/10 md:block">
-        <SandpackFileExplorer style={{ height: "100%" }} />
+        <SandpackContextFileExplorer
+          projectId={projectId}
+          readOnly={readOnly}
+          onTargetAll={onRequestPreviewPickMode}
+          style={{ height: "100%" }}
+        />
       </aside>
       <div className="flex min-w-0 flex-1 border-r border-beige/10">
         <SandpackCodeEditor

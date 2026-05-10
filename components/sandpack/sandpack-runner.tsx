@@ -40,6 +40,11 @@ export type SandpackRunnerProps = {
   projectId?: string;
   /** When true the editor is read-only (AI is actively writing files). */
   isGenerating?: boolean;
+  /**
+   * Wywoływane z menu eksploratora („Wskaż w podglądzie”) — np. włącza tryb
+   * wyboru elementu i przełącza na widok podglądu.
+   */
+  onRequestPreviewPickMode?: () => void;
 };
 
 export function SandpackRunner(props: SandpackRunnerProps) {

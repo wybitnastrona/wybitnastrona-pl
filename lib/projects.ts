@@ -7,7 +7,10 @@ import type {
   ProjectListItem,
 } from "@/lib/types/project";
 import { getTemplate, type TemplateId } from "@/lib/templates";
-import { stripShadowPublicIndexFromProjectFiles } from "@/lib/sandpack/merge-preview-files";
+import {
+  stripShadowPublicIndexFromProjectFiles,
+  ensureTailwindInProjectFiles,
+} from "@/lib/sandpack/merge-preview-files";
 
 const slugAlphabet =
   "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -135,9 +138,10 @@ export async function updateProjectFiles(
   files: ProjectFiles,
 ): Promise<void> {
   const supabase = await createClient();
+  const cleaned = stripShadowPublicIndexFromProjectFiles(files);
   const { error } = await supabase
     .from("projects")
-    .update({ files: stripShadowPublicIndexFromProjectFiles(files) })
+    .update({ files: ensureTailwindInProjectFiles(cleaned) })
     .eq("id", id);
   if (error) throw error;
 }

@@ -73,6 +73,19 @@ ${trimmed}
 }
 
 /**
+ * Gwarantuje, że /index.html w zbiorze plików zawiera skrypt Tailwind CDN.
+ * Używane przy zapisie do bazy (updateProjectFiles), żeby baza nigdy nie trzymała
+ * HTML bez Tailwinda — niezależnie od tego co AI wygenerowała.
+ */
+export function ensureTailwindInProjectFiles(files: ProjectFiles): ProjectFiles {
+  const entry = files["/index.html"];
+  if (!entry || typeof entry.code !== "string") return files;
+  const fixed = injectTailwindIntoHtml(entry.code);
+  if (fixed === entry.code) return files;
+  return { ...files, "/index.html": { ...entry, code: fixed } };
+}
+
+/**
  * Hidden starter (index.html, index.tsx) merged under project files, then
  * /index.html is repaired if Tailwind CDN was removed.
  * Duplicate `public/index.html` is dropped so it cannot override the app shell.

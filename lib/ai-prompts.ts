@@ -51,6 +51,7 @@ const REACT_TS_STACK = `STACK: React 19 + TypeScript (Sandpack)
 - BEZ dodatkowych zaleznosci NPM oprocz react/react-dom (chyba ze user wyraznie poprosi).
 - Glowny plik: /App.tsx (export default function App).
 - /index.tsx i /index.html sa juz utworzone — NIE nadpisuj ich. Jesli musisz dotknac /index.html, ZAWSZE zostaw w <head> skrypt: <script src="https://cdn.tailwindcss.com"></script> (bez niego caly wyglad Tailwinda znika).
+- NIGDY nie tworz /public/index.html (ani public/index.html). W Sandpacku statyczny index w public/ nadpisuje dokument i usuwa Tailwind z podgladu. Jedyny shell HTML to /index.html w korzeniu. Jesli taki plik juz istnieje w projekcie, wywolaj deleteFile("/public/index.html").
 - Komponenty trzymaj w /components/*.tsx.
 - Routing: jezeli uzytkownik chce wielu "stron", uzyj prostego state-based switchera (nie react-router).`;
 

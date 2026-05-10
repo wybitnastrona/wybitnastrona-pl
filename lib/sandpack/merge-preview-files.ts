@@ -4,11 +4,30 @@ import { getStarterFiles } from "./starter";
 const TAILWIND_CDN_SCRIPT =
   '<script src="https://cdn.tailwindcss.com"></script>';
 
-/** True if HTML already pulls Tailwind (Play CDN, v4 browser build, jsDelivr, etc.). */
-function htmlReferencesTailwind(html: string): boolean {
-  return /tailwindcss\.com|@tailwindcss\/browser|cdn\.jsdelivr\.net\/npm\/@tailwindcss/i.test(
+/**
+ * True only when a real external script tag loads Tailwind (not a comment / string
+ * mentioning tailwindcss.com — that used to skip injection and break the preview).
+ */
+function htmlHasTailwindScript(html: string): boolean {
+  return /<script[^>]+\bsrc\s*=\s*["'][^"']*(?:cdn\.tailwindcss\.com|@tailwindcss\/browser|cdn\.jsdelivr\.net\/npm\/@tailwindcss)/i.test(
     html,
   );
+}
+
+/** Sandpack serves `public/*` at URL root — `public/index.html` shadows root `/index.html` and strips Tailwind. */
+const SHADOW_INDEX_HTML_PATHS = ["/public/index.html", "public/index.html"] as const;
+
+/**
+ * Removes paths that break the Sandpack preview. Safe to call before DB persist.
+ */
+export function stripShadowPublicIndexFromProjectFiles(
+  files: ProjectFiles,
+): ProjectFiles {
+  const out = { ...files };
+  for (const p of SHADOW_INDEX_HTML_PATHS) {
+    delete out[p];
+  }
+  return out;
 }
 
 /**
@@ -17,7 +36,7 @@ function htmlReferencesTailwind(html: string): boolean {
  */
 function injectTailwindIntoHtml(html: string): string {
   const trimmed = html.trim();
-  if (htmlReferencesTailwind(trimmed)) return trimmed;
+  if (htmlHasTailwindScript(trimmed)) return trimmed;
 
   if (/<\/head>/i.test(trimmed)) {
     return trimmed.replace(
@@ -56,10 +75,14 @@ ${trimmed}
 /**
  * Hidden starter (index.html, index.tsx) merged under project files, then
  * /index.html is repaired if Tailwind CDN was removed.
+ * Duplicate `public/index.html` is dropped so it cannot override the app shell.
  */
 export function mergeSandpackProjectFiles(files: ProjectFiles): ProjectFiles {
   const starter = getStarterFiles();
-  const merged: ProjectFiles = { ...starter, ...files };
+  const merged = stripShadowPublicIndexFromProjectFiles({
+    ...starter,
+    ...files,
+  });
 
   const entry = merged["/index.html"];
   if (entry && typeof entry.code === "string") {

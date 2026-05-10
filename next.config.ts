@@ -8,6 +8,11 @@ import type { NextConfig } from "next";
  * YouTube embed, etc.). Dlatego stosujemy je TYLKO na trasie /project/* —
  * gdzie potrzebny jest WC. Reszta aplikacji (landing, pricing, dashboard)
  * uzywa Stripe Checkout w nowej karcie wiec problemu nie ma.
+ *
+ * COEP `require-corp` blokuje bundler Sandpacka (zewnetrzny iframe codesandbox.io)
+ * i konczy sie TIME_OUT / „Couldn't connect to server”. `credentialless` zachowuje
+ * crossOriginIsolation na tyle, by WebContainer zwykle dzialal, a Sandpack moze
+ * polaczyc sie z runtime.
  */
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["*.localhost"],
@@ -24,7 +29,10 @@ const nextConfig: NextConfig = {
       {
         source: "/project/:path*",
         headers: [
-          { key: "Cross-Origin-Embedder-Policy", value: "require-corp" },
+          {
+            key: "Cross-Origin-Embedder-Policy",
+            value: "credentialless",
+          },
           { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
         ],
       },

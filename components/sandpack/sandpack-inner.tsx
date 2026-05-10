@@ -88,7 +88,10 @@ export function SandpackInner({
         // (lib/sandpack/starter.ts) — laduje sie niezawodnie jako pierwszy
         // skrypt, zanim React wyrenderuje DOM.
         bundlerURL: "https://sandpack-bundler.codesandbox.io",
-        initMode: "lazy",
+        /** Leniwy start + ciezkie pliki = TIME_OUT; immediate startuje bundler od razu. */
+        initMode: "immediate",
+        /** Domyslnie 40s — na Vercelu / wolniejszej sieci bundler czesto potrzebuje wiecej. */
+        bundlerTimeOut: 120_000,
       }}
     >
       {projectId && (

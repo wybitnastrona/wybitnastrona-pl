@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import {
   Code2,
   Database,
@@ -10,15 +11,37 @@ import {
   History,
   Loader2,
   RotateCw,
+  SquareTerminal,
 } from "lucide-react";
 import { SandpackRunner } from "@/components/sandpack/sandpack-runner";
 import { DatabasePanel } from "@/components/project/database-panel";
 import { SnapshotPanel } from "@/components/project/snapshot-panel";
 import { ErrorWatcher } from "@/components/project/error-watcher";
+import { TEMPLATES } from "@/lib/templates";
 import type { Project } from "@/lib/types/project";
 import type { SandpackViewMode } from "@/components/sandpack/sandpack-runner";
 
-type WorkspaceView = "preview" | "code" | "database" | "snapshots";
+// Lazy/dynamic importy — izolują błędy WC (brak COOP/COEP, @webcontainer/api)
+// od reszty workspace. Jeśli WC nie załaduje się, Sandpack nadal działa.
+const WCRuntime = dynamic(
+  () => import("@/components/webcontainer/wc-runtime").then((m) => m.WCRuntime),
+  { ssr: false, loading: () => <WCLoader /> },
+);
+const WCTerminal = dynamic(
+  () => import("@/components/webcontainer/wc-terminal").then((m) => m.WCTerminal),
+  { ssr: false, loading: () => <WCLoader /> },
+);
+
+function WCLoader() {
+  return (
+    <div className="flex h-full w-full items-center justify-center bg-[#0a0a0a] text-sm text-muted-foreground">
+      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+      Inicjalizacja WebContainerów…
+    </div>
+  );
+}
+
+type WorkspaceView = "preview" | "code" | "database" | "snapshots" | "terminal";
 
 type Props = {
   project: Project;
@@ -45,6 +68,10 @@ export function WorkspaceCanvas({
   const router = useRouter();
   const [view, setView] = useState<WorkspaceView>("preview");
   const [opening, setOpening] = useState(false);
+
+  const templateDef = TEMPLATES.find((t) => t.id === (project.template ?? "react-ts"));
+  // Fail-safe: jeśli template nieznany lub nie ma flagi webContainerOnly → Sandpack
+  const useWC = templateDef?.webContainerOnly === true;
 
   const sandpackMode: SandpackViewMode =
     view === "code" ? "code" : "preview";
@@ -84,20 +111,36 @@ export function WorkspaceCanvas({
         opening={opening}
         liveUrl={liveUrl}
         publishDomain={publishDomain}
+        useWC={useWC}
       />
 
       <div className="relative min-h-0 flex-1">
-        {/* Sandpack zawsze zamontowany — przelacznik Code/Preview to props,
-            nie remount, dzieki czemu nie traci stanu kompilacji. */}
-        <div className={isSandpackView ? "h-full" : "hidden h-full"}>
-          <SandpackRunner
-            files={project.files}
-            viewMode={sandpackMode}
-            selectMode={view === "preview" && selectMode}
-            onElementPick={onElementPick}
-            projectId={project.id}
-          />
-        </div>
+        {useWC ? (
+          <>
+            {/* WebContainer runtime — zawsze zamontowany, ukrywany przez CSS */}
+            <div className={view === "preview" ? "h-full" : "hidden h-full"}>
+              <WCRuntime
+                files={project.files}
+                runCommand={templateDef?.runCommand}
+              />
+            </div>
+            <div className={view === "terminal" ? "h-full" : "hidden h-full"}>
+              <WCTerminal />
+            </div>
+          </>
+        ) : (
+          /* Sandpack — zawsze zamontowany, przelacznik Code/Preview to props,
+             nie remount, dzieki czemu nie traci stanu kompilacji. */
+          <div className={isSandpackView ? "h-full" : "hidden h-full"}>
+            <SandpackRunner
+              files={project.files}
+              viewMode={sandpackMode}
+              selectMode={view === "preview" && selectMode}
+              onElementPick={onElementPick}
+              projectId={project.id}
+            />
+          </div>
+        )}
 
         {view === "database" && <DatabasePanel project={project} />}
 
@@ -132,6 +175,7 @@ function CanvasTopbar({
   opening,
   liveUrl,
   publishDomain,
+  useWC,
 }: {
   view: WorkspaceView;
   onViewChange: (view: WorkspaceView) => void;
@@ -139,12 +183,13 @@ function CanvasTopbar({
   opening: boolean;
   liveUrl: string | null;
   publishDomain: string;
+  useWC: boolean;
 }) {
   const displayUrl = liveUrl ?? `https://projekt.${publishDomain}`;
 
   return (
     <div className="flex h-10 shrink-0 items-center gap-2 border-b border-beige/10 bg-background/80 px-2">
-      {/* Glowne przelaczniki widoku — Podglad / Kod */}
+      {/* Glowne przelaczniki widoku — Podglad / Kod (tylko Sandpack) */}
       <div className="flex items-center gap-0.5 rounded-md border border-beige/15 bg-card/40 p-0.5">
         <ToggleButton
           icon={Eye}
@@ -152,12 +197,22 @@ function CanvasTopbar({
           active={view === "preview"}
           onClick={() => onViewChange("preview")}
         />
-        <ToggleButton
-          icon={Code2}
-          label="Kod"
-          active={view === "code"}
-          onClick={() => onViewChange("code")}
-        />
+        {!useWC && (
+          <ToggleButton
+            icon={Code2}
+            label="Kod"
+            active={view === "code"}
+            onClick={() => onViewChange("code")}
+          />
+        )}
+        {useWC && (
+          <ToggleButton
+            icon={SquareTerminal}
+            label="Terminal"
+            active={view === "terminal"}
+            onClick={() => onViewChange("terminal")}
+          />
+        )}
       </div>
 
       {/* Dodatkowe panele — Baza / Historia */}

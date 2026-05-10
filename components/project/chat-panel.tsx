@@ -373,22 +373,25 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
             message={message}
             isStreaming={isStreaming && message.id === lastAssistantId}
             consumedPlans={consumedPlans}
-            onPlanAction={(partIdx, action) => {
+            onPlanAction={(partIdx, action, finalSteps) => {
               if (action === "approve") {
                 setConsumedPlans((prev) => new Set([...prev, partIdx]));
                 // Switch to build mode BEFORE sending so the transport body()
                 // reads "build" from modeRef at request time.
                 setModeSync("build");
-                sendMessage({ text: "Zatwierdzone. Rozpocznij implementację." });
+                // Send the final (possibly user-edited) steps as the build instruction
+                // so the AI builds exactly what the user approved.
+                const stepsText = finalSteps && finalSteps.length > 0
+                  ? finalSteps.map((s, i) => `${i + 1}. ${s}`).join("\n")
+                  : "";
+                const msg = stepsText
+                  ? `Zatwierdzone. Oto ostateczny plan do implementacji:\n${stepsText}\n\nRozpocznij implementację.`
+                  : "Zatwierdzone. Rozpocznij implementację.";
+                sendMessage({ text: msg });
               } else if (action === "skip") {
                 setConsumedPlans((prev) => new Set([...prev, partIdx]));
                 setModeSync("build");
                 sendMessage({ text: "Pomiń plan, implementuj bezpośrednio." });
-              } else {
-                // edit: keep plan visible (not consumed), prefill input so user
-                // can type their modification and re-submit in plan mode to get
-                // a revised plan.
-                setInput("Zmień plan: ");
               }
             }}
           />
@@ -684,7 +687,7 @@ function Message({
   message: UIMessage;
   isStreaming: boolean;
   consumedPlans: Set<number>;
-  onPlanAction: (partIdx: number, action: "approve" | "edit" | "skip") => void;
+  onPlanAction: (partIdx: number, action: "approve" | "skip", finalSteps?: string[]) => void;
 }) {
   const isUser = message.role === "user";
 
@@ -731,8 +734,7 @@ function Message({
                 key={idx}
                 steps={steps}
                 consumed={consumedPlans.has(idx)}
-                onApprove={() => onPlanAction(idx, "approve")}
-                onEdit={() => onPlanAction(idx, "edit")}
+                onApprove={(finalSteps) => onPlanAction(idx, "approve", finalSteps)}
                 onSkip={() => onPlanAction(idx, "skip")}
               />
             );

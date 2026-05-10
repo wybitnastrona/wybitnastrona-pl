@@ -8,6 +8,8 @@ export const dynamic = "force-dynamic";
 type SearchParams = Promise<{
   prompt?: string | string[];
   template?: string | string[];
+  model?: string | string[];
+  mode?: string | string[];
 }>;
 
 export default async function NewProjectPage({
@@ -22,6 +24,7 @@ export default async function NewProjectPage({
   if (!user) redirect("/");
 
   const params = await searchParams;
+
   const rawPrompt = Array.isArray(params.prompt)
     ? params.prompt[0]
     : params.prompt;
@@ -31,6 +34,12 @@ export default async function NewProjectPage({
   const rawTemplate = Array.isArray(params.template)
     ? params.template[0]
     : params.template;
+
+  const rawModel = Array.isArray(params.model)
+    ? params.model[0]
+    : params.model;
+
+  const rawMode = Array.isArray(params.mode) ? params.mode[0] : params.mode;
 
   let project;
   try {
@@ -42,5 +51,11 @@ export default async function NewProjectPage({
     console.error("[new-project] createProject failed:", err);
     redirect("/");
   }
-  redirect(`/project/${project.id}`);
+
+  // Pass model and mode to the project page so ChatPanel can pick the right model.
+  const projectParams = new URLSearchParams();
+  if (rawModel) projectParams.set("model", rawModel);
+  if (rawMode) projectParams.set("mode", rawMode);
+  const qs = projectParams.toString();
+  redirect(`/project/${project.id}${qs ? `?${qs}` : ""}`);
 }

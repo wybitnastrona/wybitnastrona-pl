@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import {
@@ -8,6 +8,7 @@ import {
   Database,
   ExternalLink,
   Eye,
+  FileCode2,
   History,
   Loader2,
   RotateCw,
@@ -68,6 +69,32 @@ export function WorkspaceCanvas({
   const router = useRouter();
   const [view, setView] = useState<WorkspaceView>("preview");
   const [opening, setOpening] = useState(false);
+
+  // Build progress overlay — shows which file is being generated
+  const [buildFile, setBuildFile] = useState<string | null>(null);
+  const [writtenFiles, setWrittenFiles] = useState<string[]>([]);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    function handlePartialWrite(e: Event) {
+      const { path } = (e as CustomEvent<{ path: string; content: string }>).detail;
+      setBuildFile(path);
+      setWrittenFiles((prev) =>
+        prev.includes(path) ? prev : [...prev, path],
+      );
+      // Hide overlay 3 seconds after the last write event
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = setTimeout(() => {
+        setBuildFile(null);
+        setWrittenFiles([]);
+      }, 3000);
+    }
+    window.addEventListener("wybitna:partial-write", handlePartialWrite);
+    return () => {
+      window.removeEventListener("wybitna:partial-write", handlePartialWrite);
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    };
+  }, []);
 
   const templateDef = TEMPLATES.find((t) => t.id === (project.template ?? "react-ts"));
   // Fail-safe: jeśli template nieznany lub nie ma flagi webContainerOnly → Sandpack
@@ -157,6 +184,60 @@ export function WorkspaceCanvas({
 
         {view === "preview" && onFixError && (
           <ErrorWatcher onFixRequest={onFixError} />
+        )}
+
+        {/* Build progress overlay */}
+        {buildFile && view === "preview" && (
+          <BuildProgressOverlay
+            currentFile={buildFile}
+            writtenFiles={writtenFiles}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function BuildProgressOverlay({
+  currentFile,
+  writtenFiles,
+}: {
+  currentFile: string;
+  writtenFiles: string[];
+}) {
+  return (
+    <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
+      <div className="flex w-full max-w-xs flex-col items-center gap-4 rounded-2xl border border-beige/20 bg-card/90 p-6 shadow-2xl">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-beige/10">
+          <Loader2 className="h-5 w-5 animate-spin text-beige" />
+        </div>
+        <div className="w-full text-center">
+          <p className="mb-1 text-sm font-medium text-foreground">
+            Buduję Twoją stronę…
+          </p>
+          <p className="flex items-center justify-center gap-1.5 truncate text-[11px] text-muted-foreground">
+            <FileCode2 className="h-3 w-3 shrink-0 text-beige/70" />
+            <span className="truncate font-mono">{currentFile}</span>
+          </p>
+        </div>
+        {writtenFiles.length > 1 && (
+          <div className="w-full">
+            <div className="mb-1.5 flex items-center justify-between text-[10px] text-muted-foreground">
+              <span>Zapisane pliki</span>
+              <span>{writtenFiles.length}</span>
+            </div>
+            <div className="max-h-24 overflow-y-auto space-y-0.5">
+              {writtenFiles.map((f) => (
+                <div
+                  key={f}
+                  className="flex items-center gap-1.5 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                >
+                  <FileCode2 className="h-2.5 w-2.5 shrink-0 text-beige/50" />
+                  <span className="truncate font-mono">{f}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </div>
     </div>

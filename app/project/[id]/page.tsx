@@ -8,9 +8,17 @@ import { getPublishDomain } from "@/lib/publish-url";
 export const dynamic = "force-dynamic";
 
 type Params = Promise<{ id: string }>;
+type SearchParams = Promise<{ model?: string; mode?: string }>;
 
-export default async function ProjectPage({ params }: { params: Params }) {
+export default async function ProjectPage({
+  params,
+  searchParams,
+}: {
+  params: Params;
+  searchParams: SearchParams;
+}) {
   const { id } = await params;
+  const sp = await searchParams;
 
   const supabase = await createClient();
   const {
@@ -47,6 +55,8 @@ export default async function ProjectPage({ params }: { params: Params }) {
       publishDomain={publishDomain}
       appUrl={appUrl}
       domainPartnerUrl={domainPartnerUrl}
+      initialModel={sp.model}
+      initialMode={sp.mode === "plan" ? "plan" : "build"}
     />
   );
 }

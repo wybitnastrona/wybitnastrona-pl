@@ -4,14 +4,9 @@ import { createServerClient } from "@supabase/ssr";
 /**
  * OAuth callback handler (Google, GitHub, etc.).
  *
- * Bug "works only on the second try":
- * The issue is that NextResponse.redirect() is called before the session
- * cookies are fully flushed onto the response, so the *next* request (the
- * redirect target) arrives without a valid session and the middleware
- * re-creates an empty one — losing the just-set tokens.
- *
- * Fix: build the final redirect response FIRST, then attach all cookies to
- * that same response object instead of doing a two-hop redirect.
+ * After exchanging the code for a session we check whether the user has
+ * completed onboarding. New users (onboarding_completed = false) are sent
+ * to /onboarding; existing users land on `next` (default: /).
  */
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
@@ -38,10 +33,10 @@ export async function GET(request: NextRequest) {
   }
 
   // Build the final redirect response up-front so we can attach cookies to it.
-  const redirectUrl = next.startsWith("/")
+  const baseRedirectUrl = next.startsWith("/")
     ? `${origin}${next}`
     : `${origin}/`;
-  const response = NextResponse.redirect(redirectUrl);
+  const response = NextResponse.redirect(baseRedirectUrl);
 
   const supabase = createServerClient(url, key, {
     cookies: {
@@ -49,8 +44,6 @@ export async function GET(request: NextRequest) {
         return request.cookies.getAll();
       },
       setAll(cookiesToSet) {
-        // Write cookies to both the request (for SSR reads within this handler)
-        // AND the response (so the browser receives them with the redirect).
         cookiesToSet.forEach(({ name, value }) =>
           request.cookies.set(name, value),
         );
@@ -61,13 +54,35 @@ export async function GET(request: NextRequest) {
     },
   });
 
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
+  const { data: sessionData, error } =
+    await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
     console.error("[auth/callback] exchangeCodeForSession error:", error);
     return NextResponse.redirect(
       `${origin}/auth/error?message=${encodeURIComponent(error.message)}`,
     );
+  }
+
+  // Check onboarding status — redirect new users to /onboarding.
+  if (sessionData?.user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("onboarding_completed")
+      .eq("id", sessionData.user.id)
+      .maybeSingle();
+
+    if (!profile?.onboarding_completed) {
+      // New user: redirect to onboarding while keeping the auth cookies.
+      const onboardingResponse = NextResponse.redirect(
+        `${origin}/onboarding`,
+      );
+      // Copy all cookies from the original response to onboarding response.
+      response.cookies.getAll().forEach(({ name, value, ...opts }) =>
+        onboardingResponse.cookies.set(name, value, opts),
+      );
+      return onboardingResponse;
+    }
   }
 
   return response;

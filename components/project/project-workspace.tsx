@@ -7,17 +7,19 @@ import {
   ChatPanel,
   type ChatPanelHandle,
 } from "@/components/project/chat-panel";
+import { WizardPanel } from "@/components/project/wizard-panel";
 import { WorkspaceCanvas } from "@/components/project/workspace-canvas";
 import type { Project } from "@/lib/types/project";
 
 type Props = {
   project: Project;
-  /** Wiadomosci czatu zaladowane z bazy (Supabase). */
   initialMessages: UIMessage[];
   rootDomain: string;
   publishDomain: string;
   appUrl: string;
   domainPartnerUrl: string;
+  initialModel?: string;
+  initialMode?: "build" | "plan";
 };
 
 export function ProjectWorkspace({
@@ -27,12 +29,20 @@ export function ProjectWorkspace({
   publishDomain,
   appUrl,
   domainPartnerUrl,
+  initialModel,
+  initialMode,
 }: Props) {
-  // Czy projekt ma juz wygenerowane pliki uzytkownika (pomijajac startery).
   const hasFiles =
     Object.keys(project.files ?? {}).filter(
       (key) => !["/index.html", "/index.tsx"].includes(key),
     ).length > 1;
+
+  const hasStoredHistory = initialMessages.length > 0;
+
+  // Show wizard for brand-new projects only.
+  const [wizardActive, setWizardActive] = useState(
+    !hasFiles && !hasStoredHistory,
+  );
 
   const [selectMode, setSelectMode] = useState(false);
   const chatRef = useRef<ChatPanelHandle>(null);
@@ -60,6 +70,19 @@ export function ProjectWorkspace({
     chatRef.current?.appendHint(hint);
   }
 
+  function handleWizardComplete(enrichedPrompt: string) {
+    setWizardActive(false);
+    // Give React one tick to un-block the ChatPanel before sending
+    setTimeout(() => {
+      chatRef.current?.startWithPrompt(enrichedPrompt);
+    }, 0);
+  }
+
+  function handleWizardSkip() {
+    setWizardActive(false);
+    // Auto-start will kick in now that wizardBlocked=false
+  }
+
   return (
     <div className="flex h-screen w-full flex-col bg-background">
       <ProjectTopbar
@@ -70,11 +93,6 @@ export function ProjectWorkspace({
         domainPartnerUrl={domainPartnerUrl}
       />
 
-      {/*
-        Layout responsywny — JEDEN ChatPanel w grid.
-        Mobile: chat na gorze (40vh), canvas pod nim.
-        Desktop: chat po lewej (420px), canvas po prawej.
-      */}
       <div
         className="
           grid min-h-0 flex-1
@@ -83,15 +101,26 @@ export function ProjectWorkspace({
         "
       >
         <div className="min-h-0 border-b border-beige/10 lg:border-b-0 lg:border-r">
-          <ChatPanel
-            ref={chatRef}
-            projectId={project.id}
-            initialPrompt={project.prompt}
-            initialMessages={initialMessages}
-            hasFiles={hasFiles}
-            selectMode={selectMode}
-            onSelectModeChange={setSelectMode}
-          />
+          {wizardActive ? (
+            <WizardPanel
+              initialPrompt={project.prompt}
+              onComplete={handleWizardComplete}
+              onSkip={handleWizardSkip}
+            />
+          ) : (
+            <ChatPanel
+              ref={chatRef}
+              projectId={project.id}
+              initialPrompt={project.prompt}
+              initialMessages={initialMessages}
+              hasFiles={hasFiles}
+              selectMode={selectMode}
+              onSelectModeChange={setSelectMode}
+              initialModel={initialModel}
+              initialMode={initialMode}
+              wizardBlocked={false}
+            />
+          )}
         </div>
 
         <div className="min-h-0">

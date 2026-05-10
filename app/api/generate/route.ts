@@ -14,13 +14,14 @@ import type { ProjectFiles } from "@/lib/types/project";
 import { getModel, resolveAnthropicModel, type AiModelId } from "@/lib/ai-models";
 import { buildRagContext } from "@/lib/rag";
 import { logProjectEvent } from "@/lib/analytics-server";
+import { fetchUnsplashImage } from "@/lib/unsplash";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 type GenerationMode = "build" | "plan";
 
-const BASE_PROMPT = `Jestes asystentem wybitnastrona.pl - generatorem stron internetowych.
+const BASE_PROMPT = `Jestes asystentem wybitnastrona.pl — generatorem stron internetowych.
 
 ZADANIE
 Generujesz aplikacje React (TypeScript + JSX) renderowane w Sandpack, ktore odpowiadaja na prompt uzytkownika.
@@ -36,6 +37,7 @@ NARZEDZIA
 1) showPlan(steps[]) - PRZED implementacja zwroc liste konkretnych krokow ktore wykonasz.
 2) writeFile(path, content) - tworzy lub nadpisuje plik
 3) deleteFile(path) - usuwa plik
+4) fetchImage(query) - pobiera URL zdjecia z Unsplash pasujacego do query (po angielsku). Uzyj zamiast placeholderow koloru gdy potrzebujesz realnego zdjecia.
 
 ZASADY
 - Najpierw wywolaj showPlan z lista krokow.
@@ -77,6 +79,19 @@ const writeFileSchema = z.object({
 
 const deleteFileSchema = z.object({
   path: z.string().min(1).describe("Sciezka pliku do usuniecia."),
+});
+
+const fetchImageSchema = z.object({
+  query: z
+    .string()
+    .min(1)
+    .describe(
+      "English search query for the photo (e.g. 'personal trainer workout', 'restaurant food'). Keep it short.",
+    ),
+  orientation: z
+    .enum(["landscape", "portrait", "squarish"])
+    .optional()
+    .default("landscape"),
 });
 
 const showPlanSchema = z.object({
@@ -230,6 +245,14 @@ export async function POST(req: Request) {
           const normalized = path.startsWith("/") ? path : `/${path}`;
           delete files[normalized];
           return { ok: true, path: normalized };
+        },
+      }),
+      fetchImage: tool({
+        description:
+          "Fetches a real photo URL from Unsplash matching the query. Returns { url, alt, credit, creditUrl }. Use this instead of gray placeholder images.",
+        inputSchema: fetchImageSchema,
+        execute: async ({ query, orientation }) => {
+          return fetchUnsplashImage(query, orientation);
         },
       }),
     },

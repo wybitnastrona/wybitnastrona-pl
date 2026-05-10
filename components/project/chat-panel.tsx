@@ -40,6 +40,7 @@ import {
   type AiModelId,
 } from "@/lib/ai-models";
 import { VoiceButton } from "@/components/project/voice-button";
+import { PlanCard } from "@/components/project/plan-card";
 
 type ChatMode = "build" | "plan";
 
@@ -60,10 +61,18 @@ type ChatPanelProps = {
   hasFiles: boolean;
   selectMode: boolean;
   onSelectModeChange: (value: boolean) => void;
+  /** Model wybrany w CreationHero (przekazany przez URL). */
+  initialModel?: string;
+  /** Tryb wybrany w CreationHero. */
+  initialMode?: ChatMode;
+  /** Gdy true, auto-start jest wstrzymany (kreator pytań jest aktywny). */
+  wizardBlocked?: boolean;
 };
 
 export type ChatPanelHandle = {
   appendHint: (text: string) => void;
+  /** Starts generation with the given enriched prompt (called by WizardPanel). */
+  startWithPrompt: (enrichedPrompt: string) => void;
 };
 
 const MAX_ATTACHMENT_BYTES = 1024 * 1024;
@@ -76,14 +85,21 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     hasFiles,
     selectMode,
     onSelectModeChange,
+    initialModel,
+    initialMode,
+    wizardBlocked,
   },
   ref,
 ) {
   const router = useRouter();
   const [input, setInput] = useState("");
-  const [mode, setMode] = useState<ChatMode>("build");
-  const [model, setModel] = useState<AiModelId>(DEFAULT_MODEL_ID);
+  const [mode, setMode] = useState<ChatMode>(initialMode ?? "build");
+  const [model, setModel] = useState<AiModelId>(
+    (initialModel as AiModelId | undefined) ?? DEFAULT_MODEL_ID,
+  );
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  // Track which plan cards have been acted on (approved/skipped)
+  const [consumedPlans, setConsumedPlans] = useState<Set<number>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const startedRef = useRef(false);
@@ -134,22 +150,52 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
   //  - mamy initialPrompt
   //  - brak zapisanej historii w bazie (hasStoredHistory)
   //  - brak wygenerowanych plikow uzytkownika
+  //  - wizard nie jest aktywny (wizardBlocked)
   useEffect(() => {
     if (
       !startedRef.current &&
       initialPrompt &&
       !hasFiles &&
       !hasStoredHistory &&
+      !wizardBlocked &&
       status === "ready" &&
       messages.length === 0
     ) {
       startedRef.current = true;
-      sendMessage({ text: initialPrompt });
+      // Read image attachments from sessionStorage (uploaded in CreationHero)
+      let imageParts: Array<{ type: "file"; mediaType: string; url: string }> = [];
+      try {
+        const stored = sessionStorage.getItem("wybitna_attachments");
+        if (stored) {
+          const arr = JSON.parse(stored) as Array<{ dataUrl?: string; name?: string }>;
+          imageParts = arr
+            .filter((a) => a.dataUrl?.startsWith("data:image/"))
+            .map((a) => ({
+              type: "file" as const,
+              mediaType: a.dataUrl!.split(";")[0].replace("data:", ""),
+              url: a.dataUrl!,
+            }));
+          sessionStorage.removeItem("wybitna_attachments");
+        }
+      } catch {
+        // sessionStorage unavailable
+      }
+
+      if (imageParts.length > 0) {
+        const parts: Array<{ type: "text"; text: string } | { type: "file"; mediaType: string; url: string }> = [
+          { type: "text", text: initialPrompt },
+          ...imageParts,
+        ];
+        sendMessage({ parts } as unknown as Parameters<typeof sendMessage>[0]);
+      } else {
+        sendMessage({ text: initialPrompt });
+      }
     }
   }, [
     initialPrompt,
     hasFiles,
     hasStoredHistory,
+    wizardBlocked,
     sendMessage,
     status,
     messages.length,
@@ -198,8 +244,13 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
       appendHint: (text: string) => {
         setInput((prev) => (prev ? `${prev}\n${text}` : text));
       },
+      startWithPrompt: (enrichedPrompt: string) => {
+        if (startedRef.current) return;
+        startedRef.current = true;
+        sendMessage({ text: enrichedPrompt });
+      },
     }),
-    [],
+    [sendMessage],
   );
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -294,6 +345,18 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
             key={message.id}
             message={message}
             isStreaming={isStreaming && message.id === lastAssistantId}
+            consumedPlans={consumedPlans}
+            onPlanAction={(partIdx, action) => {
+              setConsumedPlans((prev) => new Set([...prev, partIdx]));
+              if (action === "approve") {
+                sendMessage({ text: "Zatwierdzone. Rozpocznij implementację." });
+              } else if (action === "skip") {
+                sendMessage({ text: "Pomiń plan, implementuj bezpośrednio." });
+              } else {
+                // edit: let user type
+                setInput("Zmień plan: ");
+              }
+            }}
           />
         ))}
 
@@ -581,9 +644,13 @@ type ToolPart = {
 function Message({
   message,
   isStreaming,
+  consumedPlans,
+  onPlanAction,
 }: {
   message: UIMessage;
   isStreaming: boolean;
+  consumedPlans: Set<number>;
+  onPlanAction: (partIdx: number, action: "approve" | "edit" | "skip") => void;
 }) {
   const isUser = message.role === "user";
 
@@ -619,11 +686,20 @@ function Message({
             const isPending =
               toolPart.state === "input-streaming" ||
               toolPart.state === "input-available";
+            if (isPending && isStreaming) {
+              return (
+                <PlanBlock key={idx} steps={steps} isPending={true} />
+              );
+            }
+            // Show interactive PlanCard when streaming is done
             return (
-              <PlanBlock
+              <PlanCard
                 key={idx}
                 steps={steps}
-                isPending={isPending && isStreaming}
+                consumed={consumedPlans.has(idx)}
+                onApprove={() => onPlanAction(idx, "approve")}
+                onEdit={() => onPlanAction(idx, "edit")}
+                onSkip={() => onPlanAction(idx, "skip")}
               />
             );
           }

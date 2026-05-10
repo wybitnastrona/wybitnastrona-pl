@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { wcManager } from "./wc-manager";
 import type { ProjectFiles } from "@/lib/types/project";
@@ -26,7 +26,9 @@ export function WCRuntime({ files, runCommand, onServerReady }: Props) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(
     wcManager.getServerUrl(),
   );
+  const prevFilesRef = useRef<ProjectFiles | null>(null);
 
+  // Pierwsza inicjalizacja — boot + mount + npm install + dev server
   useEffect(() => {
     let cancelled = false;
     const off = wcManager.on((ev) => {
@@ -51,6 +53,7 @@ export function WCRuntime({ files, runCommand, onServerReady }: Props) {
     (async () => {
       try {
         await wcManager.loadProject(files, runCommand);
+        prevFilesRef.current = files;
       } catch (err) {
         console.error("WC load error", err);
         setStatus("error");
@@ -62,6 +65,37 @@ export function WCRuntime({ files, runCommand, onServerReady }: Props) {
       off();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Hot-reload: gdy AI zakończy generowanie i router.refresh() zmieni files prop,
+  // zapisujemy do WC tylko pliki, które faktycznie się zmieniły.
+  useEffect(() => {
+    const prev = prevFilesRef.current;
+    if (!prev) return; // jeszcze nie zamontowany
+
+    const changed = Object.entries(files).filter(
+      ([path, f]) => prev[path]?.code !== f.code,
+    );
+    if (changed.length === 0) return;
+
+    (async () => {
+      for (const [path, f] of changed) {
+        await wcManager.writeFile(path, f.code);
+      }
+      prevFilesRef.current = files;
+    })().catch((err) => console.error("WC hot-reload error", err));
+  }, [files]);
+
+  // Nasłuch na wybitna:partial-write — live update podczas streamowania AI
+  useEffect(() => {
+    function handlePartialWrite(e: Event) {
+      const { path, content } = (e as CustomEvent<{ path: string; content: string }>).detail;
+      wcManager.writeFile(path, content).catch(() => {});
+    }
+    window.addEventListener("wybitna:partial-write", handlePartialWrite);
+    return () => {
+      window.removeEventListener("wybitna:partial-write", handlePartialWrite);
+    };
   }, []);
 
   return (

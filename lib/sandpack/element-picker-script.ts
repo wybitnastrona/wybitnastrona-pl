@@ -16,11 +16,16 @@ export const ELEMENT_PICKER_SCRIPT = `
   // mode: 'off' | 'pick' (chat hint) | 'edit-text' (inline editor)
   let mode = 'off';
   let highlighted = null;
+  /** Po kliknięciu w trybie pick — obrys zostaje do wyłączenia trybu z parenta. */
+  let pickedEl = null;
   let editingEl = null;
   let editingOriginal = '';
   const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;pointer-events:none;border:2px solid #e8dcc4;background:rgba(232,220,196,0.1);z-index:2147483647;transition:all 0.05s';
-  overlay.style.display = 'none';
+  overlay.style.cssText =
+    'position:fixed;pointer-events:none;z-index:2147483647;display:none;' +
+    'border:2px dashed rgba(255,255,255,0.92);' +
+    'box-shadow:0 0 0 1px rgba(0,0,0,0.88),inset 0 0 0 1px rgba(0,0,0,0.45);' +
+    'background:transparent;transition:top 45ms ease-out,left 45ms ease-out,width 45ms ease-out,height 45ms ease-out';
   document.body.appendChild(overlay);
 
   function getSelector(el) {
@@ -55,22 +60,36 @@ export const ELEMENT_PICKER_SCRIPT = `
     return t.length > 0 && t.length < 400;
   }
 
-  function highlight(el) {
-    if (!el) { overlay.style.display = 'none'; return; }
+  function syncOverlayRect(el) {
+    if (!el) return;
     const r = el.getBoundingClientRect();
     overlay.style.display = 'block';
     overlay.style.top = r.top + 'px';
     overlay.style.left = r.left + 'px';
     overlay.style.width = r.width + 'px';
     overlay.style.height = r.height + 'px';
+  }
+
+  function highlight(el) {
+    if (!el) {
+      if (mode === 'pick' && !pickedEl) overlay.style.display = 'none';
+      highlighted = null;
+      return;
+    }
+    syncOverlayRect(el);
     highlighted = el;
   }
 
+  function onScrollOrResize() {
+    if (mode === 'pick' && highlighted) syncOverlayRect(highlighted);
+    else if (pickedEl) syncOverlayRect(pickedEl);
+  }
+
   function onMove(e) {
-    if (mode === 'off' || editingEl) return;
+    if (editingEl) return;
+    if (mode === 'off') return;
     const el = e.target;
     if (el === overlay) return;
-    // In edit-text mode we only highlight leaf text nodes.
     if (mode === 'edit-text' && !isLeafText(el)) {
       overlay.style.display = 'none';
       highlighted = null;
@@ -86,10 +105,9 @@ export const ELEMENT_PICKER_SCRIPT = `
     overlay.style.display = 'none';
     el.setAttribute('data-wybitna-editing', '1');
     el.contentEditable = 'true';
-    el.style.outline = '2px solid #e8dcc4';
+    el.style.outline = '2px dashed rgba(255,255,255,0.85)';
     el.style.outlineOffset = '2px';
     el.focus();
-    // Select all so the user can immediately type.
     var range = document.createRange();
     range.selectNodeContents(el);
     var sel = window.getSelection();
@@ -116,7 +134,6 @@ export const ELEMENT_PICKER_SCRIPT = `
         selector: getSelector(el),
       }, '*');
     } else {
-      // Revert visually so the user sees the original until our parent reload.
       el.textContent = editingOriginal;
     }
     editingOriginal = '';
@@ -135,7 +152,7 @@ export const ELEMENT_PICKER_SCRIPT = `
 
   function onClick(e) {
     if (mode === 'off') return;
-    if (editingEl) return; // typing inside an editing element
+    if (editingEl) return;
     if (!highlighted) return;
     e.preventDefault();
     e.stopPropagation();
@@ -149,7 +166,11 @@ export const ELEMENT_PICKER_SCRIPT = `
         html: html,
         tagName: highlighted.tagName.toLowerCase(),
       }, '*');
-      setMode('off');
+      pickedEl = highlighted;
+      mode = 'off';
+      document.body.style.cursor = '';
+      highlighted = null;
+      syncOverlayRect(pickedEl);
     } else if (mode === 'edit-text') {
       startEditingText(highlighted);
     }
@@ -160,21 +181,48 @@ export const ELEMENT_PICKER_SCRIPT = `
   }
 
   function setMode(next) {
-    mode = next;
-    overlay.style.display = next === 'off' ? 'none' : overlay.style.display;
-    document.body.style.cursor = next === 'off' ? '' : 'crosshair';
-    if (next === 'off' && editingEl) commitEdit(false);
+    if (next === 'off') {
+      mode = 'off';
+      pickedEl = null;
+      document.body.style.cursor = '';
+      overlay.style.display = 'none';
+      highlighted = null;
+      if (editingEl) commitEdit(false);
+    } else if (next === 'pick') {
+      pickedEl = null;
+      mode = 'pick';
+      overlay.style.display = 'none';
+      highlighted = null;
+      document.body.style.cursor = 'crosshair';
+    } else if (next === 'edit-text') {
+      pickedEl = null;
+      mode = 'edit-text';
+      overlay.style.display = 'none';
+      highlighted = null;
+      document.body.style.cursor = 'crosshair';
+    }
   }
 
   window.addEventListener('mousemove', onMove, true);
   window.addEventListener('click', onClick, true);
   window.addEventListener('keydown', onKey, true);
   window.addEventListener('blur', onBlur, true);
+  window.addEventListener('scroll', onScrollOrResize, true);
+  window.addEventListener('resize', onScrollOrResize);
 
   window.addEventListener('message', function(e) {
     if (!e.data) return;
     if (e.data.type === 'wybitna:set-pick-mode') {
-      setMode(e.data.active ? 'pick' : 'off');
+      if (e.data.active) {
+        setMode('pick');
+      } else {
+        pickedEl = null;
+        overlay.style.display = 'none';
+        document.body.style.cursor = '';
+        mode = 'off';
+        highlighted = null;
+        if (editingEl) commitEdit(false);
+      }
     } else if (e.data.type === 'wybitna:set-edit-mode') {
       setMode(e.data.active ? 'edit-text' : 'off');
     }

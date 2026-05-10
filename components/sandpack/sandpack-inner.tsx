@@ -67,6 +67,7 @@ export function SandpackInner({
   isGenerating = false,
   onRequestPreviewPickMode,
   collapseChrome = false,
+  collapsePreview = false,
 }: SandpackRunnerProps) {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [terminalOpen, setTerminalOpen] = useState(true);
@@ -101,7 +102,9 @@ export function SandpackInner({
       )}
 
       <div className="relative flex h-full w-full overflow-hidden bg-[#0a0a0a]">
-        {projectId && viewMode === "code" && saveStatus !== "idle" && (
+        {projectId &&
+          (viewMode === "code" || viewMode === "split") &&
+          saveStatus !== "idle" && (
           <SaveIndicator status={saveStatus} />
         )}
 
@@ -124,6 +127,7 @@ export function SandpackInner({
             readOnly={isGenerating}
             onRequestPreviewPickMode={onRequestPreviewPickMode}
             collapseChrome={collapseChrome}
+            collapsePreview={collapsePreview}
           />
         )}
 
@@ -231,6 +235,7 @@ function SplitView({
   readOnly = false,
   onRequestPreviewPickMode,
   collapseChrome = false,
+  collapsePreview = false,
 }: {
   selectMode: boolean;
   onElementPick?: (info: { x: number; y: number }) => void;
@@ -239,10 +244,13 @@ function SplitView({
   readOnly?: boolean;
   onRequestPreviewPickMode?: () => void;
   collapseChrome?: boolean;
+  collapsePreview?: boolean;
 }) {
   const collapseAsideCls =
     "md:w-0 md:min-w-0 md:max-w-0 md:shrink md:overflow-hidden md:border-0 md:p-0 md:opacity-0 md:pointer-events-none";
   const collapseEditorCls =
+    "w-0 min-w-0 max-w-0 shrink flex-none overflow-hidden border-0 opacity-0 pointer-events-none";
+  const collapsePreviewCls =
     "w-0 min-w-0 max-w-0 shrink flex-none overflow-hidden border-0 opacity-0 pointer-events-none";
 
   return (
@@ -275,11 +283,18 @@ function SplitView({
           style={{ height: "100%", width: "100%" }}
         />
       </div>
-      <PreviewWithOverlay
-        selectMode={selectMode}
-        onElementPick={onElementPick}
-        hideNavigator={hideInternalNavigator}
-      />
+      <div
+        className={cn(
+          "relative min-h-0 min-w-0 flex-1",
+          collapsePreview && collapsePreviewCls,
+        )}
+      >
+        <PreviewWithOverlay
+          selectMode={selectMode}
+          onElementPick={onElementPick}
+          hideNavigator={hideInternalNavigator}
+        />
+      </div>
     </div>
   );
 }

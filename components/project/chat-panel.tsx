@@ -468,11 +468,9 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     });
   }, [isStreaming, sendMessage]);
 
-  // Heurystyka: "byc moze nie skonczone". Pokazujemy CTA gdy:
-  //  - mamy juz pliki (cos zostalo zbudowane),
-  //  - ostatnia wiadomosc nalezy do AI (nie czekamy na odpowiedz),
-  //  - nie streamujemy,
-  //  - liczba plikow sugeruje, ze AI wygenerowalo cos sensownego.
+  // CTA tylko gdy ostatni job generacji faktycznie się nie domknął (timeout / błąd).
+  // Poprzednia heurystyka (ostatnia wiadomość = assistant) pokazywała przycisk po
+  // każdej udanej generacji — mylące dla użytkownika.
   const lastMessage = messages[messages.length - 1];
   const showContinueCta =
     !isStreaming &&
@@ -480,7 +478,8 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     !!lastMessage &&
     lastMessage.role === "assistant" &&
     mode !== "discuss" &&
-    mode !== "plan";
+    mode !== "plan" &&
+    (genProgress?.status === "stalled" || genProgress?.status === "failed");
 
   const handleRevertToMessage = useCallback(
     async (messageId: string) => {

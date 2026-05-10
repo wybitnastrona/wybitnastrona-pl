@@ -50,6 +50,11 @@ export type SandpackRunnerProps = {
    * je w DOM — żeby bundler Sandpacka nie przechodził w „idle”.
    */
   collapseChrome?: boolean;
+  /**
+   * Gdy true (zakładka „Kod”): zwęża kolumnę podglądu — pełna szerokość na edytor,
+   * iframe nadal w DOM (bundler aktywny).
+   */
+  collapsePreview?: boolean;
 };
 
 export function SandpackRunner(props: SandpackRunnerProps) {

@@ -186,10 +186,14 @@ export function WorkspaceCanvas({
   // Fail-safe: jeśli template nieznany lub nie ma flagi webContainerOnly → Sandpack
   const useWC = templateDef?.webContainerOnly === true;
 
-  // Zawsze "split": jednoczesny mount edytora + podglądu utrzymuje klienta bundlera.
-  // Tryb sam "preview" odmontowuje CodeEditor i potrafi przejść w status "idle",
-  // wtedy dispatch/updateFile kończy się błędem: "dispatch cannot be called while in idle mode".
+  // Zawsze "split": edytor + podgląd pozostają zamontowane (stabilny bundler / Saver).
+  // Na zakładce „Kod” kolumnę podglądu zwężamy (collapsePreview) — bez TIME_OUT obok kodu.
   const sandpackMode: SandpackViewMode = "split";
+
+  // „Wybierz” ma sens tylko nad podglądem — przełącz na Podgląd przy włączeniu trybu.
+  useEffect(() => {
+    if (selectMode) setView("preview");
+  }, [selectMode]);
 
   async function handleOpenLive() {
     setOpening(true);
@@ -281,6 +285,7 @@ export function WorkspaceCanvas({
               files={project.files}
               viewMode={sandpackMode}
               collapseChrome={view === "preview"}
+              collapsePreview={view === "code"}
               selectMode={view === "preview" && selectMode}
               onElementPick={onElementPick}
               projectId={project.id}

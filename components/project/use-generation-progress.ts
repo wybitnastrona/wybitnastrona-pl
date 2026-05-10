@@ -45,12 +45,16 @@ export function useGenerationProgress(projectId: string): GenerationProgress | n
         totalTokens: (row.total_tokens as number | null) ?? null,
         pointsSpent: (row.points_spent as number | null) ?? null,
       });
-      // Keep completed jobs visible longer so the user can see token cost,
-      // then clear so the UI stops showing it.
-      if (status === "completed" || status === "failed" || status === "stalled") {
+      // Completed: krótko — wystarczy na podsumowanie tokenów.
+      // Failed / stalled: dłużej — użytkownik ma czas na „Kontynuuj generowanie”.
+      if (status === "completed") {
         setTimeout(() => {
           if (!cancelled) setProgress(null);
-        }, 6000);
+        }, 8000);
+      } else if (status === "failed" || status === "stalled") {
+        setTimeout(() => {
+          if (!cancelled) setProgress(null);
+        }, 120_000);
       }
     }
 

@@ -112,7 +112,16 @@ export async function proxy(request: NextRequest) {
 
   // 2) Host nalezy do nas — dziala normalna aplikacja (landing, /dashboard, ...).
   if (isInternalHost(host, roots)) {
-    return NextResponse.next();
+    const res = NextResponse.next();
+    // COI dla WebContainer (SharedArrayBuffer). COEP `require-corp` blokuje
+    // bundler Sandpack (brak CORP po stronie codesandbox.io) — używamy
+    // `credentialless` (Chrome: zasoby cross-origin bez CORP, bez cookies).
+    // Ustawiamy tutaj (Edge), żeby nagłówki zawsze szły z odpowiedzią HTML.
+    if (url.pathname.startsWith("/project/")) {
+      res.headers.set("Cross-Origin-Embedder-Policy", "credentialless");
+      res.headers.set("Cross-Origin-Opener-Policy", "same-origin");
+    }
+    return res;
   }
 
   // 3) Custom domain — sprawdzamy mapping. Najpierw cookie cache.

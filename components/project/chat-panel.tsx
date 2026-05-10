@@ -374,17 +374,20 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
             isStreaming={isStreaming && message.id === lastAssistantId}
             consumedPlans={consumedPlans}
             onPlanAction={(partIdx, action) => {
-              setConsumedPlans((prev) => new Set([...prev, partIdx]));
               if (action === "approve") {
+                setConsumedPlans((prev) => new Set([...prev, partIdx]));
                 // Switch to build mode BEFORE sending so the transport body()
                 // reads "build" from modeRef at request time.
                 setModeSync("build");
                 sendMessage({ text: "Zatwierdzone. Rozpocznij implementację." });
               } else if (action === "skip") {
+                setConsumedPlans((prev) => new Set([...prev, partIdx]));
                 setModeSync("build");
                 sendMessage({ text: "Pomiń plan, implementuj bezpośrednio." });
               } else {
-                // edit: let user type
+                // edit: keep plan visible (not consumed), prefill input so user
+                // can type their modification and re-submit in plan mode to get
+                // a revised plan.
                 setInput("Zmień plan: ");
               }
             }}
@@ -669,7 +672,7 @@ type ToolPart = {
   type: string;
   state?: string;
   input?: { path?: string; steps?: string[] };
-  output?: { steps?: string[] };
+  output?: { steps?: string[]; skipped?: boolean; ok?: boolean };
 };
 
 function Message({
@@ -736,6 +739,8 @@ function Message({
           }
           if (part.type.startsWith("tool-")) {
             const toolPart = part as ToolPart;
+            // Hide skipped writes (plan-mode AI tried to write but was blocked)
+            if (toolPart.output?.skipped) return null;
             const action = part.type.replace("tool-", "");
             const filePath = toolPart.input?.path;
             return (

@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { Project } from "@/lib/types/project";
 import { MobileQrButton } from "@/components/project/mobile-qr";
+import { ProjectSwitcher } from "@/components/project/project-switcher";
 
 type Props = {
   project: Project;
@@ -94,26 +95,24 @@ export function ProjectTopbar({
 
   return (
     <header className="flex h-14 items-center justify-between gap-3 border-b border-beige/10 bg-background/80 px-4 backdrop-blur">
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="flex min-w-0 items-center gap-2">
         <Link
           href="/dashboard"
-          className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition hover:bg-white/5 hover:text-beige"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition hover:bg-white/5 hover:text-beige"
           aria-label="Wroc do dashboardu"
         >
           <ArrowLeft className="h-4 w-4" />
         </Link>
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          onBlur={saveTitle}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.currentTarget.blur();
-            }
+
+        {/* Project switcher (Lovable-style) */}
+        <ProjectSwitcher
+          currentProject={{
+            id: project.id,
+            title,
+            updated_at: project.updated_at,
           }}
-          className="min-w-0 flex-1 bg-transparent text-sm font-medium text-foreground focus:outline-none"
-          maxLength={120}
         />
+
         {savingTitle && (
           <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
         )}

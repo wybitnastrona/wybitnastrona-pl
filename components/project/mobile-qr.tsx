@@ -40,7 +40,7 @@ export function MobileQrButton({ previewUrl, isExpo }: Props) {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <div className="relative w-full max-w-sm rounded-xl border border-beige/15 bg-card p-6 shadow-2xl">
             <button
               type="button"

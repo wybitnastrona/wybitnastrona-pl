@@ -96,16 +96,17 @@ export function ProjectWorkspace({
   }
 
   function handleWizardComplete(enrichedPrompt: string) {
+    // ChatPanel is always mounted (just hidden), so chatRef.current is available
+    // synchronously here — no setTimeout needed. Setting startedRef inside
+    // startWithPlanPrompt BEFORE setWizardActive prevents the auto-start
+    // useEffect from firing a duplicate request when wizardBlocked flips.
+    chatRef.current?.startWithPlanPrompt(enrichedPrompt);
     setWizardActive(false);
-    // Give React one tick to un-block the ChatPanel before sending
-    setTimeout(() => {
-      chatRef.current?.startWithPlanPrompt(enrichedPrompt);
-    }, 0);
   }
 
   function handleWizardSkip() {
     setWizardActive(false);
-    // Auto-start will kick in now that wizardBlocked=false
+    // Auto-start useEffect fires naturally now that wizardBlocked=false
   }
 
   return (
@@ -136,27 +137,31 @@ export function ProjectWorkspace({
         className="ws-grid grid min-h-0 flex-1"
         style={{ "--chat-w": `${chatWidth}px` } as React.CSSProperties}
       >
-        <div className="min-h-0 border-b border-beige/10 lg:border-b-0">
-          {wizardActive ? (
-            <WizardPanel
-              initialPrompt={project.prompt}
-              onComplete={handleWizardComplete}
-              onSkip={handleWizardSkip}
-            />
-          ) : (
-            <ChatPanel
-              ref={chatRef}
-              projectId={project.id}
-              initialPrompt={project.prompt}
-              initialMessages={initialMessages}
-              hasFiles={hasFiles}
-              selectMode={selectMode}
-              onSelectModeChange={setSelectMode}
-              initialModel={initialModel}
-              initialMode={initialMode}
-              wizardBlocked={false}
-            />
+        <div className="relative min-h-0 border-b border-beige/10 lg:border-b-0">
+          {/* Wizard overlays the chat panel while active. ChatPanel stays mounted
+              so chatRef.current is available synchronously in handleWizardComplete,
+              preventing the auto-start race condition. */}
+          {wizardActive && (
+            <div className="absolute inset-0 z-10 bg-background">
+              <WizardPanel
+                initialPrompt={project.prompt}
+                onComplete={handleWizardComplete}
+                onSkip={handleWizardSkip}
+              />
+            </div>
           )}
+          <ChatPanel
+            ref={chatRef}
+            projectId={project.id}
+            initialPrompt={project.prompt}
+            initialMessages={initialMessages}
+            hasFiles={hasFiles}
+            selectMode={selectMode}
+            onSelectModeChange={setSelectMode}
+            initialModel={initialModel}
+            initialMode={initialMode}
+            wizardBlocked={wizardActive}
+          />
         </div>
 
         {/* Drag handle — display:none on mobile so it's absent from the grid */}

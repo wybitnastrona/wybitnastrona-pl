@@ -59,14 +59,15 @@ TRYB: PLAN.
 W tym trybie WYLACZNIE wywolaj narzedzie showPlan z lista krokow (3-10 krokow).
 NIE pisz plikow przez writeFile.
 Po wywolaniu showPlan dodaj krotkie podsumowanie po polsku (1-3 zdania) co planujesz
-zbudowac i poproc uzytkownika o zatwierdzenie ("Wlacz tryb Build i kliknij wyslij,
-zeby rozpoczac implementacje.").
+zbudowac i napisz krotko "Kliknij Zatwierdz aby rozpoczac budowanie.".
 `;
 
 const BUILD_SUFFIX = `
 TRYB: BUILD.
-Wykonaj plan: 1) showPlan, 2) writeFile dla wszystkich potrzebnych plikow, 3) krotkie
-podsumowanie po polsku co zbudowales.
+Uzytkownik zatwierdzil plan. Przejdz od razu do implementacji:
+1) writeFile dla wszystkich potrzebnych plikow.
+2) Krotkie podsumowanie po polsku co zbudowales.
+NIE wywoluj showPlan ponownie — plan juz zostal pokazany i zatwierdzony.
 `;
 
 const writeFileSchema = z.object({

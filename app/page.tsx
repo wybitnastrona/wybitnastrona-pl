@@ -20,7 +20,13 @@ export default async function Home() {
 
   if (user) {
     const projects = await listMyProjects();
-    return <AppShell projects={projects} />;
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("tier")
+      .eq("id", user.id)
+      .maybeSingle();
+    const isFreeTier = ((profile?.tier as string | null) ?? "free") === "free";
+    return <AppShell projects={projects} isFreeTier={isFreeTier} />;
   }
 
   return (

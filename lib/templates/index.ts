@@ -38,6 +38,8 @@ import {
   EXPO_DEV_DEPS,
   EXPO_RUN,
 } from "./expo";
+import { getIosTemplate, IOS_DEPS } from "./ios";
+import { getAndroidTemplate, ANDROID_DEPS } from "./android";
 
 export type TemplateId =
   | "react-ts"
@@ -46,7 +48,9 @@ export type TemplateId =
   | "astro"
   | "svelte"
   | "remix"
-  | "expo";
+  | "expo"
+  | "ios"
+  | "android";
 
 export type TemplateDef = {
   id: TemplateId;
@@ -56,6 +60,11 @@ export type TemplateDef = {
   sandpackTemplate?: "react-ts" | "vue-ts" | "vanilla";
   /** Czy dziala tylko na WebContainerze (np Next.js, Astro). */
   webContainerOnly: boolean;
+  /**
+   * Czy template jest "code-only" — brak preview w przegladarce (iOS / Android).
+   * Uzytkownik widzi tylko edytor + eksport ZIP do Xcode / Android Studio.
+   */
+  codeOnly?: boolean;
   /** Generuje pliki startowe. */
   getFiles: () => ProjectFiles;
   /** Zaleznosci do package.json. */
@@ -146,7 +155,7 @@ export const TEMPLATES: TemplateDef[] = [
   {
     id: "expo",
     label: "Expo / React Native",
-    description: "Aplikacje mobilne. Podglad przez QR + Expo Go.",
+    description: "Cross-platform mobile (React Native). Podglad przez QR + Expo Go.",
     webContainerOnly: true,
     getFiles: getExpoTemplate,
     dependencies: EXPO_DEPS,
@@ -155,6 +164,30 @@ export const TEMPLATES: TemplateDef[] = [
     available: true,
     badge: "new",
     containerImage: "wybitnastrona-hub/expo_router_nativewind_arm:release",
+  },
+  {
+    id: "ios",
+    label: "iOS / SwiftUI",
+    description: "Natywna aplikacja iOS (Swift 5.9 + SwiftUI). Eksport do Xcode 15+.",
+    webContainerOnly: false,
+    codeOnly: true,
+    getFiles: getIosTemplate,
+    dependencies: IOS_DEPS,
+    available: true,
+    badge: "new",
+    containerImage: "wybitnastrona-hub/swift5_swiftui_xcode15:release",
+  },
+  {
+    id: "android",
+    label: "Android / Compose",
+    description: "Natywna aplikacja Android (Kotlin + Jetpack Compose). Eksport do Android Studio.",
+    webContainerOnly: false,
+    codeOnly: true,
+    getFiles: getAndroidTemplate,
+    dependencies: ANDROID_DEPS,
+    available: true,
+    badge: "new",
+    containerImage: "wybitnastrona-hub/kotlin_compose_material3:release",
   },
 ];
 

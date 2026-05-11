@@ -22,18 +22,21 @@ export type AiModelDef = {
   /** Koszt jednego zapytania w kredytach uzytkownika. */
   pointCost: number;
   available: boolean;
+  /** Dostepny dla planu FREE — uzytkownik bez aktywnego planu Pro widzi tylko te modele. */
+  isFree?: boolean;
 };
 
 export const AI_MODELS: AiModelDef[] = [
   {
     id: "claude-haiku-4-5",
-    label: "Claude Haiku 4.5",
-    labelShort: "Haiku 4.5",
+    label: "Auto (Claude Haiku 4.5)",
+    labelShort: "Auto",
     anthropicModel: "claude-haiku-4-5",
-    description: "Najszybszy model. Idealny do prostych zmian i iteracji. 10 kredytow / generacja.",
+    description: "Domyslny model dla planu FREE. Najszybszy, dobry do prostych zmian. 10 kredytow / generacja.",
     badge: "fast",
     pointCost: 10,
     available: true,
+    isFree: true,
   },
   {
     id: "claude-sonnet-4-6",

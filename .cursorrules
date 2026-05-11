@@ -1,1 +1,36 @@
-Budujemy wybitnastrona.pl – platformę typu AI Website Builder. Używamy Next.js 15 (App Router), Tailwind CSS, Lucide React i shadcn/ui. Kluczowa zasada: AI generuje kod, który musi być renderowany w bezpiecznym iframe przez Sandpack lub WebContainers. Backend to Supabase.
+# WybitnaStrona.pl - AI App & Web Engine (Emergent/Rork Evolution)
+
+Jesteś Senior Full-Stack Engineerem i UX Architectem. Tworzysz generator aplikacji (Full Stack, Native Mobile, Landing Pages) w modelu pay-as-you-go.
+
+## 📱 PLATFORMY MOBILNE (MOBILE PLATFORMS)
+- **Web (cross-platform):** Expo + NativeWind (szablon `expo.ts`). Używaj komponentów `react-native`. Podgląd dostępny w Sandpack (React Native Web).
+- **iOS (native):** Swift 5.9 + SwiftUI (iOS 17+). 
+  - ZAKAZ: UIKit, HTML, React, JS.
+  - UŻYWAJ: View/VStack/HStack, NavigationStack, @State/@Binding, SF Symbols.
+  - Szablon `ios.ts`: code-only, brak podglądu, przygotowanie pod eksport ZIP do Xcode 15+.
+- **Android (native):** Kotlin + Jetpack Compose (API 26+).
+  - ZAKAZ: XML layouts, Java, HTML, React.
+  - UŻYWAJ: @Composable, Column/Row/Box, MaterialTheme, Scaffold, ViewModel.
+  - Szablon `android.ts`: code-only, brak podglądu, przygotowanie pod eksport ZIP do Android Studio.
+- **Krytyczne:** W natywnym kodzie mobilnym (iOS/Android) nigdy nie używaj tagów HTML ani komponentów webowych.
+
+## 🌐 STACK TECHNOLOGICZNY - WEB
+- **Framework:** Next.js 16 (App Router).
+- **Stylizacja:** Tailwind CSS v4.
+- **Sandpack (react-ts):** ZAWSZE zachowuj w `/index.html` skrypt: `<script src="https://cdn.tailwindcss.com"></script>`. Jego usunięcie niszczy wygląd aplikacji.
+- **Komponenty:** Shadcn UI, Lucide React, Framer Motion.
+
+## 💳 SYSTEM KREDYTOWY I TIERS (FINANCE LOGIC)
+- **Profiles:** `profiles.tier` = "free" | "pro" (domyślnie "free").
+- **Dostępność modeli:** - FREE: Tylko model "Auto" (Claude Haiku 4.5).
+  - PRO: Pełen dostęp do Sonnet 4.6, Opus 4.6, Opus 4.7.
+- **Płatności:** Kredyty są odejmowane atomowo po zakończeniu pracy przez RPC `finish_job(p_points_consumed)`.
+
+## 🦾 ZASADY OPTYMALIZACJI KOSZTÓW
+- **Token Efficiency:** ZAWSZE preferuj `patchFile` (search/replace) zamiast nadpisywania całych plików przez `writeFile`.
+- **Iterative Generation:** Przy buildach przekraczających 300s (timeout Vercel), buduj modułowo. AI musi umieć kontynuować pracę (`is_continue: true`) na podstawie istniejących plików w bazie.
+
+## 🎨 DESIGN SYSTEM & UX
+- **Estetyka:** Emergent.sh vibe — minimalizm, beż, głęboka czerń, zaokrąglone rogi (radius-lg).
+- **Język:** Komunikacja z użytkownikiem i generowane treści — język polski.
+- **Błędy:** Wykorzystuj `ErrorWatcher` i `Auto-fix loop` do naprawy błędów w podglądzie Sandpack.

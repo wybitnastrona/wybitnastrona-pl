@@ -7,16 +7,21 @@ import type { ProjectListItem } from "@/lib/types/project";
 
 type AppShellProps = {
   projects: ProjectListItem[];
+  /**
+   * Czy aktualny uzytkownik jest w planie FREE. Decyduje o widocznosci modeli
+   * w `CreationHero` — FREE widzi tylko model "Auto" (Haiku).
+   */
+  isFreeTier?: boolean;
 };
 
-export async function AppShell({ projects }: AppShellProps) {
+export async function AppShell({ projects, isFreeTier = true }: AppShellProps) {
   return (
     <div className="flex min-h-screen w-full bg-background">
       <ShellSidebar />
       <main className="flex min-h-screen flex-1 flex-col">
         <ShellMobileHeader />
         <LowPointsBanner />
-        <CreationHero />
+        <CreationHero isFreeTier={isFreeTier} />
         <RecentlyEdited projects={projects} />
       </main>
     </div>

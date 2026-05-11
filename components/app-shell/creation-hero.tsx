@@ -4,19 +4,17 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
-  Database,
   FileUp,
   Globe,
   ImageIcon,
   Lock,
   Loader2,
   Paperclip,
-  Plug,
-  Lightbulb,
   Plus,
   Sparkles,
   Shuffle,
   X,
+  Check,
 } from "lucide-react";
 import { DEFAULT_TEMPLATE, type TemplateId } from "@/lib/templates";
 import { AI_MODELS, DEFAULT_MODEL_ID, type AiModelId } from "@/lib/ai-models";
@@ -26,18 +24,17 @@ import {
   getModeById,
   type ProjectMode,
 } from "@/lib/project-modes";
-import { FigmaIcon } from "@/components/brand-icons";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useSettings } from "@/components/settings/settings-provider";
-import { ModeTabs } from "@/components/app-shell/mode-tabs";
+import { PlatformSelector } from "@/components/app-shell/platform-selector";
 import { AdvancedControls } from "@/components/app-shell/advanced-controls";
 
 type PendingFile = {
@@ -47,7 +44,12 @@ type PendingFile = {
   dataUrl?: string;
 };
 
-export function CreationHero() {
+type CreationHeroProps = {
+  /** Czy uzytkownik jest w planie FREE — wtedy pokazujemy tylko "Auto" model. */
+  isFreeTier?: boolean;
+};
+
+export function CreationHero({ isFreeTier = true }: CreationHeroProps) {
   const router = useRouter();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -55,52 +57,31 @@ export function CreationHero() {
   const [prompt, setPrompt] = useState("");
   const [projectMode, setProjectMode] = useState<ProjectMode>(DEFAULT_MODE);
   const [isPublic, setIsPublic] = useState(true);
-  const [model, setModel] = useState<AiModelId>(DEFAULT_MODEL_ID);
+  // Initial model: FREE tier zaczyna od pierwszego "isFree" modelu (Auto/Haiku).
+  const initialModel: AiModelId = isFreeTier
+    ? (AI_MODELS.find((m) => m.available && m.isFree)?.id ?? DEFAULT_MODEL_ID)
+    : DEFAULT_MODEL_ID;
+  const [model, setModel] = useState<AiModelId>(initialModel);
   const [template, setTemplate] = useState<TemplateId>(DEFAULT_TEMPLATE);
   const [customContext, setCustomContext] = useState("");
+  const [isPlanMode, setIsPlanMode] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [enhancing, setEnhancing] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
 
   const currentModeDef = getModeById(projectMode);
 
-  // When mode changes, swap to the default template for that mode.
   function handleModeChange(mode: ProjectMode) {
     setProjectMode(mode);
     const def = getModeById(mode);
     setTemplate(def.defaultTemplate as TemplateId);
   }
 
-  // Shuffle to a random suggestion for current mode.
   function handleShuffle() {
     const suggestions = currentModeDef.suggestions;
     if (!suggestions.length) return;
     const random = suggestions[Math.floor(Math.random() * suggestions.length)];
     setPrompt(random.prompt);
     textareaRef.current?.focus();
-  }
-
-  async function handleEnhancePrompt() {
-    const trimmed = prompt.trim();
-    if (!trimmed || enhancing) return;
-    setEnhancing(true);
-    try {
-      const res = await fetch("/api/enhance-prompt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: trimmed }),
-      });
-      const data = (await res.json()) as { enhanced?: string; error?: string };
-      if (res.ok && data.enhanced) {
-        setPrompt(data.enhanced);
-      } else {
-        console.warn("[enhance-prompt]", data.error);
-      }
-    } catch (err) {
-      console.error("[enhance-prompt]", err);
-    } finally {
-      setEnhancing(false);
-    }
   }
 
   useEffect(() => {
@@ -146,7 +127,7 @@ export function CreationHero() {
 
     const params = new URLSearchParams({
       prompt: finalPrompt,
-      mode: "build",
+      mode: isPlanMode ? "plan" : "build",
       projectMode,
     });
     if (template !== DEFAULT_TEMPLATE) params.set("template", template);
@@ -203,15 +184,10 @@ export function CreationHero() {
       </header>
 
       <div className="mt-8 w-full max-w-2xl">
-        {/* Prompt card — emergen-style: tabs on top, textarea inside, toolbar at bottom */}
         <form
           onSubmit={handleSubmit}
           className="rounded-2xl border border-beige/20 bg-card/80 shadow-2xl shadow-black/40 backdrop-blur transition focus-within:border-beige/60 focus-within:bg-card hover:border-beige/30"
         >
-          {/* Mode tabs — flush to top of card */}
-          <ModeTabs value={projectMode} onChange={handleModeChange} />
-
-          {/* Textarea */}
           <textarea
             ref={textareaRef}
             value={prompt}
@@ -223,7 +199,6 @@ export function CreationHero() {
             aria-label="Opisz swoja aplikacje lub strone"
           />
 
-          {/* Pending file pills */}
           {pendingFiles.length > 0 && (
             <div className="flex flex-wrap gap-1.5 px-4 pb-2">
               {pendingFiles.map((f, i) => (
@@ -251,14 +226,15 @@ export function CreationHero() {
             </div>
           )}
 
-          {/* Bottom toolbar — emergent style */}
+          {/* Bottom toolbar — Rork style */}
           <div className="flex flex-wrap items-center gap-1.5 px-3 pb-3 sm:px-4 sm:pb-4">
-            {/* Left: attach + model */}
             <PlusMenu
-              onAttachFile={() => fileInputRef.current?.click()}
-              onEnhance={handleEnhancePrompt}
-              enhancing={enhancing}
-              canEnhance={prompt.trim().length > 0}
+              onAttachImage={() => fileInputRef.current?.click()}
+              isPlanMode={isPlanMode}
+              onTogglePlanMode={() => setIsPlanMode((v) => !v)}
+              model={model}
+              onModelChange={setModel}
+              isFreeTier={isFreeTier}
             />
 
             <input
@@ -270,14 +246,17 @@ export function CreationHero() {
               onChange={handleFileChange}
             />
 
-            {/* Model badge */}
-            <ModelBadge model={selectedModel.labelShort} onSelect={setModel} currentId={model} />
+            <PlatformSelector value={projectMode} onChange={handleModeChange} />
+
+            {isPlanMode && (
+              <span className="inline-flex h-7 items-center gap-1 rounded-md border border-beige/25 bg-beige/10 px-2 text-[11px] font-medium text-beige">
+                Planowanie
+              </span>
+            )}
 
             <div className="ml-auto flex items-center gap-1.5">
-              {/* Visibility toggle */}
               <VisibilityToggle isPublic={isPublic} onChange={setIsPublic} />
 
-              {/* Shuffle suggestion */}
               <button
                 type="button"
                 onClick={handleShuffle}
@@ -287,7 +266,6 @@ export function CreationHero() {
                 <Shuffle className="h-3.5 w-3.5" />
               </button>
 
-              {/* Submit */}
               <Button
                 type="submit"
                 size="sm"
@@ -304,6 +282,17 @@ export function CreationHero() {
             </div>
           </div>
         </form>
+
+        {/* Selected model hint (FREE tier sees only "Auto") */}
+        <p className="mt-2 text-center text-[11px] text-muted-foreground">
+          Model: <span className="text-foreground/80">{selectedModel.labelShort}</span>
+          {isFreeTier && (
+            <>
+              {" • "}
+              <span className="text-muted-foreground">FREE — odblokuj wiecej w planie Pro</span>
+            </>
+          )}
+        </p>
 
         {/* Suggestion chips — per-mode */}
         <div className="mt-3 flex flex-wrap justify-center gap-2">
@@ -322,7 +311,6 @@ export function CreationHero() {
           ))}
         </div>
 
-        {/* Advanced Controls */}
         <div className="mt-3 px-1">
           <AdvancedControls
             model={model}
@@ -334,7 +322,6 @@ export function CreationHero() {
         </div>
       </div>
 
-      {/* Explore showcases footer link */}
       <div className="mt-8">
         <button
           type="button"
@@ -352,96 +339,72 @@ export function CreationHero() {
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function PlusMenu({
-  onAttachFile,
-  onEnhance,
-  enhancing,
-  canEnhance,
+  onAttachImage,
+  isPlanMode,
+  onTogglePlanMode,
+  model,
+  onModelChange,
+  isFreeTier,
 }: {
-  onAttachFile: () => void;
-  onEnhance: () => void;
-  enhancing: boolean;
-  canEnhance: boolean;
+  onAttachImage: () => void;
+  isPlanMode: boolean;
+  onTogglePlanMode: () => void;
+  model: AiModelId;
+  onModelChange: (id: AiModelId) => void;
+  isFreeTier: boolean;
 }) {
-  const settings = useSettings();
+  // FREE: tylko modele oznaczone `isFree`. PRO: wszystkie dostepne.
+  const visibleModels = AI_MODELS.filter(
+    (m) => m.available && (isFreeTier ? m.isFree : true),
+  );
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         className="flex h-8 cursor-pointer items-center justify-center rounded-md border border-beige/15 bg-background/40 px-2 text-muted-foreground transition hover:border-beige/30 hover:bg-white/5 hover:text-beige"
-        aria-label="Dodaj zalacznik lub kontekst"
+        aria-label="Wiecej opcji"
       >
         <Plus className="h-3.5 w-3.5" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" sideOffset={8} className="w-56">
-        <DropdownMenuItem onClick={onAttachFile}>
-          <FileUp className="h-3.5 w-3.5" />
-          Zalacz plik
-        </DropdownMenuItem>
-        <DropdownMenuItem disabled>
-          <FigmaIcon className="h-3.5 w-3.5" />
-          Importuj z Figmy
-          <span className="ml-auto text-[10px] text-muted-foreground">Wkrotce</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={onEnhance}
-          disabled={!canEnhance || enhancing}
-        >
-          {enhancing ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Lightbulb className="h-3.5 w-3.5" />
-          )}
-          {enhancing ? "Ulepszam..." : "Wzmocnij prompt"}
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => settings.open("applications")}>
-          <Database className="h-3.5 w-3.5" />
-          Baza danych
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => settings.open("connectors")}>
-          <Plug className="h-3.5 w-3.5" />
-          Konektory
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-function ModelBadge({
-  model,
-  currentId,
-  onSelect,
-}: {
-  model: string;
-  currentId: AiModelId;
-  onSelect: (id: AiModelId) => void;
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        className="flex h-8 cursor-pointer items-center gap-1 rounded-md border border-beige/15 bg-background/40 px-2 text-xs text-foreground/80 transition hover:border-beige/30 hover:text-foreground"
-        aria-label="Wybierz model"
-      >
-        <Sparkles className="h-3.5 w-3.5 text-beige/70" />
-        {model}
-      </DropdownMenuTrigger>
       <DropdownMenuContent align="start" sideOffset={8} className="w-64">
+        <DropdownMenuItem onClick={onAttachImage}>
+          <FileUp className="h-3.5 w-3.5" />
+          Zalacz zdjecie
+        </DropdownMenuItem>
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuItem onClick={onTogglePlanMode}>
+          {isPlanMode ? (
+            <Check className="h-3.5 w-3.5 text-beige" />
+          ) : (
+            <span className="inline-block h-3.5 w-3.5" />
+          )}
+          <div className="flex flex-col">
+            <span>{isPlanMode ? "Planowanie" : "Tworzenie"}</span>
+            <span className="text-[10px] text-muted-foreground">
+              {isPlanMode
+                ? "AI najpierw pokaze plan przed kodem"
+                : "AI od razu pisze kod"}
+            </span>
+          </div>
+        </DropdownMenuItem>
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
+          Agent AI
+        </DropdownMenuLabel>
         <DropdownMenuGroup>
-          {AI_MODELS.filter((m) => m.available).map((m) => (
+          {visibleModels.map((m) => (
             <DropdownMenuItem
               key={m.id}
-              disabled={!m.available}
-              onClick={() => m.available && onSelect(m.id)}
-              className={m.id === currentId ? "bg-beige/10 text-beige" : ""}
+              onClick={() => onModelChange(m.id)}
+              className={m.id === model ? "bg-beige/10 text-beige" : ""}
             >
-              <div className="flex flex-col gap-0.5">
-                <span className="flex items-center gap-1.5">
-                  {m.label}
-                  {m.badge && (
-                    <span className="rounded bg-beige/15 px-1 text-[8px] uppercase tracking-wider text-beige">
-                      {m.badge === "fast" ? "Szybki" : m.badge === "powerful" ? "Mocny" : "Nowy"}
-                    </span>
-                  )}
-                </span>
+              <Sparkles className="h-3.5 w-3.5" />
+              <div className="flex flex-col">
+                <span>{m.labelShort}</span>
                 <span className="text-[10px] text-muted-foreground">
                   {m.pointCost} kr / generacja
                 </span>
@@ -449,6 +412,15 @@ function ModelBadge({
             </DropdownMenuItem>
           ))}
         </DropdownMenuGroup>
+
+        {isFreeTier && (
+          <>
+            <DropdownMenuSeparator />
+            <div className="px-2 py-1.5 text-[10px] text-muted-foreground">
+              Plan FREE — wiecej modeli w Pro.
+            </div>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -497,5 +469,4 @@ function readAsDataUrl(file: File): Promise<string> {
   });
 }
 
-// Keep PROJECT_MODES exported re-export for potential use in pages.
 export { PROJECT_MODES };

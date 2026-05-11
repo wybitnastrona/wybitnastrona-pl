@@ -241,7 +241,7 @@ export async function POST(req: Request) {
     ),
   );
   const projectTemplate = (project.template as string | null) ?? "react-ts";
-  const projectMode = (project.mode as string | null) ?? "landing";
+  const projectMode = (project.mode as string | null) ?? "web";
   const customSystemContext = (project.custom_system_context as string | null)?.trim() ?? "";
   const customContextSuffix = customSystemContext
     ? `\n\nCUSTOM CONTEXT OD UZYTKOWNIKA (rygorystycznie przestrzegaj):\n${customSystemContext}`

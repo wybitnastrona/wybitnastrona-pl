@@ -1,6 +1,12 @@
 "use client";
 
-import { Layers, Smartphone, LayoutTemplate } from "lucide-react";
+/**
+ * @deprecated Zastapione przez `PlatformSelector` (Rork-style pill).
+ * Komponent zachowany tymczasowo na wypadek odwrotu — bedzie usuniety po stabilizacji.
+ */
+
+import { Globe } from "lucide-react";
+import { AppleIcon, AndroidIcon } from "@/components/brand-icons";
 import { PROJECT_MODES, type ProjectMode } from "@/lib/project-modes";
 
 type Props = {
@@ -8,17 +14,17 @@ type Props = {
   onChange: (mode: ProjectMode) => void;
 };
 
-const ICONS = {
-  layers: Layers,
-  smartphone: Smartphone,
-  "layout-template": LayoutTemplate,
-} as const;
+const ICONS: Record<ProjectMode, (props: { className?: string }) => React.ReactElement> = {
+  ios: ({ className }) => <AppleIcon className={className} />,
+  android: ({ className }) => <AndroidIcon className={className} />,
+  web: ({ className }) => <Globe className={className} />,
+};
 
 export function ModeTabs({ value, onChange }: Props) {
   return (
     <div className="flex items-center gap-0.5 rounded-t-xl border-b border-beige/15 bg-background/30 px-3 pt-2">
       {PROJECT_MODES.map((mode) => {
-        const Icon = ICONS[mode.icon];
+        const Icon = ICONS[mode.id];
         const active = value === mode.id;
         return (
           <button

@@ -46,6 +46,10 @@ import {
 import { VoiceButton } from "@/components/project/voice-button";
 import { PlanCard } from "@/components/project/plan-card";
 import { useGenerationProgress } from "@/components/project/use-generation-progress";
+import {
+  RorkThinkingPanel,
+  shouldShowThinkingPanel,
+} from "@/components/project/rork-thinking-panel";
 
 type ChatMode = "build" | "plan" | "discuss";
 
@@ -502,6 +506,15 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
             <p>Opisz co chcesz zbudowac.</p>
           </div>
         )}
+
+        {/* Rork-style thinking panel — pokazywany tylko przy pierwszej generacji
+            nowego projektu (brak zapisanej historii) i tylko zanim AI zacznie
+            pisac pliki / pokaze plan. */}
+        {!hasStoredHistory &&
+          messages.length > 0 &&
+          shouldShowThinkingPanel(messages) && (
+            <RorkThinkingPanel messages={messages} isStreaming={isStreaming} />
+          )}
 
         {messages.map((message, idx) => {
           // Snapshots are keyed by the user message that triggered the AI run.

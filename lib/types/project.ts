@@ -20,7 +20,7 @@ export type Project = {
   database_url: string | null;
   database_anon_key: string | null;
   template: string;
-  /** Project mode: fullstack | mobile | landing. */
+  /** Project mode: ios | android | web (platforma docelowa). */
   mode?: string | null;
   /** Custom user instructions appended to system prompt on every generation. */
   custom_system_context?: string | null;

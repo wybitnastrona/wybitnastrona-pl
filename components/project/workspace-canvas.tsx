@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import {
   Code2,
   Database,
+  Download,
   ExternalLink,
   Eye,
   FileCode2,
@@ -16,6 +17,7 @@ import {
   RotateCw,
   SquareTerminal,
 } from "lucide-react";
+import { AppleIcon, AndroidIcon } from "@/components/brand-icons";
 import { SandpackRunner } from "@/components/sandpack/sandpack-runner";
 import { DatabasePanel } from "@/components/project/database-panel";
 import { SnapshotPanel } from "@/components/project/snapshot-panel";
@@ -76,7 +78,14 @@ export function WorkspaceCanvas({
   onActivatePreviewPickMode,
 }: Props) {
   const router = useRouter();
-  const [view, setView] = useState<WorkspaceView>("preview");
+  // Lazy initial view: dla code-only templates (iOS / Android) zaczynamy od "code",
+  // dla pozostalych — od "preview".
+  const templateIdForInit = project.template ?? "react-ts";
+  const initialView: WorkspaceView =
+    TEMPLATES.find((t) => t.id === templateIdForInit)?.codeOnly === true
+      ? "code"
+      : "preview";
+  const [view, setView] = useState<WorkspaceView>(initialView);
   const [opening, setOpening] = useState(false);
   const [lockDialogOpen, setLockDialogOpen] = useState(false);
   const [editTextMode, setEditTextMode] = useState(false);
@@ -185,6 +194,8 @@ export function WorkspaceCanvas({
   const templateDef = TEMPLATES.find((t) => t.id === (project.template ?? "react-ts"));
   // Fail-safe: jeśli template nieznany lub nie ma flagi webContainerOnly → Sandpack
   const useWC = templateDef?.webContainerOnly === true;
+  // Code-only template (iOS / Android) → bez preview, tylko edytor + banner ZIP.
+  const isCodeOnly = templateDef?.codeOnly === true;
 
   // Zawsze "split": edytor + podgląd pozostają zamontowane (stabilny bundler / Saver).
   // Na zakładce „Kod” kolumnę podglądu zwężamy (collapsePreview) — bez TIME_OUT obok kodu.
@@ -235,10 +246,20 @@ export function WorkspaceCanvas({
         slug={liveSlug ?? undefined}
         publishDomain={publishDomain}
         useWC={useWC}
+        isCodeOnly={isCodeOnly}
+        platform={(project.mode as "ios" | "android" | "web" | null) ?? null}
+        projectId={project.id}
         onOpenLockDialog={() => setLockDialogOpen(true)}
         editTextMode={editTextMode}
         onToggleEditTextMode={() => setEditTextMode((v) => !v)}
       />
+
+      {isCodeOnly && (
+        <CodeOnlyBanner
+          projectId={project.id}
+          platform={(project.mode as "ios" | "android" | "web" | null) ?? null}
+        />
+      )}
 
       {editStatus && view === "preview" && (
         <div className="pointer-events-none absolute right-3 top-12 z-30">
@@ -282,14 +303,15 @@ export function WorkspaceCanvas({
           </>
         ) : (
           /* Sandpack — zawsze zamontowany, przelacznik Code/Preview to props,
-             nie remount, dzieki czemu nie traci stanu kompilacji. */
+             nie remount, dzieki czemu nie traci stanu kompilacji.
+             Code-only templates (iOS / Android) wymuszaja collapsePreview=true. */
           <div className={isSandpackView ? "h-full" : "hidden h-full"}>
             <SandpackRunner
               files={project.files}
               viewMode={sandpackMode}
-              collapseChrome={view === "preview"}
-              collapsePreview={view === "code"}
-              selectMode={view === "preview" && selectMode}
+              collapseChrome={view === "preview" && !isCodeOnly}
+              collapsePreview={view === "code" || isCodeOnly}
+              selectMode={view === "preview" && selectMode && !isCodeOnly}
               onElementPick={onElementPick}
               projectId={project.id}
               isGenerating={buildFile !== null}
@@ -381,6 +403,39 @@ function buildSubdomainUrl(slug: string, domain: string) {
   return `${protocol}://${slug}.${domain}`;
 }
 
+function CodeOnlyBanner({
+  projectId,
+  platform,
+}: {
+  projectId: string;
+  platform: "ios" | "android" | "web" | null;
+}) {
+  const isIos = platform === "ios";
+  const Icon = isIos ? AppleIcon : AndroidIcon;
+  const ide = isIos ? "Xcode 15+" : "Android Studio";
+  const title = isIos ? "Aplikacja iOS (SwiftUI)" : "Aplikacja Android (Compose)";
+  const hint = isIos
+    ? "Brak podgladu w przegladarce — pobierz ZIP i otworz w Xcode."
+    : "Brak podgladu w przegladarce — pobierz ZIP i otworz w Android Studio.";
+
+  return (
+    <div className="flex shrink-0 items-center gap-3 border-b border-beige/15 bg-beige/[0.04] px-4 py-2 text-[12px]">
+      <Icon className="h-4 w-4 shrink-0 text-beige/80" />
+      <div className="min-w-0 flex-1">
+        <p className="font-medium text-foreground">{title}</p>
+        <p className="truncate text-muted-foreground">{hint}</p>
+      </div>
+      <a
+        href={`/api/export/zip?projectId=${encodeURIComponent(projectId)}`}
+        className="inline-flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-md border border-beige/30 bg-beige/15 px-2.5 text-[11px] font-medium text-beige transition hover:bg-beige/25"
+      >
+        <Download className="h-3 w-3" />
+        Pobierz ZIP do {ide}
+      </a>
+    </div>
+  );
+}
+
 function CanvasTopbar({
   view,
   onViewChange,
@@ -390,6 +445,9 @@ function CanvasTopbar({
   slug,
   publishDomain,
   useWC,
+  isCodeOnly,
+  platform,
+  projectId,
   onOpenLockDialog,
   editTextMode,
   onToggleEditTextMode,
@@ -402,6 +460,9 @@ function CanvasTopbar({
   slug?: string;
   publishDomain: string;
   useWC: boolean;
+  isCodeOnly: boolean;
+  platform: "ios" | "android" | "web" | null;
+  projectId: string;
   onOpenLockDialog: () => void;
   editTextMode: boolean;
   onToggleEditTextMode: () => void;
@@ -411,14 +472,16 @@ function CanvasTopbar({
 
   return (
     <div className="flex h-10 shrink-0 items-center gap-2 border-b border-beige/10 bg-background/80 px-2">
-      {/* Glowne przelaczniki widoku — Podglad / Kod (tylko Sandpack) */}
+      {/* Glowne przelaczniki widoku — Podglad / Kod (tylko gdy template wspiera preview) */}
       <div className="flex items-center gap-0.5 rounded-md border border-beige/15 bg-card/40 p-0.5">
-        <ToggleButton
-          icon={Eye}
-          label="Podgląd"
-          active={view === "preview"}
-          onClick={() => onViewChange("preview")}
-        />
+        {!isCodeOnly && (
+          <ToggleButton
+            icon={Eye}
+            label="Podgląd"
+            active={view === "preview"}
+            onClick={() => onViewChange("preview")}
+          />
+        )}
         {!useWC && (
           <ToggleButton
             icon={Code2}
@@ -437,14 +500,16 @@ function CanvasTopbar({
         )}
       </div>
 
-      {/* Dodatkowe panele — Baza / Historia */}
+      {/* Dodatkowe panele — Baza / Historia (baza ma sens tylko dla web) */}
       <div className="flex items-center gap-0.5 rounded-md border border-beige/15 bg-card/40 p-0.5">
-        <ToggleButton
-          icon={Database}
-          label="Baza"
-          active={view === "database"}
-          onClick={() => onViewChange("database")}
-        />
+        {!isCodeOnly && (
+          <ToggleButton
+            icon={Database}
+            label="Baza"
+            active={view === "database"}
+            onClick={() => onViewChange("database")}
+          />
+        )}
         <ToggleButton
           icon={History}
           label="Historia"
@@ -453,58 +518,78 @@ function CanvasTopbar({
         />
       </div>
 
-      <div className="mx-1 hidden h-7 flex-1 items-center gap-2 rounded-md border border-beige/15 bg-card/40 px-2 text-xs text-muted-foreground sm:flex">
-        <span className="truncate font-mono">{displayUrl}</span>
+      {/* URL bar — tylko dla web */}
+      {!isCodeOnly && (
+        <div className="mx-1 hidden h-7 flex-1 items-center gap-2 rounded-md border border-beige/15 bg-card/40 px-2 text-xs text-muted-foreground sm:flex">
+          <span className="truncate font-mono">{displayUrl}</span>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="ml-auto flex h-5 w-5 cursor-pointer items-center justify-center rounded text-muted-foreground transition hover:bg-white/5 hover:text-beige"
+            aria-label="Odśwież podgląd"
+          >
+            <RotateCw className="h-3 w-3" />
+          </button>
+        </div>
+      )}
+
+      {/* Edytuj tekst — tylko dla web */}
+      {!isCodeOnly && (
         <button
           type="button"
-          onClick={() => window.location.reload()}
-          className="ml-auto flex h-5 w-5 cursor-pointer items-center justify-center rounded text-muted-foreground transition hover:bg-white/5 hover:text-beige"
-          aria-label="Odśwież podgląd"
+          onClick={onToggleEditTextMode}
+          className={`ml-auto flex h-7 cursor-pointer items-center gap-1.5 rounded-md border px-2 text-xs transition sm:ml-0 ${
+            editTextMode
+              ? "border-beige/40 bg-beige/15 text-beige"
+              : "border-beige/15 bg-card/40 text-foreground/80 hover:border-beige/30 hover:bg-white/5 hover:text-beige"
+          }`}
+          title="Edytuj tekst bezpośrednio w podglądzie (klik → wpisz → Enter)"
+          aria-pressed={editTextMode}
         >
-          <RotateCw className="h-3 w-3" />
+          <Pencil className="h-3 w-3" />
+          <span className="hidden sm:inline">
+            {editTextMode ? "Wyłącz edycję" : "Edytuj tekst"}
+          </span>
         </button>
-      </div>
-
-      <button
-        type="button"
-        onClick={onToggleEditTextMode}
-        className={`ml-auto flex h-7 cursor-pointer items-center gap-1.5 rounded-md border px-2 text-xs transition sm:ml-0 ${
-          editTextMode
-            ? "border-beige/40 bg-beige/15 text-beige"
-            : "border-beige/15 bg-card/40 text-foreground/80 hover:border-beige/30 hover:bg-white/5 hover:text-beige"
-        }`}
-        title="Edytuj tekst bezpośrednio w podglądzie (klik → wpisz → Enter)"
-        aria-pressed={editTextMode}
-      >
-        <Pencil className="h-3 w-3" />
-        <span className="hidden sm:inline">
-          {editTextMode ? "Wyłącz edycję" : "Edytuj tekst"}
-        </span>
-      </button>
+      )}
 
       <button
         type="button"
         onClick={onOpenLockDialog}
-        className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-beige/15 bg-card/40 px-2 text-xs text-foreground/80 transition hover:border-beige/30 hover:bg-white/5 hover:text-beige"
+        className={`flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-beige/15 bg-card/40 px-2 text-xs text-foreground/80 transition hover:border-beige/30 hover:bg-white/5 hover:text-beige ${
+          isCodeOnly ? "ml-auto" : ""
+        }`}
         title="Zablokuj pliki przed nadpisaniem przez AI"
       >
         <Lock className="h-3 w-3" />
         <span className="hidden sm:inline">Zablokuj pliki</span>
       </button>
 
-      <button
-        type="button"
-        onClick={onOpenLive}
-        disabled={opening}
-        className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-beige/15 bg-card/40 px-2 text-xs text-foreground/80 transition hover:border-beige/30 hover:bg-white/5 hover:text-beige disabled:opacity-60"
-      >
-        {opening ? (
-          <Loader2 className="h-3 w-3 animate-spin" />
-        ) : (
-          <ExternalLink className="h-3 w-3" />
-        )}
-        <span className="hidden sm:inline">Otwórz na żywo</span>
-      </button>
+      {/* Akcja koncowa: code-only → eksport ZIP, web → otworz na zywo */}
+      {isCodeOnly ? (
+        <a
+          href={`/api/export/zip?projectId=${encodeURIComponent(projectId)}`}
+          className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-beige/30 bg-beige/15 px-2 text-xs font-medium text-beige transition hover:bg-beige/25"
+          title={platform === "ios" ? "Eksport do Xcode 15+" : "Eksport do Android Studio"}
+        >
+          <Download className="h-3 w-3" />
+          <span className="hidden sm:inline">Eksport ZIP</span>
+        </a>
+      ) : (
+        <button
+          type="button"
+          onClick={onOpenLive}
+          disabled={opening}
+          className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-beige/15 bg-card/40 px-2 text-xs text-foreground/80 transition hover:border-beige/30 hover:bg-white/5 hover:text-beige disabled:opacity-60"
+        >
+          {opening ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <ExternalLink className="h-3 w-3" />
+          )}
+          <span className="hidden sm:inline">Otwórz na żywo</span>
+        </button>
+      )}
     </div>
   );
 }

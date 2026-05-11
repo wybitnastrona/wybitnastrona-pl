@@ -71,6 +71,10 @@ export function SandpackInner({
 }: SandpackRunnerProps) {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [terminalOpen, setTerminalOpen] = useState(true);
+  
+  // Detect Opera browser at mount time
+  const operaWarning =
+    typeof window !== "undefined" && /OPR|Opera/.test(navigator.userAgent);
 
   return (
     <SandpackProvider
@@ -101,7 +105,17 @@ export function SandpackInner({
         <SandpackSaver projectId={projectId} onSaveStatus={setSaveStatus} />
       )}
 
-      <div className="relative flex h-full w-full overflow-hidden bg-[#0a0a0a]">
+      <div className="relative flex h-full w-full flex-col overflow-hidden bg-[#0a0a0a]">
+        {operaWarning && (
+          <div className="flex shrink-0 items-start gap-2 border-b border-orange-500/50 bg-orange-950/40 px-4 py-2 text-[11px] text-orange-200">
+            <span className="mt-0.5 shrink-0">⚠️</span>
+            <div className="flex-1">
+              <p className="font-medium">Opera: Preview może mieć timeout</p>
+              <p className="text-orange-200/70">Bundler CodeSandbox może być zablokowany. Spróbuj Chrome lub otworz projekt w nowej karcie.</p>
+            </div>
+          </div>
+        )}
+        <div className="relative flex min-h-0 flex-1 overflow-hidden">
         {projectId &&
           (viewMode === "code" || viewMode === "split") &&
           saveStatus !== "idle" && (
@@ -139,6 +153,7 @@ export function SandpackInner({
             full
           />
         )}
+        </div>
       </div>
     </SandpackProvider>
   );

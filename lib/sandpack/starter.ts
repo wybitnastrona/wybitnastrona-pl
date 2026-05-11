@@ -39,6 +39,45 @@ const INDEX_HTML = `<!doctype html>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>wybitnastrona.pl - preview</title>
+    <style>
+      /* Fallback CSS: jeśli CDN Tailwind nie załaduje się (np. Opera, timeout) */
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html { font-size: 16px; }
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0a0a0a; color: #e7e3da; line-height: 1.5; }
+      .min-h-screen { min-height: 100vh; }
+      .bg-neutral-950 { background: #0a0a0a; }
+      .text-neutral-100 { color: #f5f5f5; }
+      .text-neutral-400 { color: #a3a3a3; }
+      .flex { display: flex; }
+      .items-center { align-items: center; }
+      .justify-center { justify-content: center; }
+      .p-6 { padding: 24px; }
+      .max-w-xl { max-width: 36rem; }
+      .w-full { width: 100%; }
+      .text-center { text-align: center; }
+      .space-y-6 > * + * { margin-top: 24px; }
+      .inline-block { display: inline-block; }
+      .px-3, .px-4 { padding-left: 12px; padding-right: 12px; }
+      .py-1, .py-2 { padding-top: 4px; padding-bottom: 4px; }
+      .py-2 { padding-top: 8px; padding-bottom: 8px; }
+      .rounded-full { border-radius: 9999px; }
+      .rounded-lg { border-radius: 8px; }
+      .text-xs { font-size: 12px; }
+      .text-4xl { font-size: 36px; }
+      .text-5xl { font-size: 48px; }
+      .uppercase { text-transform: uppercase; }
+      .tracking-wider { letter-spacing: 0.05em; }
+      .border { border: 1px solid; }
+      .border-amber-200 { border-color: #fcd34d; opacity: 0.3; }
+      .text-amber-200 { color: #fcd34d; }
+      .font-medium { font-weight: 500; }
+      .md\\:text-5xl { font-size: 48px; }
+      .bg-amber-200 { background: #fcd34d; }
+      .text-neutral-950 { color: #0a0a0a; }
+      .hover\\:bg-amber-100:hover { background: #fde047; }
+      .transition { transition: background-color 150ms; }
+      .cursor-pointer { cursor: pointer; }
+    </style>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
 ${ELEMENT_PICKER_SCRIPT}

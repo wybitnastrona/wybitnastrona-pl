@@ -17,7 +17,13 @@ import {
   Check,
 } from "lucide-react";
 import { DEFAULT_TEMPLATE, type TemplateId } from "@/lib/templates";
-import { AI_MODELS, DEFAULT_MODEL_ID, type AiModelId } from "@/lib/ai-models";
+import {
+  AI_MODELS,
+  DEFAULT_MODEL_ID,
+  availableModelsForTier,
+  type AiModelId,
+  type UserTier,
+} from "@/lib/ai-models";
 import {
   PROJECT_MODES,
   DEFAULT_MODE,
@@ -45,11 +51,13 @@ type PendingFile = {
 };
 
 type CreationHeroProps = {
-  /** Czy uzytkownik jest w planie FREE — wtedy pokazujemy tylko "Auto" model. */
-  isFreeTier?: boolean;
+  /** Tier zalogowanego uzytkownika — decyduje o widocznych platformach i modelach. */
+  userTier?: UserTier;
 };
 
-export function CreationHero({ isFreeTier = true }: CreationHeroProps) {
+export function CreationHero({ userTier = "free" }: CreationHeroProps) {
+  const isFreeTier = userTier === "free";
+  const isWybitny = userTier === "wybitny";
   const router = useRouter();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -57,14 +65,16 @@ export function CreationHero({ isFreeTier = true }: CreationHeroProps) {
   const [prompt, setPrompt] = useState("");
   const [projectMode, setProjectMode] = useState<ProjectMode>(DEFAULT_MODE);
   const [isPublic, setIsPublic] = useState(true);
-  // Initial model: FREE tier zaczyna od pierwszego "isFree" modelu (Auto/Haiku).
-  const initialModel: AiModelId = isFreeTier
-    ? (AI_MODELS.find((m) => m.available && m.isFree)?.id ?? DEFAULT_MODEL_ID)
-    : DEFAULT_MODEL_ID;
+  // FREE musi byc publiczny. Inicjalnie zawsze public.
+  // Initial model: zwroci najnizszy dostepny dla danego tieru.
+  const initialModel: AiModelId =
+    availableModelsForTier(userTier)[0]?.id ?? DEFAULT_MODEL_ID;
   const [model, setModel] = useState<AiModelId>(initialModel);
   const [template, setTemplate] = useState<TemplateId>(DEFAULT_TEMPLATE);
   const [customContext, setCustomContext] = useState("");
   const [isPlanMode, setIsPlanMode] = useState(false);
+  // WYBITNY toggle — odblokowuje MAX_APPLE_POWER + zloty glow.
+  const [wybitnyMode, setWybitnyMode] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
 
@@ -132,7 +142,10 @@ export function CreationHero({ isFreeTier = true }: CreationHeroProps) {
     });
     if (template !== DEFAULT_TEMPLATE) params.set("template", template);
     params.set("model", model);
-    if (isPublic) params.set("public", "1");
+    // FREE: zawsze publiczny (wymog planu). PRO/WYBITNY: zgodnie z toggle.
+    const effectivePublic = isFreeTier ? true : isPublic;
+    if (effectivePublic) params.set("public", "1");
+    if (wybitnyMode && isWybitny) params.set("wybitny", "1");
     const trimmedCtx = customContext.trim();
     if (trimmedCtx) params.set("ctx", trimmedCtx.slice(0, 2000));
 
@@ -234,7 +247,7 @@ export function CreationHero({ isFreeTier = true }: CreationHeroProps) {
               onTogglePlanMode={() => setIsPlanMode((v) => !v)}
               model={model}
               onModelChange={setModel}
-              isFreeTier={isFreeTier}
+              userTier={userTier}
             />
 
             <input
@@ -246,7 +259,11 @@ export function CreationHero({ isFreeTier = true }: CreationHeroProps) {
               onChange={handleFileChange}
             />
 
-            <PlatformSelector value={projectMode} onChange={handleModeChange} />
+            <PlatformSelector
+              value={projectMode}
+              onChange={handleModeChange}
+              userTier={userTier}
+            />
 
             {isPlanMode && (
               <span className="inline-flex h-7 items-center gap-1 rounded-md border border-beige/25 bg-beige/10 px-2 text-[11px] font-medium text-beige">
@@ -254,8 +271,35 @@ export function CreationHero({ isFreeTier = true }: CreationHeroProps) {
               </span>
             )}
 
+            {/* Tryb WYBITNY toggle — widoczny tylko dla tieru wybitny */}
+            {isWybitny && (
+              <button
+                type="button"
+                onClick={() => setWybitnyMode((v) => !v)}
+                className={`inline-flex h-7 cursor-pointer items-center gap-1 rounded-md border px-2 text-[11px] font-medium transition ${
+                  wybitnyMode
+                    ? "border-amber-300/60 bg-gradient-to-r from-amber-200/30 via-beige/30 to-amber-200/30 text-amber-100"
+                    : "border-beige/20 bg-background/40 text-foreground/70 hover:border-amber-300/40 hover:text-amber-100"
+                }`}
+                title="Tryb WYBITNY: ARKit, HealthKit, Metal, Live Activities — max Apple power"
+              >
+                <Sparkles className="h-3 w-3" />
+                WYBITNY
+              </button>
+            )}
+
             <div className="ml-auto flex items-center gap-1.5">
-              <VisibilityToggle isPublic={isPublic} onChange={setIsPublic} />
+              {!isFreeTier && (
+                <VisibilityToggle isPublic={isPublic} onChange={setIsPublic} />
+              )}
+              {isFreeTier && (
+                <span
+                  className="inline-flex h-8 items-center gap-1 rounded-md border border-beige/15 bg-background/40 px-2 text-[11px] text-muted-foreground"
+                  title="Plan FREE — wszystkie projekty publiczne"
+                >
+                  Publiczny
+                </span>
+              )}
 
               <button
                 type="button"
@@ -266,11 +310,17 @@ export function CreationHero({ isFreeTier = true }: CreationHeroProps) {
                 <Shuffle className="h-3.5 w-3.5" />
               </button>
 
+              {/* Zbuduj — gdy WYBITNY toggle aktywny, dostaje zloty glow.
+                  Inaczej standard bezowy. */}
               <Button
                 type="submit"
                 size="sm"
                 disabled={!prompt.trim() || submitting}
-                className="bg-beige text-beige-foreground hover:bg-beige/90 disabled:bg-beige/40 disabled:text-beige-foreground/60"
+                className={
+                  wybitnyMode && isWybitny
+                    ? "relative bg-gradient-to-r from-amber-200 via-beige to-amber-100 text-neutral-900 shadow-[0_0_30px_rgba(232,220,196,0.65)] animate-pulse hover:from-amber-100 hover:via-beige hover:to-amber-100 disabled:opacity-60"
+                    : "bg-beige text-beige-foreground hover:bg-beige/90 disabled:bg-beige/40 disabled:text-beige-foreground/60"
+                }
               >
                 {submitting ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -283,13 +333,23 @@ export function CreationHero({ isFreeTier = true }: CreationHeroProps) {
           </div>
         </form>
 
-        {/* Selected model hint (FREE tier sees only "Auto") */}
+        {/* Selected model hint */}
         <p className="mt-2 text-center text-[11px] text-muted-foreground">
           Model: <span className="text-foreground/80">{selectedModel.labelShort}</span>
           {isFreeTier && (
             <>
               {" • "}
-              <span className="text-muted-foreground">FREE — odblokuj wiecej w planie Pro</span>
+              <span className="text-muted-foreground">
+                FREE: 5 kredytow/mc, Web only — <a href="/pricing" className="underline hover:text-beige">odblokuj PRO</a>
+              </span>
+            </>
+          )}
+          {userTier === "pro" && (
+            <>
+              {" • "}
+              <span className="text-muted-foreground">
+                PRO — <a href="/pricing" className="underline hover:text-beige">upgrade do WYBITNY</a> dla Apple Max Power
+              </span>
             </>
           )}
         </p>
@@ -344,19 +404,17 @@ function PlusMenu({
   onTogglePlanMode,
   model,
   onModelChange,
-  isFreeTier,
+  userTier,
 }: {
   onAttachImage: () => void;
   isPlanMode: boolean;
   onTogglePlanMode: () => void;
   model: AiModelId;
   onModelChange: (id: AiModelId) => void;
-  isFreeTier: boolean;
+  userTier: UserTier;
 }) {
-  // FREE: tylko modele oznaczone `isFree`. PRO: wszystkie dostepne.
-  const visibleModels = AI_MODELS.filter(
-    (m) => m.available && (isFreeTier ? m.isFree : true),
-  );
+  const visibleModels = availableModelsForTier(userTier);
+  const isFreeTier = userTier === "free";
 
   return (
     <DropdownMenu>

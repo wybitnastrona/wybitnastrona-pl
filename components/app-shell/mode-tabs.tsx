@@ -5,7 +5,7 @@
  * Komponent zachowany tymczasowo na wypadek odwrotu — bedzie usuniety po stabilizacji.
  */
 
-import { Globe } from "lucide-react";
+import { Globe, Watch, Tv } from "lucide-react";
 import { AppleIcon, AndroidIcon } from "@/components/brand-icons";
 import { PROJECT_MODES, type ProjectMode } from "@/lib/project-modes";
 
@@ -18,6 +18,9 @@ const ICONS: Record<ProjectMode, (props: { className?: string }) => React.ReactE
   ios: ({ className }) => <AppleIcon className={className} />,
   android: ({ className }) => <AndroidIcon className={className} />,
   web: ({ className }) => <Globe className={className} />,
+  watchos: ({ className }) => <Watch className={className} />,
+  tvos: ({ className }) => <Tv className={className} />,
+  visionos: ({ className }) => <AppleIcon className={className} />,
 };
 
 export function ModeTabs({ value, onChange }: Props) {

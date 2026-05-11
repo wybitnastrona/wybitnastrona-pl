@@ -200,6 +200,42 @@ fun ProfileScreen(viewModel: ProfileViewModel = viewModel()) {
 }
 \`\`\``;
 
+const WATCHOS_STACK = `STACK: Swift 5.9 + SwiftUI (watchOS 10+)
+- Jezyk: WYLACZNIE Swift. ZAKAZ: UIKit, HTML, React, Java/Kotlin.
+- UI: SwiftUI dla watchOS — View, Text, Image, Button (controlSize.small), List, NavigationStack.
+- Kontekst urzadzenia: maly ekran (180x230 do 224x255 pt) — typografia kompaktowa, max 1-2 akcje na ekran.
+- Digital Crown: \`@FocusState\` + \`.focusable()\` + \`.digitalCrownRotation(...)\` dla scrolla/zmiany wartosci.
+- Haptyka: \`WKInterfaceDevice.current().play(.click)\` (opakowane w SwiftUI helper).
+- Complications (\`Complications/*.swift\`): WidgetKit z TimelineProvider, supportedFamilies(.accessoryCircular, .accessoryCorner, .accessoryRectangular, .accessoryInline).
+- HealthKit: \`HKHealthStore\` z odpowiednimi entitlementami w Info.plist.
+- Sieci: URLSession + async/await (background sessions dla dlugich operacji).
+- Persystencja: \`@AppStorage\`, SwiftData (od watchOS 10).
+- Entry point: \`*WatchApp.swift\` z \`@main struct AppName: App { var body: some Scene { WindowGroup { ContentView() } } }\`.`;
+
+const TVOS_STACK = `STACK: Swift 5.9 + SwiftUI (tvOS 17+)
+- Jezyk: WYLACZNIE Swift. ZAKAZ: UIKit, HTML, React, Storyboards.
+- UI: SwiftUI dla tvOS — kazdy clickable element MUSI byc focusable (\`.focusable()\`, \`Button { } .buttonStyle(.card)\`).
+- Focus engine: domyslnie SwiftUI dba o nawigacje (Remote / Siri), ale uzywaj \`@FocusState\` dla wskazywania domyslnego fokusu.
+- Layouty: LazyVGrid / LazyHGrid (siatki kafli), NavigationStack, TabView (.tabViewStyle(.sidebarAdaptable)).
+- Wideo: AVKit (\`VideoPlayer(player:)\`), HLS streaming, AirPlay-ready.
+- Brak gestow ekranu dotykowego — wszystko przez Remote (Click, Menu, Swipe). NIE uzywaj \`.onTapGesture\` bez fokusu.
+- Bezpieczne strefy: \`.safeAreaInset\` + duzy padding (64+).
+- Brak okien sheet — dla modali uzyj \`NavigationStack\` lub fullScreenCover.
+- Entry point: \`*TvApp.swift\`.`;
+
+const VISIONOS_STACK = `STACK: Swift 5.9 + SwiftUI + RealityKit (visionOS 1+)
+- Jezyk: WYLACZNIE Swift. ZAKAZ: UIKit, HTML, React, Storyboards.
+- SwiftUI z trzema typami scen:
+  * Window (standardowy panel 2D) — \`WindowGroup { ContentView() }\`
+  * Volume (objetosc 3D, max 1m^3) — \`WindowGroup(id:) { } .windowStyle(.volumetric) .defaultSize(width:height:depth:in: .meters)\`
+  * ImmersiveSpace (pelna immersja) — \`ImmersiveSpace(id:) { ImmersiveView() }\`
+- 3D: RealityKit (\`RealityView { content in ... }\`), \`ModelEntity\`, \`MeshResource\`, \`SimpleMaterial / PhysicallyBasedMaterial\`.
+- Anchors: \`AnchorEntity(.head)\`, \`.hand(.left, location: .palm)\`, \`.plane(.horizontal, classification: .table)\`.
+- Interakcje: \`InputTargetComponent\` + \`HoverEffectComponent\` + gestures (TapGesture / SpatialEventGesture).
+- Spatial Audio: \`AVAudioEnvironmentNode\` lub \`AudioPlaybackController.gain\`.
+- Otwieranie scen: \`@Environment(\\.openWindow)\`, \`@Environment(\\.openImmersiveSpace)\`, \`@Environment(\\.dismissImmersiveSpace)\`.
+- Entry point: \`*VisionApp.swift\` z multiple Scene types.`;
+
 const EXPO_STACK = `STACK: Expo SDK 52 + React Native + expo-router + NativeWind
 - React Native components TYLKO: View, Text, TouchableOpacity, Pressable, ScrollView, FlatList, SectionList, Image, TextInput, Switch, Modal, ActivityIndicator (z 'react-native').
 - ZAKAZ: tagow HTML (div, span, p, button, img, h1-h6), 'react-dom', 'next/...', window, document, localStorage.
@@ -221,6 +257,9 @@ const TEMPLATE_STACK_RULES: Record<TemplateId, string> = {
   expo: EXPO_STACK,
   ios: IOS_STACK,
   android: ANDROID_STACK,
+  watchos: WATCHOS_STACK,
+  tvos: TVOS_STACK,
+  visionos: VISIONOS_STACK,
 };
 
 export function getStackRules(templateId: string | null | undefined): string {
@@ -323,6 +362,41 @@ Priorytetowe elementy:
 
 Styl: Material You / Material 3 — dynamiczne kolory, dobre uzycie elevation, FAB tam gdzie pasuje, brand color jako primary.`,
 
+  watchos: `CEL PROJEKTU: Natywna aplikacja Apple Watch (Swift + SwiftUI, watchOS 10+).
+Budujesz aplikacje na Apple Watch Series 9 / Ultra 2. Priorytety:
+- Mini-ekrany: KAZDY ekran to jeden focused widok. Max 2 akcje na ekran.
+- Digital Crown dla scrolla / zmiany wartosci (\`.focusable() + .digitalCrownRotation\`).
+- Complications dla "always on" widocznosci na tarczy zegarka.
+- HealthKit / WorkoutKit dla aplikacji zdrowotnych i fitness.
+- Live Activities / Smart Stack dla aktualnych powiadomien.
+- Energia: NIE rob ciaglych pollingow — uzyj background tasks / push notifications.
+
+Styl: minimalistyczny, duza typografia (Title2+), kolory wysokokontrastowe (white-on-black), system fonts.`,
+
+  tvos: `CEL PROJEKTU: Natywna aplikacja Apple TV (Swift + SwiftUI, tvOS 17+).
+Budujesz aplikacje TV — 10ft UI (uzytkownik siedzi 3m od ekranu). Priorytety:
+- Wielkie kafle: min 280x200pt, najlepiej z duzymi obrazami / wideo.
+- Focus engine: kazdy interaktywny element MUSI miec \`Button { } .buttonStyle(.card)\` lub \`.focusable()\`.
+- Hierarchiczna nawigacja: TabView dla glownych dzialow, NavigationStack dla detali.
+- Wideo: AVKit z native player (\`VideoPlayer(player: AVPlayer(url:))\`), HLS streaming, captions / audio tracks.
+- Brak gestow dotykowych — wszystko przez Apple TV Remote (Click + Menu).
+- Bezpieczne strefy: padding(64+) bo TV ma overscan.
+
+Styl: cinematic, duze obrazy, ciemne tlo, gradient overlays na kafelkach, sf-pro-display dla typografii.`,
+
+  visionos: `CEL PROJEKTU: Aplikacja na Apple Vision Pro (SwiftUI + RealityKit, visionOS 1+).
+Budujesz aplikacje spatial computing — uzytkownik widzi UI nadlozone na rzeczywistosc. Priorytety:
+- Trzy typy scen w jednej aplikacji:
+  * Window (standardowy panel 2D dla menu, listy, ustawien)
+  * Volume (objetosc 3D do 1m^3 dla obiektow ktore "stoja" w przestrzeni)
+  * ImmersiveSpace (pelna immersja — calkowicie zastepuje rzeczywistosc lub miesza z nia)
+- 3D przez RealityKit: \`RealityView { content in ... }\`, \`ModelEntity\`, anchors (\`AnchorEntity(.head)\`).
+- Gesty: pinch (tap), drag (move 3D), squeeze (resize), look (focus follows eyes).
+- Glass material: \`.glassBackgroundEffect()\` dla naturalnego wyglada paneli.
+- Spatial Audio dla immersji dzwiekowej.
+
+Styl: glass-morphism, semitransparent panele, depth shadows, soft glow accents.`,
+
   web: `CEL PROJEKTU: Aplikacja webowa (React / Vite / Next.js).
 Budujesz strone internetowa lub aplikacje web. Stosuj nowoczesny, senior-level design.
 Priorytetowe elementy zaleznie od typu:
@@ -332,12 +406,49 @@ Priorytetowe elementy zaleznie od typu:
 Styl: nowoczesny, estetyczny, czysta typografia, dobre proporcje i kontrasty.`,
 };
 
+// ────────────────────────────────────────────────────────────────────────────
+// WYBITNY tier — MAX_APPLE_POWER (ARKit, HealthKit, Metal, Live Activities)
+// ────────────────────────────────────────────────────────────────────────────
+
+const WYBITNY_MAX_HEADER = `
+TRYB WYBITNY (MAX APPLE POWER) — uzytkownik ma plan WYBITNY i oczekuje pelnego
+wykorzystania Apple Ecosystem APIs:
+
+ZAAWANSOWANE API DO ROZWAZENIA (zaproponuj kazde stosowne, nie wymuszaj wszystkich):
+- ARKit + RealityKit: \`ARWorldTrackingConfiguration\`, LiDAR depth maps (\`sceneReconstruction = .mesh\`).
+- HealthKit: \`HKHealthStore.requestAuthorization(toShare:, read:)\`, sample queries, workouts.
+- Metal / SceneKit: shaders dla zaawansowanej grafiki 3D, performance >60fps.
+- Live Activities (ActivityKit): \`ActivityAttributes\`, Smart Stack, Dynamic Island.
+- App Intents (Siri): \`@AssistantSchema\`, \`AppIntent\`, \`AppEnum\`.
+- Widgets (WidgetKit): TimelineProvider, \`StaticConfiguration\`, supportedFamilies (.systemSmall/Medium/Large).
+- WidgetKit Interactive: Button / Toggle w widgetach (iOS 17+).
+- CoreML: \`MLModel.load\`, \`MLModelConfiguration\`, on-device inference.
+- VisionKit: \`DataScannerViewController\`, \`ImageAnalyzer\` (iOS 17+).
+- StoreKit 2: \`Transaction.currentEntitlements\`, \`Product.purchase()\`.
+- SwiftCharts: pelne wykorzystanie \`Chart { }\` z interactivity.
+- SwiftData (od iOS 17): \`@Model\`, \`@Query\`, \`ModelContainer\`.
+- Spatial Audio (visionOS / AirPods): \`AVAudioEnvironmentNode\`.
+
+WYMAGANIA JAKOSCIOWE:
+- Kod w 100% natywny SwiftUI + Swift Concurrency (async / await / actor / TaskGroup).
+- Animacje 60fps: \`.animation(.spring(response:dampingFraction:), value:)\`, \`.matchedGeometryEffect\`.
+- Brak fallbackow do UIKit. Brak Combine bez powodu (uzyj nowoczesnego async/await).
+- Dla iOS 17+: \`.symbolEffect(.bounce, value:)\`, \`@Observable\`, \`@Bindable\` zamiast @StateObject.
+- Architektura: clean separation Models / Services / Views / ViewModels (MVVM).
+- Komentarze w kluczowych miejscach (dlaczego, nie co).
+
+Jezeli platforma to web (mode=web, is_wybitny=true), pomijamy te API i zamiast tego
+proponujemy zaawansowane API webowe: WebGPU, Web Animations API, View Transitions,
+File System Access, WebHID, WebRTC.
+`;
+
 export type GenerationMode = "build" | "plan" | "discuss" | "continue";
 
 export function buildSystemPrompt(
   mode: GenerationMode,
   templateId: string | null | undefined,
   projectMode?: ProjectMode | string | null,
+  options?: { isWybitny?: boolean },
 ): string {
   const stack = getStackRules(templateId);
   const modeHeader = (projectMode && MODE_HEADERS[projectMode as ProjectMode])
@@ -355,5 +466,6 @@ export function buildSystemPrompt(
   // pomijamy w continue (kontynuacja po timeoucie nie ma sensu z "Working" again)
   // i discuss (rozmowa konwersacyjna, AI nie planuje od zera).
   const reasoning = mode === "plan" || mode === "build" ? REASONING_PREAMBLE : "";
-  return `${SHARED_HEADER}${reasoning}${modeHeader}\n${stack}\n${suffix}`;
+  const wybitny = options?.isWybitny ? WYBITNY_MAX_HEADER : "";
+  return `${SHARED_HEADER}${reasoning}${modeHeader}\n${stack}\n${wybitny}${suffix}`;
 }

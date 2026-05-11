@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createProject } from "@/lib/projects";
 import type { TemplateId } from "@/lib/templates";
+import type { Project } from "@/lib/types/project";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,15 @@ type SearchParams = Promise<{
   projectMode?: string | string[];
   public?: string | string[];
   ctx?: string | string[];
+  wybitny?: string | string[];
 }>;
+
+function pickParam(
+  v: string | string[] | undefined,
+): string | undefined {
+  if (Array.isArray(v)) return v[0];
+  return v;
+}
 
 export default async function NewProjectPage({
   searchParams,
@@ -24,31 +33,34 @@ export default async function NewProjectPage({
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) redirect("/");
+  if (!user) redirect("/?error=not-authenticated");
 
   const params = await searchParams;
 
-  const rawPrompt = Array.isArray(params.prompt)
-    ? params.prompt[0]
-    : params.prompt;
-  const prompt = (rawPrompt ?? "").trim();
-  if (!prompt) redirect("/");
+  const prompt = (pickParam(params.prompt) ?? "").trim();
+  if (!prompt) redirect("/?error=empty-prompt");
 
-  const rawTemplate = Array.isArray(params.template)
-    ? params.template[0]
-    : params.template;
+  const rawTemplate = pickParam(params.template);
+  const rawModel = pickParam(params.model);
+  const rawMode = pickParam(params.mode);
+  const rawProjectMode = pickParam(params.projectMode);
+  const isPublic = pickParam(params.public) === "1";
+  const isWybitny = pickParam(params.wybitny) === "1";
+  const rawCtx = pickParam(params.ctx);
+  const customSystemContext =
+    (rawCtx ?? "").trim().slice(0, 2000) || undefined;
 
-  const rawModel = Array.isArray(params.model)
-    ? params.model[0]
-    : params.model;
+  // Sanity check: upewnij sie ze profil istnieje. Bez wpisu w `profiles` RLS-y
+  // dla `finish_job` zawioda, a uzytkownik nie zobaczy zadnego feedbacku.
+  await supabase.from("profiles").upsert(
+    {
+      id: user.id,
+      email: user.email ?? null,
+    },
+    { onConflict: "id", ignoreDuplicates: false },
+  );
 
-  const rawMode = Array.isArray(params.mode) ? params.mode[0] : params.mode;
-  const rawProjectMode = Array.isArray(params.projectMode) ? params.projectMode[0] : params.projectMode;
-  const isPublic = (Array.isArray(params.public) ? params.public[0] : params.public) === "1";
-  const rawCtx = Array.isArray(params.ctx) ? params.ctx[0] : params.ctx;
-  const customSystemContext = (rawCtx ?? "").trim().slice(0, 2000) || undefined;
-
-  let project;
+  let project: Project;
   try {
     project = await createProject(
       prompt,
@@ -56,13 +68,26 @@ export default async function NewProjectPage({
       rawProjectMode,
       customSystemContext,
     );
-    if (isPublic !== undefined) {
-      const supabase2 = await import("@/lib/supabase/server").then((m) => m.createClient());
-      await supabase2.from("projects").update({ is_public: isPublic }).eq("id", project.id);
-    }
   } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "unknown-error";
     console.error("[new-project] createProject failed:", err);
-    redirect("/");
+    redirect(`/?error=create-project&detail=${encodeURIComponent(message)}`);
+  }
+
+  // Apply optional flags. Bledy na update'ach NIE blokuja przekierowania —
+  // projekt juz istnieje, user ma do niego dostep.
+  if (isPublic) {
+    await supabase
+      .from("projects")
+      .update({ is_public: true })
+      .eq("id", project.id);
+  }
+  if (isWybitny) {
+    await supabase
+      .from("projects")
+      .update({ is_wybitny: true })
+      .eq("id", project.id);
   }
 
   // Pass model and mode to the project page so ChatPanel can pick the right model.

@@ -44,6 +44,10 @@ export async function createProject(
   const resolvedTemplateId = templateId ?? (modeDef.defaultTemplate as TemplateId);
   const template = getTemplate(resolvedTemplateId);
 
+  // Generujemy slug od razu — uzytkownik widzi pelny URL podgladu zaraz
+  // po stworzeniu projektu (bez czekania na publish).
+  const slug = generateSlug();
+
   const { data, error } = await supabase
     .from("projects")
     .insert({
@@ -54,6 +58,7 @@ export async function createProject(
       template: template.id,
       mode: resolvedMode,
       custom_system_context: customSystemContext ?? null,
+      slug,
     })
     .select("*")
     .single();
@@ -74,6 +79,7 @@ export async function createProject(
           prompt,
           title: deriveTitle(prompt),
           files: template.getFiles(),
+          slug,
         })
         .select("*")
         .single();
@@ -117,9 +123,13 @@ export async function listMyProjects(): Promise<ProjectListItem[]> {
   } = await supabase.auth.getUser();
   if (!user) return [];
 
+  // Strict privacy: tylko projekty zalogowanego uzytkownika.
+  // RLS na tabeli `projects` ma policy `public_read_published` ktora przepuscilaby
+  // wszystkie publiczne projekty INNYCH uzytkownikow przy zwyklym select bez
+  // .eq("user_id", ...). Bez filtra ponizej dashboard pokazywalby cudze projekty.
   const { data, error } = await supabase
     .from("projects")
-    .select("id, title, prompt, slug, is_public, created_at, updated_at")
+    .select("id, title, prompt, slug, is_public, mode, created_at, updated_at")
     .eq("user_id", user.id)
     .order("updated_at", { ascending: false });
 
@@ -133,7 +143,7 @@ export async function listPublicProjects(
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("projects")
-    .select("id, title, prompt, slug, is_public, created_at, updated_at")
+    .select("id, title, prompt, slug, is_public, mode, created_at, updated_at")
     .eq("is_public", true)
     .order("published_at", { ascending: false })
     .limit(limit);

@@ -55,6 +55,15 @@ export type SandpackRunnerProps = {
    * iframe nadal w DOM (bundler aktywny).
    */
   collapsePreview?: boolean;
+  /**
+   * Owin podglad w ramke urzadzenia (iPhone / Pixel / browser window).
+   * Pass `undefined` lub omit zeby uzyc zwyklego pelnoekranowego iframe.
+   */
+  previewFrame?: {
+    platform: "ios" | "android" | "web" | "watchos" | "tvos" | "visionos";
+    /** URL pokazywany w pasku przegladarki (tylko platform=web). */
+    url?: string;
+  };
 };
 
 export function SandpackRunner(props: SandpackRunnerProps) {

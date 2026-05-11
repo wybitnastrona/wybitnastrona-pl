@@ -354,85 +354,96 @@ export function SandpackContextFileExplorer({
     setMenu({ kind: "empty", x: e.clientX, y: e.clientY });
   };
 
-  const renderDir = (node: DirNode, depth: number): ReactNode => {
+  const renderDir = (node: DirNode): ReactNode => {
     const key = node.prefix || "__root__";
     const isOpen = defaultExpanded(node);
     const subEntries = [...node.subdirs.entries()].sort(([a], [b]) => a.localeCompare(b));
 
-    return (
-      <div key={key} className="select-none">
-        {node.name ? (
+    // Folder naglowek (NIE dla synthetic root).
+    const header = node.name ? (
+      <div
+        role="button"
+        tabIndex={0}
+        data-sp-dir="1"
+        className="flex cursor-pointer items-center gap-0.5 py-0.5 pr-1 text-[13px] text-neutral-300 hover:bg-white/5 hover:text-beige"
+        style={{ paddingLeft: 6 }}
+        onClick={() => toggleDir(node.prefix)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            toggleDir(node.prefix);
+          }
+        }}
+        onContextMenu={(e) => {
+          if (readOnly) return;
+          e.preventDefault();
+          e.stopPropagation();
+          setMenu({
+            kind: "dir",
+            x: e.clientX,
+            y: e.clientY,
+            prefix: node.prefix,
+          });
+        }}
+      >
+        <ChevronRight
+          className={cn(
+            "h-3.5 w-3.5 shrink-0 text-neutral-500 transition-transform",
+            isOpen && "rotate-90",
+          )}
+        />
+        <Folder className="h-3.5 w-3.5 shrink-0 text-beige/70" />
+        <span className="truncate">{node.name}</span>
+      </div>
+    ) : null;
+
+    // Dzieci folderu — pionowa linia po lewej + staly paddingLeft.
+    // ml-[13px] wyrownuje linie z ikona Folder w naglowku rodzica (chevron 14px + 0.5 gap).
+    const children = (!node.name || isOpen) && (
+      <div
+        className={cn(
+          node.name && "relative ml-[13px] border-l border-white/10",
+        )}
+      >
+        {node.files.map((f) => (
           <div
+            key={f.path}
             role="button"
             tabIndex={0}
-            data-sp-dir="1"
-            className="flex cursor-pointer items-center gap-0.5 py-0.5 pr-1 text-[13px] text-neutral-300 hover:bg-white/5 hover:text-beige"
-            style={{ paddingLeft: 6 + depth * 12 }}
-            onClick={() => toggleDir(node.prefix)}
+            data-sp-path={f.path}
+            className={cn(
+              "flex cursor-pointer items-center gap-1 py-0.5 pr-1 text-[13px] hover:bg-white/5",
+              sandpack.activeFile === f.path
+                ? "bg-beige/15 text-beige"
+                : "text-neutral-300",
+            )}
+            style={{ paddingLeft: node.name ? 12 : 6 }}
+            onClick={() => sandpack.openFile(f.path)}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
-                toggleDir(node.prefix);
+                sandpack.openFile(f.path);
               }
             }}
             onContextMenu={(e) => {
               if (readOnly) return;
               e.preventDefault();
               e.stopPropagation();
-              setMenu({
-                kind: "dir",
-                x: e.clientX,
-                y: e.clientY,
-                prefix: node.prefix,
-              });
+              setMenu({ kind: "file", x: e.clientX, y: e.clientY, path: f.path });
             }}
           >
-            <ChevronRight
-              className={cn(
-                "h-3.5 w-3.5 shrink-0 text-neutral-500 transition-transform",
-                isOpen && "rotate-90",
-              )}
-            />
-            <Folder className="h-3.5 w-3.5 shrink-0 text-beige/70" />
-            <span className="truncate">{node.name}</span>
+            <File className="h-3.5 w-3.5 shrink-0 opacity-70" />
+            <span className="truncate">{f.name}</span>
           </div>
-        ) : null}
-        {(!node.name || isOpen) && (
-          <div>
-            {node.files.map((f) => (
-              <div
-                key={f.path}
-                role="button"
-                tabIndex={0}
-                data-sp-path={f.path}
-                className={cn(
-                  "flex cursor-pointer items-center gap-1 py-0.5 pr-1 text-[13px] hover:bg-white/5",
-                  sandpack.activeFile === f.path
-                    ? "bg-beige/15 text-beige"
-                    : "text-neutral-300",
-                )}
-                style={{ paddingLeft: 6 + (node.name ? depth + 1 : depth) * 12 }}
-                onClick={() => sandpack.openFile(f.path)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    sandpack.openFile(f.path);
-                  }
-                }}
-                onContextMenu={(e) => {
-                  if (readOnly) return;
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setMenu({ kind: "file", x: e.clientX, y: e.clientY, path: f.path });
-                }}
-              >
-                <File className="h-3.5 w-3.5 shrink-0 opacity-70" />
-                <span className="truncate">{f.name}</span>
-              </div>
-            ))}
-            {subEntries.map(([, child]) => renderDir(child, depth + 1))}
-          </div>
-        )}
+        ))}
+        {subEntries.map(([, child]) => renderDir(child))}
+      </div>
+    );
+
+    return (
+      <div key={key} className="select-none">
+        {header}
+        {children}
       </div>
     );
   };
@@ -445,7 +456,7 @@ export function SandpackContextFileExplorer({
       {...rest}
       onContextMenu={onExplorerContextMenu}
     >
-      {renderDir(tree, 0)}
+      {renderDir(tree)}
 
       {menu?.kind === "empty" && (
         <ExplorerContextMenu state={menu} onClose={closeMenu}>

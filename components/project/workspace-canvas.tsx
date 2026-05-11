@@ -232,6 +232,13 @@ export function WorkspaceCanvas({
     liveSlug && project.is_public
       ? buildSubdomainUrl(liveSlug, publishDomain)
       : null;
+  // Pelny URL podgladu — uzywany w BrowserFrame i CanvasTopbar.
+  // Zawsze pokazujemy realny slug projektu (generowany w createProject).
+  const displayUrl =
+    liveUrl ??
+    (liveSlug
+      ? buildSubdomainUrl(liveSlug, publishDomain)
+      : `https://${publishDomain}`);
 
   const isSandpackView = view === "preview" || view === "code";
 
@@ -242,9 +249,7 @@ export function WorkspaceCanvas({
         onViewChange={setView}
         onOpenLive={handleOpenLive}
         opening={opening}
-        liveUrl={liveUrl}
-        slug={liveSlug ?? undefined}
-        publishDomain={publishDomain}
+        displayUrl={displayUrl}
         useWC={useWC}
         isCodeOnly={isCodeOnly}
         platform={(project.mode as "ios" | "android" | "web" | null) ?? null}
@@ -319,6 +324,21 @@ export function WorkspaceCanvas({
                 setView("preview");
                 onActivatePreviewPickMode?.();
               }}
+              previewFrame={
+                view === "preview" && !isCodeOnly
+                  ? {
+                      platform: ((project.mode as
+                        | "ios"
+                        | "android"
+                        | "web"
+                        | "watchos"
+                        | "tvos"
+                        | "visionos"
+                        | null) ?? "web"),
+                      url: displayUrl,
+                    }
+                  : undefined
+              }
             />
           </div>
         )}
@@ -441,9 +461,7 @@ function CanvasTopbar({
   onViewChange,
   onOpenLive,
   opening,
-  liveUrl,
-  slug,
-  publishDomain,
+  displayUrl,
   useWC,
   isCodeOnly,
   platform,
@@ -456,9 +474,7 @@ function CanvasTopbar({
   onViewChange: (view: WorkspaceView) => void;
   onOpenLive: () => void;
   opening: boolean;
-  liveUrl: string | null;
-  slug?: string;
-  publishDomain: string;
+  displayUrl: string;
   useWC: boolean;
   isCodeOnly: boolean;
   platform: "ios" | "android" | "web" | null;
@@ -467,8 +483,6 @@ function CanvasTopbar({
   editTextMode: boolean;
   onToggleEditTextMode: () => void;
 }) {
-  // Show the real project slug URL even before the project is published.
-  const displayUrl = liveUrl ?? (slug ? buildSubdomainUrl(slug, publishDomain) : `https://projekt.${publishDomain}`);
 
   return (
     <div className="flex h-10 shrink-0 items-center gap-2 border-b border-beige/10 bg-background/80 px-2">

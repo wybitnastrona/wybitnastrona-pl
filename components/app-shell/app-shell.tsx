@@ -4,24 +4,25 @@ import { CreationHero } from "@/components/app-shell/creation-hero";
 import { RecentlyEdited } from "@/components/app-shell/recently-edited";
 import { LowPointsBanner } from "@/components/app-shell/low-points-banner";
 import type { ProjectListItem } from "@/lib/types/project";
+import type { UserTier } from "@/lib/ai-models";
 
 type AppShellProps = {
   projects: ProjectListItem[];
   /**
-   * Czy aktualny uzytkownik jest w planie FREE. Decyduje o widocznosci modeli
-   * w `CreationHero` — FREE widzi tylko model "Auto" (Haiku).
+   * Tier zalogowanego uzytkownika — decyduje o widocznych platformach,
+   * modelach AI i trybie WYBITNY w `CreationHero`.
    */
-  isFreeTier?: boolean;
+  userTier?: UserTier;
 };
 
-export async function AppShell({ projects, isFreeTier = true }: AppShellProps) {
+export async function AppShell({ projects, userTier = "free" }: AppShellProps) {
   return (
     <div className="flex min-h-screen w-full bg-background">
       <ShellSidebar />
       <main className="flex min-h-screen flex-1 flex-col">
         <ShellMobileHeader />
         <LowPointsBanner />
-        <CreationHero isFreeTier={isFreeTier} />
+        <CreationHero userTier={userTier} />
         <RecentlyEdited projects={projects} />
       </main>
     </div>

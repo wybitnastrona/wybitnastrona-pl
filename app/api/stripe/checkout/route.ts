@@ -45,8 +45,15 @@ export async function POST(req: Request) {
   const stripe = getStripe();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
+  const isSubscription = product.kind === "subscription";
+  // Subscriptions w Polsce nie wspieraja BLIK / p24 — sprawdz dostepne metody w Dashboard.
+  // Topupy: full menu z BLIKiem.
+  const paymentMethods: Array<"card" | "blik" | "p24"> = isSubscription
+    ? ["card"]
+    : ["card", "blik", "p24"];
+
   const session = await stripe.checkout.sessions.create({
-    mode: "payment",
+    mode: isSubscription ? "subscription" : "payment",
     customer: customer.id,
     line_items: [{ price: product.stripePriceId, quantity: 1 }],
     success_url: `${appUrl}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
@@ -54,10 +61,20 @@ export async function POST(req: Request) {
     metadata: {
       user_id: user.id,
       product_id: product.id,
+      product_kind: product.kind,
+      tier: product.tier ?? "",
       points: String(product.points),
     },
-    // BLIK + Apple Pay + Google Pay sa wlaczane automatycznie w Dashboard Stripe.
-    payment_method_types: ["card", "blik", "p24"],
+    subscription_data: isSubscription
+      ? {
+          metadata: {
+            user_id: user.id,
+            product_id: product.id,
+            tier: product.tier ?? "",
+          },
+        }
+      : undefined,
+    payment_method_types: paymentMethods,
     locale: "pl",
     allow_promotion_codes: true,
   });

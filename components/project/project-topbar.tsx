@@ -43,6 +43,7 @@ import {
 import type { Project } from "@/lib/types/project";
 import { MobileQrButton } from "@/components/project/mobile-qr";
 import { ProjectSwitcher } from "@/components/project/project-switcher";
+import { ProjectPublishView } from "@/components/project/publish/project-publish-view";
 
 type Props = {
   project: Project;
@@ -207,16 +208,26 @@ export function ProjectTopbar({
         </Button>
       </div>
 
-      <PublishDialog
-        open={publishOpen}
-        onOpenChange={setPublishOpen}
-        project={project}
-        publishDomain={publishDomain}
-        onOpenDomains={() => {
-          setPublishOpen(false);
-          setDomainsOpen(true);
-        }}
-      />
+      {/* Dla projektow natywnych (iOS / Android / Watch / TV / Vision) zamiast
+          zwyklego PublishDialog otwieramy pelne flow submission. */}
+      {isNativeProject(project.mode) ? (
+        <NativePublishDialog
+          open={publishOpen}
+          onOpenChange={setPublishOpen}
+          project={project}
+        />
+      ) : (
+        <PublishDialog
+          open={publishOpen}
+          onOpenChange={setPublishOpen}
+          project={project}
+          publishDomain={publishDomain}
+          onOpenDomains={() => {
+            setPublishOpen(false);
+            setDomainsOpen(true);
+          }}
+        />
+      )}
 
       <ShareDialog
         open={shareOpen}
@@ -1078,5 +1089,50 @@ function CopyButton({ value }: { value: string }) {
         <Copy className="h-3.5 w-3.5" />
       )}
     </Button>
+  );
+}
+
+// ─── Native publish (iOS / Android / Watch / TV / Vision) ──────────────────────
+
+function isNativeProject(
+  mode: string | null | undefined,
+): mode is "ios" | "android" | "watchos" | "tvos" | "visionos" {
+  return (
+    mode === "ios" ||
+    mode === "android" ||
+    mode === "watchos" ||
+    mode === "tvos" ||
+    mode === "visionos"
+  );
+}
+
+function NativePublishDialog({
+  open,
+  onOpenChange,
+  project,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  project: Project;
+}) {
+  const platform = (project.mode as
+    | "ios"
+    | "android"
+    | "watchos"
+    | "tvos"
+    | "visionos");
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Publikacja projektu mobilnego</DialogTitle>
+          <DialogDescription>
+            Wyslij projekt do TestFlight / Google Play. Dane integracji
+            (klucze ASC, keystore) sa zapisywane bezpiecznie w Twoim koncie.
+          </DialogDescription>
+        </DialogHeader>
+        <ProjectPublishView projectId={project.id} platform={platform} />
+      </DialogContent>
+    </Dialog>
   );
 }

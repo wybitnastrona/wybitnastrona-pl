@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { UserMenu } from "@/components/user-menu";
 import { CreditsPill } from "@/components/app-shell/credits-pill";
+import { SidebarMobileApps } from "@/components/app-shell/sidebar-mobile-apps";
 
 const NAV = [
   { href: "/", label: "Start", icon: Home, exact: true },
@@ -78,6 +79,8 @@ export function ShellSidebar() {
             </span>
           </li>
         </ul>
+
+        <SidebarMobileApps />
 
         <div className="mt-6 px-2 text-xs uppercase tracking-wider text-muted-foreground/70">
           Pomoc

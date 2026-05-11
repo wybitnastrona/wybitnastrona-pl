@@ -32,5 +32,12 @@ export type Project = {
 
 export type ProjectListItem = Pick<
   Project,
-  "id" | "title" | "prompt" | "slug" | "is_public" | "created_at" | "updated_at"
+  | "id"
+  | "title"
+  | "prompt"
+  | "slug"
+  | "is_public"
+  | "mode"
+  | "created_at"
+  | "updated_at"
 >;

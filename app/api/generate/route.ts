@@ -226,7 +226,7 @@ export async function POST(req: Request) {
   // ─── Pobierz projekt ────────────────────────────────────────────────────────
   const { data: project, error: projectError } = await supabase
     .from("projects")
-    .select("id, user_id, files, prompt, locked_files, template, mode, custom_system_context")
+    .select("id, user_id, files, prompt, locked_files, template, mode, custom_system_context, is_wybitny")
     .eq("id", projectId)
     .maybeSingle();
 
@@ -242,6 +242,7 @@ export async function POST(req: Request) {
   );
   const projectTemplate = (project.template as string | null) ?? "react-ts";
   const projectMode = (project.mode as string | null) ?? "web";
+  const isWybitny = (project.is_wybitny as boolean | null) === true;
   const customSystemContext = (project.custom_system_context as string | null)?.trim() ?? "";
   const customContextSuffix = customSystemContext
     ? `\n\nCUSTOM CONTEXT OD UZYTKOWNIKA (rygorystycznie przestrzegaj):\n${customSystemContext}`
@@ -448,7 +449,7 @@ export async function POST(req: Request) {
         ? handoffAbort.signal
         : undefined,
     system:
-      buildSystemPrompt(mode, projectTemplate, projectMode) +
+      buildSystemPrompt(mode, projectTemplate, projectMode, { isWybitny }) +
       fileListContext +
       lockedContext +
       ragContext +

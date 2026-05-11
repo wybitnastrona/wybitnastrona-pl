@@ -21,6 +21,7 @@ import { STARTER_DEPENDENCIES } from "@/lib/sandpack/starter";
 import { cn } from "@/lib/utils";
 import { SandpackSaver } from "./sandpack-saver";
 import { SandpackContextFileExplorer } from "./sandpack-context-file-explorer";
+import { PhoneFrame } from "@/components/project/phone-frame";
 import type { SandpackRunnerProps } from "./sandpack-runner";
 
 const wybitnaTheme: SandpackTheme = {
@@ -68,6 +69,7 @@ export function SandpackInner({
   onRequestPreviewPickMode,
   collapseChrome = false,
   collapsePreview = false,
+  previewFrame,
 }: SandpackRunnerProps) {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [terminalOpen, setTerminalOpen] = useState(true);
@@ -142,6 +144,8 @@ export function SandpackInner({
             onRequestPreviewPickMode={onRequestPreviewPickMode}
             collapseChrome={collapseChrome}
             collapsePreview={collapsePreview}
+            previewFrame={previewFrame}
+            isGenerating={isGenerating}
           />
         )}
 
@@ -151,6 +155,8 @@ export function SandpackInner({
             onElementPick={onElementPick}
             hideNavigator={hideInternalNavigator}
             full
+            previewFrame={previewFrame}
+            isGenerating={isGenerating}
           />
         )}
         </div>
@@ -189,8 +195,10 @@ function CodeView({
       {/* Edytor + terminal (kolumna) */}
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="min-h-0 flex-1 overflow-hidden">
+          {/* showTabs=false — caly tab bar usuniety, file explorer obok jest jedynym
+              sposobem nawigacji. Tabs zajmuja pasek pionowy, ktorego uzytkownik nie chce. */}
           <SandpackCodeEditor
-            showTabs
+            showTabs={false}
             showLineNumbers
             showInlineErrors
             wrapContent={false}
@@ -251,6 +259,8 @@ function SplitView({
   onRequestPreviewPickMode,
   collapseChrome = false,
   collapsePreview = false,
+  previewFrame,
+  isGenerating = false,
 }: {
   selectMode: boolean;
   onElementPick?: (info: { x: number; y: number }) => void;
@@ -260,6 +270,8 @@ function SplitView({
   onRequestPreviewPickMode?: () => void;
   collapseChrome?: boolean;
   collapsePreview?: boolean;
+  previewFrame?: SandpackRunnerProps["previewFrame"];
+  isGenerating?: boolean;
 }) {
   const collapseAsideCls =
     "md:w-0 md:min-w-0 md:max-w-0 md:shrink md:overflow-hidden md:border-0 md:p-0 md:opacity-0 md:pointer-events-none";
@@ -290,7 +302,7 @@ function SplitView({
         )}
       >
         <SandpackCodeEditor
-          showTabs
+          showTabs={false}
           showLineNumbers
           showInlineErrors
           wrapContent={false}
@@ -308,6 +320,8 @@ function SplitView({
           selectMode={selectMode}
           onElementPick={onElementPick}
           hideNavigator={hideInternalNavigator}
+          previewFrame={previewFrame}
+          isGenerating={isGenerating}
         />
       </div>
     </div>
@@ -351,6 +365,8 @@ function PreviewWithOverlay({
   onElementPick,
   hideNavigator,
   full = false,
+  previewFrame,
+  isGenerating = false,
 }: {
   selectMode: boolean;
   onElementPick?: (info: {
@@ -362,6 +378,8 @@ function PreviewWithOverlay({
   }) => void;
   hideNavigator: boolean;
   full?: boolean;
+  previewFrame?: SandpackRunnerProps["previewFrame"];
+  isGenerating?: boolean;
 }) {
   // Faza 1.4: nasluchuje wiadomosci postMessage z iframe (DOM picker).
   useEffect(() => {
@@ -398,6 +416,48 @@ function PreviewWithOverlay({
     };
   }, [selectMode, onElementPick]);
 
+  // Gdy `previewFrame` jest ustawiony — owin iframe w PhoneFrame / BrowserFrame
+  // (faza 3). Wymusza ukrycie natywnego navigator'a Sandpacka, bo ramka ma
+  // wlasny URL bar / wyglada lepiej.
+  const useFrame = !!previewFrame;
+  const effectiveHideNavigator = useFrame ? true : hideNavigator;
+
+  const previewNode = (
+    <SandpackPreview
+      showOpenInCodeSandbox={false}
+      showRefreshButton={!effectiveHideNavigator}
+      showNavigator={!effectiveHideNavigator}
+      style={{ height: "100%", width: "100%" }}
+    />
+  );
+
+  const selectModeBadge = selectMode ? (
+    <div className="pointer-events-none absolute left-1/2 top-3 z-10 -translate-x-1/2">
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-beige/30 bg-background/90 px-2.5 py-1 text-[11px] text-beige shadow">
+        <MousePointer2 className="h-3 w-3" />
+        Tryb wyboru — kliknij element w podglądzie
+      </span>
+    </div>
+  ) : null;
+
+  if (useFrame && previewFrame) {
+    return (
+      <div
+        className="relative min-w-0"
+        style={{ height: "100%", flex: 1, width: full ? "100%" : undefined }}
+      >
+        <PhoneFrame
+          platform={previewFrame.platform}
+          url={previewFrame.url}
+          isGenerating={isGenerating}
+        >
+          {previewNode}
+        </PhoneFrame>
+        {selectModeBadge}
+      </div>
+    );
+  }
+
   return (
     <div
       className="relative min-w-0"
@@ -407,20 +467,8 @@ function PreviewWithOverlay({
         width: full ? "100%" : undefined,
       }}
     >
-      <SandpackPreview
-        showOpenInCodeSandbox={false}
-        showRefreshButton={!hideNavigator}
-        showNavigator={!hideNavigator}
-        style={{ height: "100%", width: "100%" }}
-      />
-      {selectMode && (
-        <div className="pointer-events-none absolute left-1/2 top-3 z-10 -translate-x-1/2">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-beige/30 bg-background/90 px-2.5 py-1 text-[11px] text-beige shadow">
-            <MousePointer2 className="h-3 w-3" />
-            Tryb wyboru — kliknij element w podglądzie
-          </span>
-        </div>
-      )}
+      {previewNode}
+      {selectModeBadge}
     </div>
   );
 }

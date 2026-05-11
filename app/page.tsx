@@ -25,8 +25,14 @@ export default async function Home() {
       .select("tier")
       .eq("id", user.id)
       .maybeSingle();
-    const isFreeTier = ((profile?.tier as string | null) ?? "free") === "free";
-    return <AppShell projects={projects} isFreeTier={isFreeTier} />;
+    const rawTier = ((profile?.tier as string | null) ?? "free") as
+      | "free"
+      | "pro"
+      | "wybitny";
+    const userTier = ["free", "pro", "wybitny"].includes(rawTier)
+      ? rawTier
+      : "free";
+    return <AppShell projects={projects} userTier={userTier} />;
   }
 
   return (

@@ -40,6 +40,9 @@ import {
 } from "./expo";
 import { getIosTemplate, IOS_DEPS } from "./ios";
 import { getAndroidTemplate, ANDROID_DEPS } from "./android";
+import { getWatchOsTemplate, WATCHOS_DEPS } from "./watchos";
+import { getTvOsTemplate, TVOS_DEPS } from "./tvos";
+import { getVisionOsTemplate, VISIONOS_DEPS } from "./visionos";
 
 export type TemplateId =
   | "react-ts"
@@ -50,7 +53,10 @@ export type TemplateId =
   | "remix"
   | "expo"
   | "ios"
-  | "android";
+  | "android"
+  | "watchos"
+  | "tvos"
+  | "visionos";
 
 export type TemplateDef = {
   id: TemplateId;
@@ -188,6 +194,42 @@ export const TEMPLATES: TemplateDef[] = [
     available: true,
     badge: "new",
     containerImage: "wybitnastrona-hub/kotlin_compose_material3:release",
+  },
+  {
+    id: "watchos",
+    label: "watchOS / SwiftUI",
+    description: "Apple Watch — Swift / SwiftUI 10+. Complications, HealthKit, WatchKit.",
+    webContainerOnly: false,
+    codeOnly: true,
+    getFiles: getWatchOsTemplate,
+    dependencies: WATCHOS_DEPS,
+    available: true,
+    badge: "new",
+    containerImage: "wybitnastrona-hub/watchos10_swiftui_xcode15:release",
+  },
+  {
+    id: "tvos",
+    label: "tvOS / SwiftUI",
+    description: "Apple TV — Swift / SwiftUI 17+. Focus engine, .buttonStyle(.card).",
+    webContainerOnly: false,
+    codeOnly: true,
+    getFiles: getTvOsTemplate,
+    dependencies: TVOS_DEPS,
+    available: true,
+    badge: "new",
+    containerImage: "wybitnastrona-hub/tvos17_swiftui_xcode15:release",
+  },
+  {
+    id: "visionos",
+    label: "visionOS / RealityKit",
+    description: "Vision Pro — SwiftUI + RealityKit, ImmersiveSpace, Volumetric WindowGroup.",
+    webContainerOnly: false,
+    codeOnly: true,
+    getFiles: getVisionOsTemplate,
+    dependencies: VISIONOS_DEPS,
+    available: true,
+    badge: "new",
+    containerImage: "wybitnastrona-hub/visionos1_realitykit_xcode152:release",
   },
 ];
 

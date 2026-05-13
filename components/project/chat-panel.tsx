@@ -94,7 +94,7 @@ export type ChatPanelHandle = {
   startWithPrompt: (enrichedPrompt: string) => void;
 };
 
-const MAX_ATTACHMENT_BYTES = 1024 * 1024;
+const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024; // 5 MB
 
 export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function ChatPanel(
   {
@@ -378,7 +378,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     const next: Attachment[] = [];
     for (const file of Array.from(files)) {
       if (file.size > MAX_ATTACHMENT_BYTES) {
-        alert(`Plik ${file.name} jest wiekszy niz 1 MB - MVP wspiera do 1 MB.`);
+        alert(`Plik ${file.name} jest za duży (max 5 MB).`);
         continue;
       }
       const dataUrl = await readAsDataUrl(file);
@@ -671,7 +671,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
           ref={fileInputRef}
           type="file"
           multiple
-          accept="image/*,.pdf,.txt,.md,.json"
+          accept="image/*,.pdf,.txt,.md,.json,.csv,.svg,.xml,.yaml,.yml,.tsx,.ts,.js,.jsx,.html,.css"
           className="hidden"
           onChange={(event) => {
             void handleFiles(event.target.files);
@@ -736,14 +736,18 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
           />
 
           <div className="flex flex-wrap items-center gap-1 px-2 pb-2">
-            {/* Przycisk załącznika (zastępuje PlusMenu) */}
+            {/* Przycisk załącznika — zdjecia, PDF, kod, CSV, itp. */}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              aria-label="Załącz plik"
-              className="flex h-7 cursor-pointer items-center justify-center rounded-md border border-beige/15 bg-background/40 px-1.5 text-muted-foreground transition hover:border-beige/30 hover:bg-white/5 hover:text-beige"
+              aria-label="Załącz plik (zdjęcia, PDF, kod, CSV — max 5 MB)"
+              title="Załącz plik — zdjęcia, PDF, pliki kodu, CSV (max 5 MB)"
+              className="flex h-7 cursor-pointer items-center gap-1 rounded-md border border-beige/15 bg-background/40 px-1.5 text-muted-foreground transition hover:border-beige/30 hover:bg-white/5 hover:text-beige"
             >
               <Paperclip className="h-3.5 w-3.5" />
+              {attachments.length === 0 && (
+                <span className="hidden text-[10px] sm:inline">Załącz</span>
+              )}
             </button>
 
             <VoiceButton
@@ -887,19 +891,19 @@ const MODE_META: Record<
   { label: string; icon: typeof Rocket; description: string }
 > = {
   build: {
-    label: "Build",
+    label: "Agent",
     icon: Rocket,
-    description: "Generuj i edytuj kod od razu",
+    description: "Generuj i edytuj kod od razu. AI pisze pliki bezpośrednio.",
   },
   plan: {
     label: "Plan",
-    icon: Wrench,
-    description: "Pokaż plan, zatwierdź zanim zacznie pisać",
+    icon: ListTodo,
+    description: "AI najpierw pokaże plan kroków. Zatwierdzasz zanim zacznie pisać kod.",
   },
   discuss: {
-    label: "Discuss",
+    label: "Chat",
     icon: MessagesSquare,
-    description: "Porozmawiaj o kodzie, bez zmian (tańszy tryb)",
+    description: "Rozmowa o kodzie bez zmian. Tańszy tryb — nie pisze plików.",
   },
 };
 
@@ -911,15 +915,18 @@ function ModeButton({
   onChange: (mode: ChatMode) => void;
 }) {
   const Icon = MODE_META[mode].icon;
-  const isActive = mode !== "build";
+  const isPlanActive = mode === "plan";
+  const isChatActive = mode === "discuss";
+  const activeStyle = isPlanActive
+    ? "border-amber-400/50 bg-amber-400/10 text-amber-300"
+    : isChatActive
+      ? "border-blue-400/50 bg-blue-400/10 text-blue-300"
+      : "border-beige/25 bg-beige/10 text-beige";
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className={`flex h-7 cursor-pointer items-center gap-1 rounded-md border px-2 text-[11px] transition ${
-          isActive
-            ? "border-beige/40 bg-beige/10 text-beige"
-            : "border-beige/15 bg-background/40 text-muted-foreground hover:border-beige/30 hover:text-foreground"
-        }`}
+        className={`flex h-7 cursor-pointer items-center gap-1 rounded-md border px-2.5 text-[11px] font-medium transition ${activeStyle}`}
         title={MODE_META[mode].description}
         aria-label="Wybierz tryb"
       >

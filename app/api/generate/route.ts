@@ -20,6 +20,7 @@ import {
 import { buildRagContext } from "@/lib/rag";
 import { logProjectEvent } from "@/lib/analytics-server";
 import { fetchUnsplashImage } from "@/lib/unsplash";
+import { generateImageForAI } from "@/lib/image-generator";
 import { createJob, bumpJob, finishJob } from "@/lib/generation-jobs";
 import {
   buildSystemPrompt,
@@ -57,6 +58,25 @@ const fetchImageSchema = z.object({
     .enum(["landscape", "portrait", "squarish"])
     .optional()
     .default("landscape"),
+});
+
+const generateImageSchema = z.object({
+  prompt: z
+    .string()
+    .min(5)
+    .describe(
+      "Detailed English description of the image. Include subject, lighting, mood. E.g: 'warm hotel lobby with modern reception desk, soft lighting, luxury interior'. The more specific the better.",
+    ),
+  style: z
+    .enum(["photography", "illustration", "product"])
+    .optional()
+    .default("photography")
+    .describe("photography (default for most pages), illustration (icons/decorative), product (e-commerce items)"),
+  size: z
+    .enum(["landscape", "portrait", "square"])
+    .optional()
+    .default("landscape")
+    .describe("landscape for hero/banners, portrait for team photos, square for thumbnails"),
 });
 
 const showPlanSchema = z.object({
@@ -373,13 +393,22 @@ export async function POST(req: Request) {
         return { ok: true, path: normalized };
       },
     }),
+    generateImage: tool({
+      description:
+        "Generates a thematic AI image (DALL-E 3) matching the page context. Returns { url, alt }. ALWAYS use this for hero images, gallery photos, team portraits, product images — NEVER use gray placeholder divs. Build the prompt based on the website's purpose (e.g. 'cozy kindergarten classroom with happy children, bright colors' for a kindergarten site).",
+      inputSchema: generateImageSchema,
+      execute: async ({ prompt, style, size }) => {
+        void bumpJob(supabase, jobId, `generateImage: ${prompt.slice(0, 50)}`);
+        return generateImageForAI(prompt, style ?? "photography", size ?? "landscape");
+      },
+    }),
     fetchImage: tool({
       description:
-        "Fetches a real photo URL from Unsplash matching the query. Returns { url, alt, credit, creditUrl }. Use this instead of gray placeholder images.",
+        "[DEPRECATED — prefer generateImage] Fetches a real photo URL from Unsplash. Returns { url, alt, credit }.",
       inputSchema: fetchImageSchema,
       execute: async ({ query, orientation }) => {
         void bumpJob(supabase, jobId, `fetchImage: ${query}`);
-        return fetchUnsplashImage(query, orientation);
+        return fetchUnsplashImage(query, orientation === "squarish" ? "squarish" : orientation);
       },
     }),
     patchFile: tool({
@@ -450,6 +479,7 @@ export async function POST(req: Request) {
         : undefined,
     system:
       buildSystemPrompt(mode, projectTemplate, projectMode, { isWybitny }) +
+      `\n\n[PROJECT_CONTEXT] projectId="${projectId}" — uzyj tego ID w URL formularzy kontaktowych: /api/form-submit?projectId=${projectId}\n` +
       fileListContext +
       lockedContext +
       ragContext +

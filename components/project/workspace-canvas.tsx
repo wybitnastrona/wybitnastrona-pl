@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import {
   Code2,
+  CreditCard,
   Database,
   Download,
   ExternalLink,
@@ -14,6 +15,7 @@ import {
   Loader2,
   Lock,
   Pencil,
+  PictureInPicture2,
   RotateCw,
   SquareTerminal,
 } from "lucide-react";
@@ -23,6 +25,8 @@ import { DatabasePanel } from "@/components/project/database-panel";
 import { SnapshotPanel } from "@/components/project/snapshot-panel";
 import { ErrorWatcher } from "@/components/project/error-watcher";
 import { LockFilesDialog } from "@/components/project/lock-files-dialog";
+import { FloatingPreview } from "@/components/project/floating-preview";
+import { StripePanel } from "@/components/project/stripe-panel";
 import { TEMPLATES } from "@/lib/templates";
 import type { Project } from "@/lib/types/project";
 import type { SandpackViewMode } from "@/components/sandpack/sandpack-runner";
@@ -47,7 +51,7 @@ function WCLoader() {
   );
 }
 
-type WorkspaceView = "preview" | "code" | "database" | "snapshots" | "terminal";
+type WorkspaceView = "preview" | "code" | "database" | "snapshots" | "terminal" | "stripe";
 
 type Props = {
   project: Project;
@@ -89,6 +93,7 @@ export function WorkspaceCanvas({
   const [opening, setOpening] = useState(false);
   const [lockDialogOpen, setLockDialogOpen] = useState(false);
   const [editTextMode, setEditTextMode] = useState(false);
+  const [floatingOpen, setFloatingOpen] = useState(false);
   const [editStatus, setEditStatus] = useState<
     | null
     | { kind: "saving" }
@@ -257,7 +262,17 @@ export function WorkspaceCanvas({
         onOpenLockDialog={() => setLockDialogOpen(true)}
         editTextMode={editTextMode}
         onToggleEditTextMode={() => setEditTextMode((v) => !v)}
+        floatingOpen={floatingOpen}
+        onToggleFloating={() => setFloatingOpen((v) => !v)}
       />
+
+      {/* Floating preview window (Rork-style) */}
+      {floatingOpen && !isCodeOnly && (
+        <FloatingPreview
+          previewUrl={displayUrl}
+          onClose={() => setFloatingOpen(false)}
+        />
+      )}
 
       {isCodeOnly && (
         <CodeOnlyBanner
@@ -344,6 +359,8 @@ export function WorkspaceCanvas({
         )}
 
         {view === "database" && <DatabasePanel project={project} />}
+
+        {view === "stripe" && <StripePanel project={project} />}
 
         {view === "snapshots" && (
           <SnapshotPanel
@@ -469,6 +486,8 @@ function CanvasTopbar({
   onOpenLockDialog,
   editTextMode,
   onToggleEditTextMode,
+  floatingOpen,
+  onToggleFloating,
 }: {
   view: WorkspaceView;
   onViewChange: (view: WorkspaceView) => void;
@@ -482,8 +501,9 @@ function CanvasTopbar({
   onOpenLockDialog: () => void;
   editTextMode: boolean;
   onToggleEditTextMode: () => void;
+  floatingOpen?: boolean;
+  onToggleFloating?: () => void;
 }) {
-
   return (
     <div className="flex h-10 shrink-0 items-center gap-2 border-b border-beige/10 bg-background/80 px-2">
       {/* Glowne przelaczniki widoku — Podglad / Kod (tylko gdy template wspiera preview) */}
@@ -522,6 +542,14 @@ function CanvasTopbar({
             label="Baza"
             active={view === "database"}
             onClick={() => onViewChange("database")}
+          />
+        )}
+        {!isCodeOnly && (
+          <ToggleButton
+            icon={CreditCard}
+            label="Stripe"
+            active={view === "stripe"}
+            onClick={() => onViewChange("stripe")}
           />
         )}
         <ToggleButton
@@ -564,6 +592,24 @@ function CanvasTopbar({
           <span className="hidden sm:inline">
             {editTextMode ? "Wyłącz edycję" : "Edytuj tekst"}
           </span>
+        </button>
+      )}
+
+      {/* Floating preview toggle (nie dla code-only) */}
+      {!isCodeOnly && onToggleFloating && (
+        <button
+          type="button"
+          onClick={onToggleFloating}
+          className={`flex h-7 cursor-pointer items-center gap-1.5 rounded-md border px-2 text-xs transition ${
+            floatingOpen
+              ? "border-beige/40 bg-beige/15 text-beige"
+              : "border-beige/15 bg-card/40 text-foreground/80 hover:border-beige/30 hover:bg-white/5 hover:text-beige"
+          }`}
+          title="Floating preview — draggable window (jak Rork)"
+          aria-pressed={floatingOpen}
+        >
+          <PictureInPicture2 className="h-3 w-3" />
+          <span className="hidden sm:inline">Float</span>
         </button>
       )}
 

@@ -28,6 +28,19 @@ export type AiModelDef = {
   isFree?: boolean;
 };
 
+/**
+ * Przelicznik kredytów na PLN (model 2x markup):
+ *
+ * 1 kredyt = 0.02 PLN
+ *
+ * Koszt Anthropic API per generacja (~50K tokenów łącznie):
+ *  Haiku 4.5:   ~$0.15 = ~0.60 PLN → markup 2x = 1.20 PLN → 60 kredytów
+ *  Sonnet 4.6:  ~$0.60 = ~2.40 PLN → markup 2x = 4.80 PLN → 240 kredytów
+ *  Opus 4.6:    ~$1.50 = ~6.00 PLN → markup 2x = 12.00 PLN → 600 kredytów
+ *  Opus 4.7:    ~$3.00 = ~12.00 PLN → markup 2x = 24.00 PLN → 1200 kredytów
+ */
+export const CREDITS_PER_PLN = 50; // 1 PLN = 50 kredytów → 1 kredyt = 0.02 PLN
+
 export const AI_MODELS: AiModelDef[] = [
   {
     id: "claude-haiku-4-5",
@@ -35,9 +48,9 @@ export const AI_MODELS: AiModelDef[] = [
     labelShort: "Auto",
     anthropicModel: "claude-haiku-4-5",
     description:
-      "Domyslny model dla planu FREE. Najszybszy, dobry do prostych zmian. 10 kredytow / generacja.",
+      "Najszybszy model. Dobry do prostych zmian i stron. ≈ 60 kr / generacja (1.20 zł).",
     badge: "fast",
-    pointCost: 10,
+    pointCost: 60,
     available: true,
     requiresTier: "free",
     isFree: true,
@@ -48,8 +61,8 @@ export const AI_MODELS: AiModelDef[] = [
     labelShort: "Sonnet 4.6",
     anthropicModel: "claude-sonnet-4-5",
     description:
-      "Plan PRO. Najlepszy balans szybkosci i jakosci kodu. 25 kredytow / generacja.",
-    pointCost: 25,
+      "Balans jakości i szybkości. Złoty standard dla większości projektów. ≈ 240 kr / generacja (4.80 zł).",
+    pointCost: 240,
     available: true,
     requiresTier: "pro",
   },
@@ -59,9 +72,9 @@ export const AI_MODELS: AiModelDef[] = [
     labelShort: "Opus 4.6",
     anthropicModel: "claude-opus-4-5",
     description:
-      "Plan PRO. Zaawansowane projekty, refaktoring architektury. 60 kredytow / generacja.",
+      "Zaawansowane projekty, refaktoryzacja architektury, złożona logika. ≈ 600 kr / generacja (12.00 zł).",
     badge: "powerful",
-    pointCost: 60,
+    pointCost: 600,
     available: true,
     requiresTier: "pro",
   },
@@ -71,9 +84,9 @@ export const AI_MODELS: AiModelDef[] = [
     labelShort: "Opus 4.7",
     anthropicModel: "claude-opus-4-5",
     description:
-      "Plan WYBITNY. Maksymalna jakosc na zlozonych zadaniach, native Apple stack. 80 kredytow / generacja.",
+      "Maksymalna jakość. Natywne aplikacje Apple (ARKit, HealthKit, Metal). ≈ 1200 kr / generacja (24.00 zł).",
     badge: "new",
-    pointCost: 80,
+    pointCost: 1200,
     available: true,
     requiresTier: "wybitny",
   },

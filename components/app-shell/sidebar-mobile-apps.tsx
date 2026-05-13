@@ -40,8 +40,14 @@ export function SidebarMobileApps() {
         .order("updated_at", { ascending: false })
         .limit(20);
       if (error || cancelled) return;
-      // Dedupe per project_id (zachowaj najnowsza).
-      // Supabase typuje joinowane relacje jako tablice — bierzemy [0].
+      // Jeśli tabela nie istnieje (404) — obsługujemy gracefully
+      if (error) {
+        // Tabela project_submissions może nie istnieć w starszych deploymentach
+        if (!cancelled) setApps([]);
+        return;
+      }
+
+      // Dedupe per project_id (zachowaj najnowszą).
       type Row = {
         project_id: string;
         platform: "ios" | "android";

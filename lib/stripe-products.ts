@@ -28,6 +28,9 @@ export type StripeProduct = {
   highlight?: boolean;
 };
 
+/** 1 PLN = ile kredytów */
+export const CREDITS_PER_PLN = 50;
+
 export const STRIPE_PRODUCTS: StripeProduct[] = [
   // ─── Subscriptions ──────────────────────────────────────────────────────────
   {
@@ -72,36 +75,42 @@ export const STRIPE_PRODUCTS: StripeProduct[] = [
       "Priorytetowe wsparcie",
     ],
   },
-  // ─── One-time top-up packs (dostepne dla wszystkich tierow) ────────────────
+  // ─── One-time top-up packs ─────────────────────────────────────────────────
+  // 1 kredyt = 0.02 PLN (1 PLN = 50 kredytów)
+  // Pakiety: lekka zniżka przy większych zakupach (bonus kredytów)
   {
-    id: "pack_1000",
-    name: "Doladowanie 1000",
-    description: "1 000 kredytow — jednorazowo. Bez subskrypcji.",
+    id: "pack_500",
+    name: "Starter — 500 kr",
+    description: "500 kredytów = 8 generacji Haiku. 1 generacja Sonnet.",
     kind: "topup",
-    points: 1000,
-    amountCents: 1900,
+    points: 500,
+    amountCents: 990,  // 9.90 PLN
     currency: "pln",
-    stripePriceId: process.env.STRIPE_PRICE_PACK_1000 ?? "price_REPLACE_ME_1000",
+    stripePriceId: process.env.STRIPE_PRICE_PACK_500 ?? "price_REPLACE_ME_500",
+    features: ["500 kredytów", "≈ 8 generacji Auto", "Nie wygasają"],
   },
   {
-    id: "pack_5000",
-    name: "Doladowanie 5000",
-    description: "5 000 kredytow — jednorazowo. Bez subskrypcji.",
+    id: "pack_2000",
+    name: "Basic — 2 000 kr",
+    description: "2 000 kredytów + 200 bonus = 2 200. Idealny start z Sonnetem.",
     kind: "topup",
-    points: 5000,
-    amountCents: 7900,
+    points: 2200,
+    amountCents: 3900,  // 39.00 PLN → oszczędzasz 5 PLN
     currency: "pln",
-    stripePriceId: process.env.STRIPE_PRICE_PACK_5000 ?? "price_REPLACE_ME_5000",
+    stripePriceId: process.env.STRIPE_PRICE_PACK_2000 ?? "price_REPLACE_ME_2000",
+    features: ["2 200 kredytów (+200 bonus)", "≈ 9 generacji Sonnet", "Nie wygasają"],
+    highlight: true,
   },
   {
-    id: "pack_15000",
-    name: "Doladowanie 15000",
-    description: "15 000 kredytow — jednorazowo. Bez subskrypcji.",
+    id: "pack_10000",
+    name: "Pro — 10 000 kr",
+    description: "10 000 kredytów + 2 000 bonus = 12 000. Dla intensywnych twórców.",
     kind: "topup",
-    points: 15000,
-    amountCents: 19900,
+    points: 12000,
+    amountCents: 17900,  // 179.00 PLN → oszczędzasz 21 PLN
     currency: "pln",
-    stripePriceId: process.env.STRIPE_PRICE_PACK_15000 ?? "price_REPLACE_ME_15000",
+    stripePriceId: process.env.STRIPE_PRICE_PACK_10000 ?? "price_REPLACE_ME_10000",
+    features: ["12 000 kredytów (+2 000 bonus)", "≈ 10 generacji Opus 4.7", "Nie wygasają"],
   },
 ];
 

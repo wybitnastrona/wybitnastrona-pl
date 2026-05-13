@@ -27,7 +27,7 @@ export async function LowPointsBanner() {
       <div className="flex items-center gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-100">
         <Zap className="h-4 w-4 shrink-0" />
         <p className="flex-1">
-          Masz tylko <strong>{points} pkt</strong>. Kup pakiet, żeby kontynuować
+          Masz tylko <strong>{points} kredytów</strong>. Kup pakiet, żeby kontynuować
           generowanie bez przerw.
         </p>
         <Link

@@ -15,6 +15,7 @@ import { Globe, ChevronDown, Watch, Tv, Lock } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -65,21 +66,26 @@ export function PlatformSelector({ value, onChange, userTier = "free" }: Props) 
         <ChevronDown className="h-3 w-3 text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" sideOffset={8} className="w-80">
-        <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
-          Standard
-        </DropdownMenuLabel>
-        {PROJECT_MODES.filter((m) => m.requiresTier !== "wybitny").map((mode) =>
-          renderItem(mode, value, onChange, userTier),
-        )}
+        {/* Base UI wymaga GroupLabel wewnątrz Group */}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            Standard
+          </DropdownMenuLabel>
+          {PROJECT_MODES.filter((m) => m.requiresTier !== "wybitny").map((mode) =>
+            renderItem(mode, value, onChange, userTier),
+          )}
+        </DropdownMenuGroup>
 
         <DropdownMenuSeparator />
 
-        <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-beige">
-          WYBITNY — Pelne Apple
-        </DropdownMenuLabel>
-        {PROJECT_MODES.filter((m) => m.requiresTier === "wybitny").map((mode) =>
-          renderItem(mode, value, onChange, userTier),
-        )}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-beige">
+            WYBITNY — Pełne Apple
+          </DropdownMenuLabel>
+          {PROJECT_MODES.filter((m) => m.requiresTier === "wybitny").map((mode) =>
+            renderItem(mode, value, onChange, userTier),
+          )}
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );

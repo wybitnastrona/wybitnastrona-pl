@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { PlatformSelector } from "@/components/app-shell/platform-selector";
 import { AdvancedControls } from "@/components/app-shell/advanced-controls";
+import { getRandomShufflePrompt } from "@/lib/shuffle-prompts";
 
 type PendingFile = {
   name: string;
@@ -87,10 +88,17 @@ export function CreationHero({ userTier = "free" }: CreationHeroProps) {
   }
 
   function handleShuffle() {
-    const suggestions = currentModeDef.suggestions;
-    if (!suggestions.length) return;
-    const random = suggestions[Math.floor(Math.random() * suggestions.length)];
-    setPrompt(random.prompt);
+    // Dla trybu web: losuj z puli 50 różnorodnych promptów branżowych.
+    // Dla innych trybów: losuj z suggestions specyficznych dla platformy.
+    if (projectMode === "web") {
+      const random = getRandomShufflePrompt();
+      setPrompt(random.prompt);
+    } else {
+      const suggestions = currentModeDef.suggestions;
+      if (!suggestions.length) return;
+      const random = suggestions[Math.floor(Math.random() * suggestions.length)];
+      setPrompt(random.prompt);
+    }
     textareaRef.current?.focus();
   }
 
@@ -328,7 +336,7 @@ export function CreationHero({ userTier = "free" }: CreationHeroProps) {
                   <ArrowRight className="h-4 w-4" />
                 )}
                 Zbuduj
-              </Button>
+              </Button>  {/* Polish: OK */}
             </div>
           </div>
         </form>
@@ -420,14 +428,14 @@ function PlusMenu({
     <DropdownMenu>
       <DropdownMenuTrigger
         className="flex h-8 cursor-pointer items-center justify-center rounded-md border border-beige/15 bg-background/40 px-2 text-muted-foreground transition hover:border-beige/30 hover:bg-white/5 hover:text-beige"
-        aria-label="Wiecej opcji"
+        aria-label="Więcej opcji"
       >
         <Plus className="h-3.5 w-3.5" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" sideOffset={8} className="w-64">
         <DropdownMenuItem onClick={onAttachImage}>
           <FileUp className="h-3.5 w-3.5" />
-          Zalacz zdjecie
+              Załącz zdjęcie
         </DropdownMenuItem>
 
         <DropdownMenuSeparator />
@@ -450,10 +458,11 @@ function PlusMenu({
 
         <DropdownMenuSeparator />
 
-        <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
-          Agent AI
-        </DropdownMenuLabel>
+        {/* Base UI wymaga DropdownMenuLabel wewnątrz DropdownMenuGroup */}
         <DropdownMenuGroup>
+          <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            Agent AI
+          </DropdownMenuLabel>
           {visibleModels.map((m) => (
             <DropdownMenuItem
               key={m.id}
@@ -469,13 +478,13 @@ function PlusMenu({
               </div>
             </DropdownMenuItem>
           ))}
-        </DropdownMenuGroup>
+        </DropdownMenuGroup>  {/* zamknięcie głównej grupy z modelem */}
 
         {isFreeTier && (
           <>
             <DropdownMenuSeparator />
             <div className="px-2 py-1.5 text-[10px] text-muted-foreground">
-              Plan FREE — wiecej modeli w Pro.
+              Plan FREE — więcej modeli w Pro.
             </div>
           </>
         )}

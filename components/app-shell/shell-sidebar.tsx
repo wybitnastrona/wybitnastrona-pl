@@ -88,7 +88,7 @@ export function ShellSidebar() {
         <ul className="mt-1 space-y-0.5">
           <li>
             <Link
-              href="/#how-it-works"
+              href="/docs"
               className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground/70 transition hover:bg-white/5 hover:text-beige"
             >
               <BookOpen className="h-4 w-4" />
@@ -97,7 +97,7 @@ export function ShellSidebar() {
           </li>
           <li>
             <Link
-              href="/#faq"
+              href="/help-faq"
               className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground/70 transition hover:bg-white/5 hover:text-beige"
             >
               <HelpCircle className="h-4 w-4" />

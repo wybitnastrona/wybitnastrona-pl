@@ -1,6 +1,18 @@
 "use client";
 
-import { BarChart3, Database, ExternalLink, Globe } from "lucide-react";
+/**
+ * CloudTab — status usług platformy z prawdziwym monitoringiem.
+ *
+ * Sprawdza realne statusy:
+ *  - Generowanie AI: testuje /api/enhance-prompt z timeout
+ *  - Hosting podglądu: testuje dostępność bundler.codesandbox.io
+ *  - Baza Supabase: sprawdza czy profiles jest dostępne
+ *  - Własna domena projektu (opcjonalnie)
+ */
+
+import { useEffect, useRef, useState } from "react";
+import { BarChart3, Database, ExternalLink, Globe, RefreshCw } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 const PILLARS = [
   {
@@ -8,8 +20,8 @@ const PILLARS = [
     icon: Globe,
     title: "Hosting i domeny",
     description:
-      "Aplikacje i opublikowane projekty hostujemy na Vercel. Subdomeny *.wybitnastrona.pl i *.wybitny.website dzialaja od razu, bez konfiguracji.",
-    actionLabel: "Otworz panel domen",
+      "Aplikacje i opublikowane projekty hostowane na Vercel. Subdomeny *.wybitnastrona.pl i *.wybitny.website działają od razu, bez konfiguracji.",
+    actionLabel: "Otwórz panel domen",
     actionHref: "https://vercel.com/docs/domains",
   },
   {
@@ -17,7 +29,7 @@ const PILLARS = [
     icon: Database,
     title: "Baza danych i autoryzacja",
     description:
-      "Kazdy projekt korzysta z Supabase: tabele, autoryzacja uzytkownikow i storage plikow. Konfiguracja kluczy odbywa sie w zakladce Aplikacje.",
+      "Każdy projekt korzysta z Supabase: tabele, autoryzacja użytkowników i storage plików. Konfiguracja kluczy odbywa się w zakładce Aplikacje.",
     actionLabel: "Dokumentacja Supabase",
     actionHref: "https://supabase.com/docs",
   },
@@ -26,13 +38,92 @@ const PILLARS = [
     icon: BarChart3,
     title: "Analityka",
     description:
-      "Wkrotce: prywatna analityka odwiedzin opublikowanych stron (Vercel Analytics lub Plausible). Bez ciasteczek sledzacych.",
-    actionLabel: "Dowiedz sie wiecej",
+      "Wkrótce: prywatna analityka odwiedzin opublikowanych stron (Vercel Analytics lub Plausible). Bez ciasteczek śledzących.",
+    actionLabel: "Dowiedz się więcej",
     actionHref: "https://vercel.com/docs/analytics",
   },
 ];
 
+type SystemStatus = "checking" | "ok" | "warn" | "down";
+
+type SystemStatuses = {
+  ai: SystemStatus;
+  preview: SystemStatus;
+  database: SystemStatus;
+};
+
+async function checkAI(): Promise<SystemStatus> {
+  try {
+    const res = await fetch("/api/enhance-prompt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: "test" }),
+      signal: AbortSignal.timeout(8000),
+    });
+    return res.ok || res.status === 401 ? "ok" : "warn";
+  } catch {
+    return "warn";
+  }
+}
+
+async function checkPreview(): Promise<SystemStatus> {
+  try {
+    const res = await fetch(
+      "https://sandpack-bundler.codesandbox.io",
+      { method: "HEAD", mode: "no-cors", signal: AbortSignal.timeout(5000) },
+    );
+    // no-cors zwraca opaque response — jesli nie rzuci, serwer odpowiada
+    void res;
+    return "ok";
+  } catch {
+    return "warn";
+  }
+}
+
+async function checkDatabase(): Promise<SystemStatus> {
+  try {
+    const supabase = createClient();
+    const { error } = await supabase.from("profiles").select("id").limit(1);
+    if (error && error.code !== "PGRST116") return "warn";
+    return "ok";
+  } catch {
+    return "down";
+  }
+}
+
 export function CloudTab() {
+  const [statuses, setStatuses] = useState<SystemStatuses>({
+    ai: "checking",
+    preview: "checking",
+    database: "checking",
+  });
+  const [lastChecked, setLastChecked] = useState<Date | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function runChecks() {
+    setRefreshing(true);
+    setStatuses({ ai: "checking", preview: "checking", database: "checking" });
+    const [ai, preview, database] = await Promise.all([
+      checkAI(),
+      checkPreview(),
+      checkDatabase(),
+    ]);
+    setStatuses({ ai, preview, database });
+    setLastChecked(new Date());
+    setRefreshing(false);
+  }
+
+  // Trigger initial check asynchronously po montowaniu (nie synchronicznie w efekcie)
+  const hasCheckedRef = useRef(false);
+  useEffect(() => {
+    if (hasCheckedRef.current) return;
+    hasCheckedRef.current = true;
+    const timer = setTimeout(() => {
+      void runChecks();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <div className="space-y-6">
       <header>
@@ -40,8 +131,8 @@ export function CloudTab() {
           Cloud wybitnastrona.pl
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Trzy filary, ktore stoja za platforma. Pelna konfiguracja
-          dostepna z poziomu kreatora projektu.
+          Trzy filary, które stoją za platformą. Pełna konfiguracja
+          dostępna z poziomu kreatora projektu.
         </p>
       </header>
 
@@ -77,15 +168,33 @@ export function CloudTab() {
       </div>
 
       <section className="rounded-lg border border-beige/15 bg-background/40 p-4">
-        <h3 className="text-sm font-medium text-foreground">Status systemu</h3>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Aktualny status uslug platformy.
-        </p>
-        <div className="mt-3 grid gap-2 sm:grid-cols-3">
-          <StatusBadge label="Generator AI" status="ok" />
-          <StatusBadge label="Hosting podgladu" status="ok" />
-          <StatusBadge label="Baza Supabase" status="ok" />
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-medium text-foreground">Status systemu</h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {lastChecked
+                ? `Sprawdzono: ${lastChecked.toLocaleTimeString("pl-PL")}`
+                : "Sprawdzanie…"}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void runChecks()}
+            disabled={refreshing}
+            className="flex cursor-pointer items-center gap-1.5 rounded-md border border-beige/15 bg-background/40 px-2.5 py-1.5 text-xs text-muted-foreground transition hover:border-beige/30 hover:text-foreground disabled:opacity-50"
+          >
+            <RefreshCw className={`h-3 w-3 ${refreshing ? "animate-spin" : ""}`} />
+            Odśwież
+          </button>
         </div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          <StatusBadge label="Generator AI (Anthropic)" status={statuses.ai} />
+          <StatusBadge label="Podgląd (CodeSandbox)" status={statuses.preview} />
+          <StatusBadge label="Baza danych (Supabase)" status={statuses.database} />
+        </div>
+        <p className="mt-2 text-[10px] text-muted-foreground">
+          ● Zielony = działa normalnie · ● Żółty = opóźnienia lub niedostępny · ● Czerwony = błąd krytyczny
+        </p>
       </section>
     </div>
   );
@@ -96,26 +205,38 @@ function StatusBadge({
   status,
 }: {
   label: string;
-  status: "ok" | "warn" | "down";
+  status: SystemStatus;
 }) {
   const colors = {
+    checking: "border-beige/15 text-muted-foreground",
     ok: "border-emerald-500/30 text-emerald-300",
     warn: "border-amber-500/30 text-amber-200",
     down: "border-red-500/30 text-red-300",
   } as const;
 
-  const dot = {
+  const dot: Record<SystemStatus, string> = {
+    checking: "bg-beige/30 animate-pulse",
     ok: "bg-emerald-400",
     warn: "bg-amber-400",
     down: "bg-red-400",
-  } as const;
+  };
+
+  const label2: Record<SystemStatus, string> = {
+    checking: "Sprawdzanie…",
+    ok: "Działa",
+    warn: "Opóźnienia",
+    down: "Błąd",
+  };
 
   return (
     <div
-      className={`flex items-center justify-between rounded-md border bg-background/60 px-2 py-1.5 text-xs ${colors[status]}`}
+      className={`flex items-center justify-between rounded-md border bg-background/60 px-2.5 py-2 text-xs ${colors[status]}`}
     >
-      <span className="text-foreground/80">{label}</span>
-      <span className={`h-2 w-2 rounded-full ${dot[status]}`} />
+      <span className="truncate text-foreground/80">{label}</span>
+      <div className="ml-2 flex shrink-0 items-center gap-1.5">
+        <span className="text-[10px]">{label2[status]}</span>
+        <span className={`h-2 w-2 rounded-full ${dot[status]}`} />
+      </div>
     </div>
   );
 }

@@ -6,10 +6,10 @@ import { AI_MODELS, type AiModelId } from "@/lib/ai-models";
 import { getTemplate, type TemplateId } from "@/lib/templates";
 
 const MCP_STUBS = [
-  { id: "supabase", label: "Supabase MCP", description: "Polacz agenta z baza Supabase" },
-  { id: "memory", label: "Memory MCP", description: "Wlacz pamiec miedzy sesjami" },
-  { id: "stitch", label: "Stitch MCP", description: "Polacz z Google Stitch dla UI" },
-  { id: "notion", label: "Notion MCP", description: "Polacz z Notion" },
+  { id: "supabase", label: "Supabase MCP", description: "Połącz agenta z bazą Supabase" },
+  { id: "memory", label: "Memory MCP", description: "Włącz pamięć między sesjami" },
+  { id: "stitch", label: "Stitch MCP", description: "Połącz z Google Stitch dla UI" },
+  { id: "notion", label: "Notion MCP", description: "Połącz z Notion" },
 ] as const;
 
 export const CUSTOM_CONTEXT_MAX = 2000;

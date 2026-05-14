@@ -447,6 +447,17 @@ export async function POST(req: Request) {
             error: `File ${normalized} zostal juz zapisany w tej turze build. SINGLE-SHOT: pisz kazdy plik TYLKO raz. Przejdz do nastepnego pliku z planu, NIE wracaj do edytowania.`,
           };
         }
+        // Guard: App.tsx przekraczający 120 linii = cała strona w jednym pliku.
+        // Wymuszamy podział na komponenty, App.tsx ma być tylko kompozycją importów.
+        if (normalized === "/src/App.tsx" && mode === "build") {
+          const lineCount = content.split("\n").length;
+          if (lineCount > 120) {
+            return {
+              ok: false,
+              error: `App.tsx ma ${lineCount} linii — ZAKAZ (limit: 120). App.tsx moze zawierac TYLKO importy komponentow i ich JSX. Rozloz kod na osobne pliki: /src/components/Hero.tsx, /src/components/Features.tsx itd. Zacznij od writeFile dla kazdego komponentu z osobna, a App.tsx napisz na KONCU gdy wszystkie sa gotowe.`,
+            };
+          }
+        }
         files[normalized] = { ...files[normalized], code: content };
         writtenPathsThisTurn.add(normalized);
         void bumpJob(supabase, jobId, `writeFile: ${normalized}`, { path: normalized, kind: "write" });

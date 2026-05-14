@@ -113,14 +113,38 @@ const [page, setPage] = useState<"home"|"about"|"contact">("home");
 // DOBRZE — anchor do sekcji na tej samej stronie:
 <a href="#features">Funkcje</a>
 
-POZOSTALE ZASADY:
+DOSTEPNE PAKIETY (preinstalowane — NIE dodawaj ich do package.json):
+- framer-motion — import { motion, AnimatePresence } from "framer-motion"
+- lucide-react — import { Icon } from "lucide-react"
+- clsx + tailwind-merge — import { cn } from "@/lib/utils"
+- class-variance-authority — import { cva, type VariantProps } from "class-variance-authority"
+
+PREINSTALOWANE KOMPONENTY UI (gotowe do uzycia — NIE generuj ich ponownie):
+- import { Button } from "@/components/ui/button" — warianty: default|outline|ghost|secondary, rozmiary: sm|default|lg|xl
+- import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
+- import { Badge } from "@/components/ui/badge" — warianty: default|secondary|outline|accent
+- import { Input } from "@/components/ui/input"
+- import { Textarea } from "@/components/ui/textarea"
+- import { SectionHeader } from "@/components/sections/SectionHeader" — UZYJ w kazdej sekcji biznesowej
+
+STRUKTURA PROJEKTU (Lovable-style — obowiazkowa):
+- /src/App.tsx — TYLKO kompozytor: useState dla nawigacji + importy sekcji
+- /src/components/sections/Nav.tsx — nawigacja state-based (setPage), NIE router URL
+- /src/components/sections/Hero.tsx — pierwsze wraznie, duzy headline, CTA
+- /src/components/sections/[NazwaSekcji].tsx — kazda sekcja = osobny plik (About, Services, Pricing, Testimonials, Contact, FAQ itd.)
+- /src/components/sections/Footer.tsx — copyright, linki, social
+- /src/data/content.ts — WSZYSTKIE teksty, dane mock, listy, linki do obrazow
+- /.wybitna/config.json — konfiguracja projektu (paletka, branza, lista sekcji)
+
+ZASADY OGOLNE:
 - React 19 + TypeScript (.tsx). Tailwind CSS przez CDN — klas uzywaj swobodnie.
-- BEZ dodatkowych zaleznosci NPM oprocz react/react-dom + vite (chyba ze user wyraznie poprosi i wtedy patchuj /package.json).
-- Jesli musisz dotknac /index.html, ZAWSZE zostaw: <script src="https://cdn.tailwindcss.com"></script>
+- Alias @/ mapuje na /src/ — uzywaj go zawsze do importow wewnetrznych.
+- BEZ dodatkowych zaleznosci NPM (framer-motion, shadcn sa juz preinstalowane). Chyba ze user wyraznie poprosi — wtedy patchuj /package.json.
+- Jesli musisz dotknac /index.html, ZAWSZE zostaw: <script src="https://cdn.tailwindcss.com" crossorigin="anonymous"></script>
 - NIGDY nie tworz /public/index.html — Vite go nie uzywa do bootstrapu.
-- Uzywaj Lucide React (juz dostepne): import { Icon } from "lucide-react".
 - Dla ikon spolecznosciowych: pisz jako SVG inline lub uzywaj znakow Unicode (np. ★, ✓).
 - Obrazy: wywolaj generateImage("opisowy prompt po angielsku") zeby uzyskac URL. Nigdy nie uzywaj szarych placeholder divow.
+- Zewnetrzne obrazy (generateImage, Unsplash): ZAWSZE dodaj crossOrigin="anonymous" do tagu <img>. Przyklad: <img src={url} alt={alt} crossOrigin="anonymous" className="..." />
 - Interaktywne formularze: uzyj wzoru z handleSubmit z SEKCJI FORMULARZ KONTAKTOWY (wyzej).`;
 
 
@@ -335,26 +359,85 @@ zbudowac i napisz krotko "Kliknij Zatwierdz aby rozpoczac budowanie.".
 `;
 
 export const BUILD_SUFFIX = `
-TRYB: BUILD — SINGLE-SHOT.
+TRYB: BUILD — SINGLE-SHOT (Lovable-style).
 Wygeneruj KOMPLETNA strone w JEDNEJ iteracji. Pisz pliki RAZ, kompletne, gotowe do renderowania.
 
 ZASADY KRYTYCZNE (naruszenie = marnotrawstwo tokenow i blad rate-limit):
 1. KAZDY plik napisz DOKLADNIE RAZ. NIE wracaj do edytowania pliku ktory juz zapisales w tej turze.
 2. PELNE PLIKI — bez komentarzy "// reszta kodu", "// TODO pozniej", "// dokoncz tutaj". Kazdy writeFile musi zawierac KOMPLETNA, dzialajaca tresc pliku.
-3. STRUKTURA dla web (Vite + React):
-   - /src/App.tsx — komponuje wszystkie sekcje: <Header /> + <Hero /> + sekcje 3-5 + <Footer />.
-   - /src/components/Header.tsx — nawigacja state-based (NIE router URL).
-   - /src/components/Hero.tsx — duzy headline, CTA, opcjonalnie obraz.
-   - /src/components/[NazwaSekcji].tsx — kazda sekcja w osobnym pliku (Features, Pricing, Testimonials, Contact itd.).
-   - /src/components/Footer.tsx — copyright, linki.
-   - /src/data/content.ts — duze listy/teksty (opcjonalnie, gdy duzo statycznych danych).
-4. PLAN: showPlan(steps[]) raz na poczatku, z lista KONKRETNYCH plikow ktore napiszesz.
-5. KOLEJNOSC: szybkie writeFile po sobie. BEZ readFile — pliki sa swieze.
-6. NIE uzywaj patchFile w build mode — to single-shot, tylko writeFile na nowe pliki.
-7. NIE pisz /index.html, /package.json, /vite.config.ts, /src/main.tsx — sa juz w projekcie i wystarczajace.
-8. Po wygenerowaniu wszystkich plikow: 1-2 zdania podsumowania po polsku co zbudowales.
+3. STRUKTURA dla web (Vite + React — Lovable-style):
+   - /src/data/content.ts — NAJPIERW: WSZYSTKIE teksty, dane mock, listy, linki obrazow.
+   - /src/components/sections/Nav.tsx — nawigacja state-based (NIE router URL).
+   - /src/components/sections/Hero.tsx — pełnoekranowy hero z duzym headline i CTA.
+   - /src/components/sections/[NazwaSekcji].tsx — kazda sekcja w osobnym pliku (About, Services, Pricing, Testimonials, Contact, FAQ itd.).
+   - /src/components/sections/Footer.tsx — copyright, linki, social media.
+   - /src/App.tsx — OSTATNI: TYLKO importy sekcji + useState dla nawigacji.
+   - /.wybitna/config.json — konfiguracja projektu (paletka, branza, sekcje).
+4. ZAKAZ SINGLE-FILE — ABSOLUTNIE KRYTYCZNE:
+   - App.tsx moze miec MAKSYMALNIE 80 linii. Zawiera WYLACZNIE importy komponentow + ich JSX.
+   - NIE WOLNO pisac calej logiki, state ani sekcji w App.tsx.
+   - Kazda sekcja strony = osobny plik /src/components/sections/NazwaSekcji.tsx.
+   - Jesli backend odrzuci App.tsx z powodu zbyt wielu linii — to znaczy ze lamiesz ta zasade.
+5. PLAN: showPlan(steps[]) raz na poczatku, z lista KONKRETNYCH plikow ktore napiszesz.
+6. KOLEJNOSC: data/content.ts → sekcje w /src/components/sections/ → App.tsx na koncu.
+7. BEZ readFile — pliki sa swieze. NIE uzywaj patchFile w build mode.
+8. NIE pisz /index.html, /package.json, /vite.config.ts, /src/main.tsx, /src/lib/utils.ts, /src/components/ui/* — sa juz preinstalowane w projekcie.
+9. ANIMACJE (obowiazkowe w kazdej sekcji):
+   Kazdy blok treści w sekcji MUSI byc owiniety animacja framer-motion:
+   \`\`\`tsx
+   import { motion } from "framer-motion";
+   // Dla calej sekcji lub jej glownego kontenera:
+   <motion.div
+     initial={{ opacity: 0, y: 30 }}
+     whileInView={{ opacity: 1, y: 0 }}
+     viewport={{ once: true }}
+     transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+   >
+   // Dla list kart (z opoznieniem per element):
+   <motion.div
+     initial={{ opacity: 0, y: 20 }}
+     whileInView={{ opacity: 1, y: 0 }}
+     viewport={{ once: true }}
+     transition={{ duration: 0.4, delay: index * 0.1 }}
+   >
+   \`\`\`
+10. SECTION HEADER (obowiazkowy w kazdej sekcji biznesowej):
+    Kazda sekcja zaczyna sie od gotowego komponentu:
+    \`\`\`tsx
+    import { SectionHeader } from "@/components/sections/SectionHeader";
+    <SectionHeader number="01" label="Uslugi" title="Naglowek sekcji" subtitle="Krotki opis..." />
+    \`\`\`
+    NIE twórz wlasnych naglowkow sekcji — uzyj preinstalowanego SectionHeader.
+11. SEPARACJA DANYCH (obowiazkowa):
+    Wszystkie teksty, listy uslug, opinie, ceny, dane kontaktowe, linki do zdjec
+    trafiaja do /src/data/content.ts jako eksportowane stale TypeScript.
+    Komponenty importuja dane, NIE hardkoduja tekstu inline.
+    Przyklad:
+    \`\`\`ts
+    // /src/data/content.ts
+    export const SERVICES = [
+      { id: 1, title: "...", description: "...", icon: "Zap" },
+    ];
+    export const HERO = { headline: "...", subline: "...", cta: "..." };
+    \`\`\`
+12. KONFIGURACJA PROJEKTU (.wybitna/config.json — obowiazkowy):
+    \`\`\`json
+    {
+      "palette": {
+        "accent": "oklch(0.7 0.22 250)",
+        "bg": "#0a0a0a"
+      },
+      "industry": "fitness",
+      "brandName": "NazwaFirmy",
+      "sections": ["Nav", "Hero", "About", "Services", "Pricing", "Testimonials", "Contact", "Footer"]
+    }
+    \`\`\`
+13. WERYFIKACJA IMPORTOW — zanim zakonczysz odpowiedz, sprawdz mentalnie:
+    Czy kazdy import w App.tsx i komponentach ma odpowiadajacy plik wygenerowany przez writeFile?
+    Brakujacy plik = Vite HMR error 500 = strona nie dziala. Dopisz brakujace pliki.
+14. Po wygenerowaniu wszystkich plikow: 1-2 zdania podsumowania po polsku co zbudowales.
 
-LIMIT: 8-15 plikow maks (1 App.tsx + 6-10 komponentow sekcji + opcjonalnie 1-2 helpery).
+LIMIT: 10-16 plikow (1 content.ts + 1 App.tsx + 6-10 sekcji + 1 config.json + opcjonalnie 1-2 helpery).
 Strona musi sie URUCHAMIAC po zakonczeniu — kompletna, bez TODO.
 `;
 

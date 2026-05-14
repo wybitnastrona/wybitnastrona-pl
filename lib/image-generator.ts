@@ -1,11 +1,16 @@
 import "server-only";
+import {
+  isCloudinaryConfigured,
+  uploadImageToCloudinary,
+} from "@/lib/cloudinary";
 
 /**
- * AI Image Generator — DALL-E 3 z fallback do Picsum.
+ * AI Image Generator — DALL-E 3 -> Cloudinary -> fallback do Picsum.
  *
  * Uzywane przez narzedzie `generateImage` w /api/generate/route.ts.
  * Buduje wzbogacony prompt z prefiksem stylu, wysyla do OpenAI,
- * zwraca { url, alt } gotowe do wstawienia w <img src="..."> przez AI.
+ * re-hostuje rezultat w Cloudinary (zeby URL nie wygasl po ~1h)
+ * i zwraca { url, alt } gotowe do wstawienia w <img src="..."> przez AI.
  */
 
 const DALLE_ENDPOINT = "https://api.openai.com/v1/images/generations";
@@ -28,16 +33,21 @@ const STYLE_PREFIXES: Record<string, string> = {
 export type GeneratedImage = {
   url: string;
   alt: string;
-  source: "dalle3" | "picsum";
+  source: "cloudinary" | "dalle3" | "picsum";
 };
 
 /**
- * Generuje tematyczne zdjecie przez DALL-E 3 lub Picsum jesli brak klucza API.
+ * Generuje tematyczne zdjecie przez DALL-E 3, re-hostuje w Cloudinary (zeby URL byl trwaly).
+ * Fallback do Picsum jesli brak klucza OpenAI lub blad sieci.
+ *
+ * @param projectId - jezeli podany i Cloudinary jest skonfigurowany, obraz trafi do
+ *                    `wybitnastrona/projects/${projectId}/` jako trwale aktywo.
  */
 export async function generateImageForAI(
   prompt: string,
   style: string = "photography",
   size: string = "landscape",
+  projectId?: string,
 ): Promise<GeneratedImage> {
   const apiKey = process.env.OPENAI_API_KEY;
 
@@ -75,10 +85,23 @@ export async function generateImageForAI(
       data: Array<{ url: string; revised_prompt?: string }>;
     };
 
-    const url = data.data?.[0]?.url;
-    if (!url) return picsum(prompt);
+    const dalleUrl = data.data?.[0]?.url;
+    if (!dalleUrl) return picsum(prompt);
 
-    return { url, alt: prompt, source: "dalle3" };
+    // Re-host na Cloudinary zeby URL byl trwaly (DALL-E URLs wygasaja po ~1h)
+    if (projectId && isCloudinaryConfigured()) {
+      try {
+        const stableUrl = await uploadImageToCloudinary(dalleUrl, projectId);
+        return { url: stableUrl, alt: prompt, source: "cloudinary" };
+      } catch (err) {
+        console.warn(
+          "[image-generator] Cloudinary upload failed, falling back to DALL-E URL",
+          err,
+        );
+      }
+    }
+
+    return { url: dalleUrl, alt: prompt, source: "dalle3" };
   } catch (err) {
     console.error("[image-generator] network error", err);
     return picsum(prompt);

@@ -356,6 +356,17 @@ export async function POST(req: Request) {
       ? `\nZABLOKOWANE PLIKI (NIE WOLNO ICH NADPISYWAC, EDYTOWAC ANI USUWAC): ${Array.from(lockedFiles).join(", ")}\nJezeli uzytkownik prosi o zmiane w zablokowanym pliku, poinformuj go zeby najpierw odblokowal plik w UI.\n`
       : "";
 
+  // Pliki preinstalowane w starterze sa ukryte w UI, ale AI musi znac ich
+  // aktualna tresc, zeby moc je poprawnie patchowac (np. zmienne OKLCH w styles.css).
+  // Wstrzykujemy je do semiStaticContext (cache-owany razem z lista plikow).
+  const PREINSTALLED_EDITABLE = ["/src/styles.css"];
+  const preinstalledContext = PREINSTALLED_EDITABLE.filter((p) => files[p])
+    .map(
+      (p) =>
+        `\n\nPLIK ${p} (preinstalowany, edytowalny przez patchFile — to JEST jego aktualna tresc, uzywaj jej do budowy 'oldString'):\n\`\`\`\n${files[p].code}\n\`\`\``,
+    )
+    .join("");
+
   // Faza 3.3: pobierz kontekst z knowledge base ostatniego komunikatu usera.
   // Jezeli OPENAI_API_KEY nie jest skonfigurowane lub brak dokumentow, ragContext = "".
   const lastUserMsg = messages[messages.length - 1];
@@ -482,11 +493,16 @@ export async function POST(req: Request) {
     }),
     generateImage: tool({
       description:
-        "Generates a thematic AI image (DALL-E 3) matching the page context. Returns { url, alt }. ALWAYS use this for hero images, gallery photos, team portraits, product images — NEVER use gray placeholder divs. Build the prompt based on the website's purpose (e.g. 'cozy kindergarten classroom with happy children, bright colors' for a kindergarten site).",
+        "Generates a thematic AI image (DALL-E 3) matching the page context, rehosted on Cloudinary for stability. Returns { url, alt }. ALWAYS use this for hero images, gallery photos, team portraits, product images — NEVER use gray placeholder divs. Build the prompt based on the website's purpose (e.g. 'cozy kindergarten classroom with happy children, bright colors' for a kindergarten site).",
       inputSchema: generateImageSchema,
       execute: async ({ prompt, style, size }) => {
         void bumpJob(supabase, jobId, `generateImage: ${prompt.slice(0, 50)}`);
-        return generateImageForAI(prompt, style ?? "photography", size ?? "landscape");
+        return generateImageForAI(
+          prompt,
+          style ?? "photography",
+          size ?? "landscape",
+          projectId,
+        );
       },
     }),
     fetchImage: tool({
@@ -566,7 +582,7 @@ export async function POST(req: Request) {
   const staticSystemPrompt =
     buildSystemPrompt(mode, projectTemplate, projectMode, { isWybitny }) +
     `\n\n[PROJECT_CONTEXT] projectId="${projectId}" — uzyj tego ID w URL formularzy kontaktowych: /api/form-submit?projectId=${projectId}\n`;
-  const semiStaticContext = fileListContext + lockedContext;
+  const semiStaticContext = fileListContext + lockedContext + preinstalledContext;
   const dynamicContext = ragContext + customContextSuffix;
 
   const systemMessages: Array<{

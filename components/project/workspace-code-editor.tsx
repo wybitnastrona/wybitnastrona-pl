@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Check, Loader2 } from "lucide-react";
 import { WorkspaceFileTree } from "./workspace-file-tree";
@@ -61,20 +61,57 @@ export function WorkspaceCodeEditor({
   const [selectedPath, setSelectedPath] = useState<string | null>(() =>
     pickInitialPath(files, initialPath),
   );
-  // Jezeli wybrany plik znika z props (AI nadpisuje), pokazujemy automatycznie
-  // pierwszy widoczny — derived, bez setState w useEffect.
-  const activePath =
-    selectedPath && files[selectedPath]
-      ? selectedPath
-      : pickInitialPath(files);
-
   // `overrides` trzyma TYLKO pliki edytowane lokalnie po ostatnim zapisie.
   // Wartosc dla edytora = `overrides[path] ?? files[path].code`. Po udanym
   // zapisie override jest usuwany, wiec synchronizacja w useEffect nie jest
   // potrzebna (brak setState w effect → spelnia react-hooks/set-state-in-effect).
   const [overrides, setOverrides] = useState<Record<string, string>>({});
+  /**
+   * `streamingPath` — sciezka pliku ktory AI aktualnie streamuje. Jezeli ustawione,
+   * edytor automatycznie pokazuje ten plik. Czyszczone po zakonczeniu streamu
+   * (przez wybitna:partial-write-end).
+   */
+  const [streamingPath, setStreamingPath] = useState<string | null>(null);
+  /**
+   * `streamingContent` — najnowsza tresc streamowanego pliku.
+   * Pokazujemy ja w Monako podczas streamingu bez triggera onChange (bez zapisu).
+   */
+  const [streamingContent, setStreamingContent] = useState<string>("");
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Priorytet ścieżek: streamingPath (live) > selectedPath > pickInitialPath(files).
+  // Jezeli wybrany plik znika z props (AI nadpisuje), pokazujemy automatycznie
+  // pierwszy widoczny — derived, bez setState w useEffect.
+  const activePath =
+    streamingPath ??
+    (selectedPath && files[selectedPath]
+      ? selectedPath
+      : pickInitialPath(files));
+
+  // Nasluch live stream z chat-panel: AI pisze plik → ten event przychodzi z
+  // kazda kolejna delta tresci. Edytor pokazuje plik na zywo + auto-przelacza
+  // sie na niego, zeby uzytkownik widzial co AI buduje (UX Bolt/Cursor).
+  useEffect(() => {
+    function handlePartialWrite(e: Event) {
+      const { path, content } = (
+        e as CustomEvent<{ path: string; content: string }>
+      ).detail;
+      if (!path || typeof content !== "string") return;
+      setStreamingPath(path);
+      setStreamingContent(content);
+    }
+    function handleStreamEnd() {
+      setStreamingPath(null);
+      setStreamingContent("");
+    }
+    window.addEventListener("wybitna:partial-write", handlePartialWrite);
+    window.addEventListener("wybitna:partial-write-end", handleStreamEnd);
+    return () => {
+      window.removeEventListener("wybitna:partial-write", handlePartialWrite);
+      window.removeEventListener("wybitna:partial-write-end", handleStreamEnd);
+    };
+  }, []);
 
   const lockedSet = useMemo(() => new Set(lockedPaths), [lockedPaths]);
   const isLocked = activePath ? lockedSet.has(activePath) : false;
@@ -122,10 +159,19 @@ export function WorkspaceCodeEditor({
     scheduleSave(next);
   }
 
+  // Wartosc dla edytora — priorytet:
+  //  1. streamingContent (gdy AI aktualnie pisze ten plik),
+  //  2. overrides (lokalne edycje uzytkownika),
+  //  3. files (zapisane w bazie).
   const currentCode =
     activePath != null
-      ? (overrides[activePath] ?? files[activePath]?.code ?? "")
+      ? activePath === streamingPath
+        ? streamingContent
+        : (overrides[activePath] ?? files[activePath]?.code ?? "")
       : "";
+  // Edytor jest read-only podczas streamingu AI — uzytkownik widzi live update,
+  // ale nie moze edytowac (bo zmiana znikalaby po nastepnym chunku).
+  const isStreamingActive = streamingPath !== null && streamingPath === activePath;
 
   return (
     <div className="flex h-full w-full">
@@ -139,8 +185,21 @@ export function WorkspaceCodeEditor({
       </aside>
       <div className="relative flex min-w-0 flex-1 flex-col">
         <div className="flex h-8 shrink-0 items-center justify-between border-b border-beige/10 px-3 text-[11px] text-muted-foreground">
-          <span className="truncate font-mono">{activePath ?? "—"}</span>
-          <SaveBadge status={saveStatus} locked={isLocked} readOnly={readOnly} />
+          <span className="truncate font-mono">
+            {activePath ?? "—"}
+            {isStreamingActive && (
+              <span className="ml-2 inline-flex items-center gap-1 rounded-full border border-amber-200/30 bg-amber-950/30 px-1.5 py-px text-[9px] uppercase tracking-wider text-amber-200">
+                <span className="inline-block h-1 w-1 animate-pulse rounded-full bg-amber-200" />
+                AI pisze
+              </span>
+            )}
+          </span>
+          <SaveBadge
+            status={saveStatus}
+            locked={isLocked}
+            readOnly={readOnly}
+            streaming={isStreamingActive}
+          />
         </div>
         <div className="min-h-0 flex-1">
           {activePath ? (
@@ -158,7 +217,7 @@ export function WorkspaceCodeEditor({
                 scrollBeyondLastLine: false,
                 wordWrap: "on",
                 tabSize: 2,
-                readOnly: readOnly || isLocked,
+                readOnly: readOnly || isLocked || isStreamingActive,
                 automaticLayout: true,
                 padding: { top: 12, bottom: 12 },
                 renderLineHighlight: "gutter",
@@ -179,11 +238,19 @@ function SaveBadge({
   status,
   locked,
   readOnly,
+  streaming,
 }: {
   status: SaveStatus;
   locked: boolean;
   readOnly: boolean;
+  streaming?: boolean;
 }) {
+  if (streaming)
+    return (
+      <span className="inline-flex items-center gap-1 text-amber-200/80">
+        <Loader2 className="h-3 w-3 animate-spin" /> Live z AI
+      </span>
+    );
   if (readOnly) return <span className="text-neutral-500">Tylko podgląd</span>;
   if (locked)
     return <span className="text-orange-300/80">Plik zablokowany</span>;

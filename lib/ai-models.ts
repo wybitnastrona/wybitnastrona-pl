@@ -43,28 +43,30 @@ export const CREDITS_PER_PLN = 50; // 1 PLN = 50 kredytów → 1 kredyt = 0.02 P
 
 export const AI_MODELS: AiModelDef[] = [
   {
-    id: "claude-haiku-4-5",
-    label: "Auto (Claude Haiku 4.5)",
-    labelShort: "Auto",
-    anthropicModel: "claude-haiku-4-5",
+    id: "claude-sonnet-4-6",
+    label: "Claude Sonnet 4.6 (zalecany)",
+    labelShort: "Sonnet 4.6",
+    anthropicModel: "claude-sonnet-4-5",
     description:
-      "Najszybszy model. Dobry do prostych zmian i stron. ≈ 60 kr / generacja (1.20 zł).",
-    badge: "fast",
-    pointCost: 60,
+      "Domyślny — najlepszy stosunek jakości do kosztu. Najczęściej wystarcza jedna generacja. ≈ 240 kr / generacja (4.80 zł).",
+    badge: "powerful",
+    pointCost: 240,
     available: true,
     requiresTier: "free",
     isFree: true,
   },
   {
-    id: "claude-sonnet-4-6",
-    label: "Claude Sonnet 4.6",
-    labelShort: "Sonnet 4.6",
-    anthropicModel: "claude-sonnet-4-5",
+    id: "claude-haiku-4-5",
+    label: "Claude Haiku 4.5 (szybki)",
+    labelShort: "Szybki",
+    anthropicModel: "claude-haiku-4-5",
     description:
-      "Balans jakości i szybkości. Złoty standard dla większości projektów. ≈ 240 kr / generacja (4.80 zł).",
-    pointCost: 240,
+      "Tryb budżetowy — szybki, do drobnych poprawek. UWAGA: częściej wymaga ponawiania. ≈ 30 kr / generacja (0.60 zł).",
+    badge: "fast",
+    pointCost: 30,
     available: true,
-    requiresTier: "pro",
+    requiresTier: "free",
+    isFree: true,
   },
   {
     id: "claude-opus-4-6",
@@ -121,8 +123,8 @@ export function availableModelsForTier(
   );
 }
 
-/** Domyslny model — Haiku 4.5 dostepny dla wszystkich. */
-export const DEFAULT_MODEL_ID: AiModelId = "claude-haiku-4-5";
+/** Domyslny model — Sonnet 4.6 dostepny dla wszystkich (FREE tez). */
+export const DEFAULT_MODEL_ID: AiModelId = "claude-sonnet-4-6";
 
 export function getModel(id: AiModelId | string | undefined): AiModelDef {
   return (

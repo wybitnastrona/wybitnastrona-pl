@@ -335,33 +335,27 @@ zbudowac i napisz krotko "Kliknij Zatwierdz aby rozpoczac budowanie.".
 `;
 
 export const BUILD_SUFFIX = `
-TRYB: BUILD (iteracyjny).
-Uzytkownik zatwierdzil plan. Generuj projekt warstwowo, ZAWSZE w tej kolejnosci:
+TRYB: BUILD — SINGLE-SHOT.
+Wygeneruj KOMPLETNA strone w JEDNEJ iteracji. Pisz pliki RAZ, kompletne, gotowe do renderowania.
 
-ETAP 1 — SZKIELET
-  - Skonfiguruj korzen aplikacji (np. layout, routing, podstawowe style/theme).
-  - Wstaw glowny ekran z miejscami pod komponenty (puste, ale renderowalne).
-  - Po tym etapie aplikacja musi sie poprawnie kompilowac.
+ZASADY KRYTYCZNE (naruszenie = marnotrawstwo tokenow i blad rate-limit):
+1. KAZDY plik napisz DOKLADNIE RAZ. NIE wracaj do edytowania pliku ktory juz zapisales w tej turze.
+2. PELNE PLIKI — bez komentarzy "// reszta kodu", "// TODO pozniej", "// dokoncz tutaj". Kazdy writeFile musi zawierac KOMPLETNA, dzialajaca tresc pliku.
+3. STRUKTURA dla web (Vite + React):
+   - /src/App.tsx — komponuje wszystkie sekcje: <Header /> + <Hero /> + sekcje 3-5 + <Footer />.
+   - /src/components/Header.tsx — nawigacja state-based (NIE router URL).
+   - /src/components/Hero.tsx — duzy headline, CTA, opcjonalnie obraz.
+   - /src/components/[NazwaSekcji].tsx — kazda sekcja w osobnym pliku (Features, Pricing, Testimonials, Contact itd.).
+   - /src/components/Footer.tsx — copyright, linki.
+   - /src/data/content.ts — duze listy/teksty (opcjonalnie, gdy duzo statycznych danych).
+4. PLAN: showPlan(steps[]) raz na poczatku, z lista KONKRETNYCH plikow ktore napiszesz.
+5. KOLEJNOSC: szybkie writeFile po sobie. BEZ readFile — pliki sa swieze.
+6. NIE uzywaj patchFile w build mode — to single-shot, tylko writeFile na nowe pliki.
+7. NIE pisz /index.html, /package.json, /vite.config.ts, /src/main.tsx — sa juz w projekcie i wystarczajace.
+8. Po wygenerowaniu wszystkich plikow: 1-2 zdania podsumowania po polsku co zbudowales.
 
-ETAP 2 — GLOWNE SEKCJE
-  - Hero / Header / sekcje "above the fold". Konkretne tresci, realne zdjecia (fetchImage).
-
-ETAP 3 — POZOSTALE SEKCJE I FOOTER
-  - Reszta sekcji w kolejnosci od najwazniejszych do detali.
-
-ETAP 4 — POLISH
-  - Drobne komponenty, microcopy, hover/focus states, dark mode, responsywnosc.
-
-REGULY:
-1) Dla NOWYCH plikow: writeFile(path, content).
-2) Dla ISTNIEJACYCH plikow: patchFile(path, edits[]) — tansze i szybsze.
-3) Jezeli nie pamietasz dokladnej tresci istniejacego pliku, najpierw readFile(path).
-4) NIE wywoluj showPlan ponownie — plan zostal juz pokazany.
-5) Krotkie podsumowanie po polsku co zbudowales.
-
-Jezeli zauwazysz, ze nie zdazysz dokonczyc — zatrzymaj sie po PEŁNYM etapie i zostaw
-wyrazna wiadomosc dla uzytkownika "Mozesz kliknac Kontynuuj generowanie aby dokonczyc
-brakujace sekcje.".  NIE zostawiaj plikow w stanie ktory uniemozliwi kompilacje.
+LIMIT: 8-15 plikow maks (1 App.tsx + 6-10 komponentow sekcji + opcjonalnie 1-2 helpery).
+Strona musi sie URUCHAMIAC po zakonczeniu — kompletna, bez TODO.
 `;
 
 export const DISCUSS_SUFFIX = `

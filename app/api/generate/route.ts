@@ -118,6 +118,66 @@ const readFileSchema = z.object({
 });
 
 /**
+ * Trim duplicate tool outputs: when AI writes the same file N times (e.g. across
+ * multiple "Continue generation" turns), the history grows enormously and trips
+ * the 50K input tokens/minute Anthropic rate limit.
+ *
+ * Strategy: keep ONLY the latest writeFile/patchFile output per path; replace
+ * older versions with a short summary placeholder. The latest version is the
+ * source of truth (the assistant only needs to know the final state).
+ */
+function trimStaleFileContents(messages: UIMessage[]): UIMessage[] {
+  type ToolPart = {
+    type: string;
+    state?: string;
+    input?: { path?: string };
+    output?: { ok?: boolean; path?: string; content?: string; summary?: string };
+  };
+
+  // Walk messages in reverse to mark the *latest* write per path.
+  const seenPaths = new Set<string>();
+  const latestPartIds = new WeakSet<object>();
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i];
+    for (let j = message.parts.length - 1; j >= 0; j--) {
+      const part = message.parts[j] as ToolPart;
+      const isWrite =
+        part.type === "tool-writeFile" || part.type === "tool-patchFile";
+      if (!isWrite) continue;
+      if (part.state !== "output-available") continue;
+      const path = part.output?.path ?? part.input?.path;
+      if (!path) continue;
+      if (!seenPaths.has(path)) {
+        seenPaths.add(path);
+        latestPartIds.add(part as unknown as object);
+      }
+    }
+  }
+
+  return messages.map((message) => {
+    if (message.role !== "assistant") return message;
+    const trimmedParts = message.parts.map((part) => {
+      const p = part as ToolPart;
+      if (p.type !== "tool-writeFile" && p.type !== "tool-patchFile") return part;
+      if (p.state !== "output-available") return part;
+      const path = p.output?.path ?? p.input?.path;
+      if (!path) return part;
+      if (latestPartIds.has(p as unknown as object)) return part;
+      // Older write of this path — replace heavy `content` with a stub.
+      return {
+        ...p,
+        output: {
+          ok: true,
+          path,
+          summary: `<superseded by a newer write of ${path}>`,
+        },
+      } as UIMessage["parts"][number];
+    });
+    return { ...message, parts: trimmedParts } as UIMessage;
+  });
+}
+
+/**
  * Sanitize messages loaded from the DB before sending to the AI provider.
  *
  * Problem: when a generation is interrupted (timeout / error) mid-stream,
@@ -267,8 +327,11 @@ export async function POST(req: Request) {
   const customContextSuffix = customSystemContext
     ? `\n\nCUSTOM CONTEXT OD UZYTKOWNIKA (rygorystycznie przestrzegaj):\n${customSystemContext}`
     : "";
+  // First trim duplicated file writes (heavy `content` payloads), then sanitize
+  // partial tool inputs. Order matters: trimming reduces tokens; sanitizing
+  // ensures Anthropic API doesn't reject the request.
   const modelMessages = await convertToModelMessages(
-    sanitizeMessagesForAI(messages),
+    sanitizeMessagesForAI(trimStaleFileContents(messages)),
     { ignoreIncompleteToolCalls: true },
   );
   const anthropicModel = resolveAnthropicModel(effectiveModelId);
@@ -344,6 +407,12 @@ export async function POST(req: Request) {
   let handoffFromDeadline = false;
   /** Liczba zakończonych kroków LLM (pętla narzędzi) — do wykrycia limitu `stopWhen`. */
   let completedLlmSteps = 0;
+  /**
+   * Sciezki ktore juz zostaly zapisane w tej turze.
+   * Single-shot guard: blokujemy drugi zapis tego samego pliku w jednej turze
+   * (oszczednosc tokenow + wymusza single-shot generacje).
+   */
+  const writtenPathsThisTurn = new Set<string>();
   if (mode === "build" || mode === "continue") {
     deadlineTimer = setTimeout(() => {
       handoffFromDeadline = true;
@@ -362,7 +431,7 @@ export async function POST(req: Request) {
       },
     }),
     writeFile: tool({
-      description: "Tworzy lub nadpisuje NOWY plik. Sciezka absolutna od '/'. Dla istniejacych plikow uzyj patchFile.",
+      description: "Tworzy lub nadpisuje NOWY plik. Sciezka absolutna od '/'. Dla istniejacych plikow uzyj patchFile. UWAGA: w jednej turze build mozesz zapisac kazdy plik TYLKO RAZ.",
       inputSchema: writeFileSchema,
       execute: async ({ path, content }) => {
         const normalized = path.startsWith("/") ? path : `/${path}`;
@@ -372,7 +441,14 @@ export async function POST(req: Request) {
             error: `File ${normalized} is LOCKED by the user — cannot overwrite. Inform the user that they need to unlock it first in the UI.`,
           };
         }
+        if (writtenPathsThisTurn.has(normalized) && mode === "build") {
+          return {
+            ok: false,
+            error: `File ${normalized} zostal juz zapisany w tej turze build. SINGLE-SHOT: pisz kazdy plik TYLKO raz. Przejdz do nastepnego pliku z planu, NIE wracaj do edytowania.`,
+          };
+        }
         files[normalized] = { ...files[normalized], code: content };
+        writtenPathsThisTurn.add(normalized);
         void bumpJob(supabase, jobId, `writeFile: ${normalized}`, { path: normalized, kind: "write" });
         return { ok: true, path: normalized, bytes: content.length };
       },
@@ -471,19 +547,49 @@ export async function POST(req: Request) {
     }),
   };
 
+  // Anthropic prompt caching: dzielimy system na 3 bloki — statyczny prompt
+  // (najwiekszy, cache-owany), semi-static (lista plikow + zablokowane,
+  // tez cache-owany) oraz dynamic (RAG + custom context, bez cache).
+  // Efekt: po pierwszej wiadomosci w sesji input tokens spadaja ~90%
+  // (eliminuje rate limit 50K tokenow/minute).
+  const staticSystemPrompt =
+    buildSystemPrompt(mode, projectTemplate, projectMode, { isWybitny }) +
+    `\n\n[PROJECT_CONTEXT] projectId="${projectId}" — uzyj tego ID w URL formularzy kontaktowych: /api/form-submit?projectId=${projectId}\n`;
+  const semiStaticContext = fileListContext + lockedContext;
+  const dynamicContext = ragContext + customContextSuffix;
+
+  const systemMessages: Array<{
+    role: "system";
+    content: string;
+    providerOptions?: { anthropic: { cacheControl: { type: "ephemeral" } } };
+  }> = [
+    {
+      role: "system",
+      content: staticSystemPrompt,
+      providerOptions: { anthropic: { cacheControl: { type: "ephemeral" } } },
+    },
+  ];
+  if (semiStaticContext.trim().length > 0) {
+    systemMessages.push({
+      role: "system",
+      content: semiStaticContext,
+      providerOptions: { anthropic: { cacheControl: { type: "ephemeral" } } },
+    });
+  }
+  if (dynamicContext.trim().length > 0) {
+    systemMessages.push({
+      role: "system",
+      content: dynamicContext,
+    });
+  }
+
   const result = streamText({
     model: anthropic(anthropicModel),
     abortSignal:
       mode === "build" || mode === "continue"
         ? handoffAbort.signal
         : undefined,
-    system:
-      buildSystemPrompt(mode, projectTemplate, projectMode, { isWybitny }) +
-      `\n\n[PROJECT_CONTEXT] projectId="${projectId}" — uzyj tego ID w URL formularzy kontaktowych: /api/form-submit?projectId=${projectId}\n` +
-      fileListContext +
-      lockedContext +
-      ragContext +
-      customContextSuffix,
+    system: systemMessages,
     messages: modelMessages,
     stopWhen: stepCountIs(
       mode === "plan"

@@ -169,6 +169,9 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     messages: initialMessages ?? [],
     transport,
     onFinish: () => {
+      // Sygnal dla edytora i overlay: AI zakonczylo streaming.
+      // Edytor czysci "live z AI" wskaznik, overlay znika.
+      window.dispatchEvent(new CustomEvent("wybitna:partial-write-end"));
       router.refresh();
     },
   });

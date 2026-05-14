@@ -104,31 +104,15 @@ createRoot(document.getElementById("root")!).render(
 );
 `;
 
-const APP_TSX = `import { useState } from "react";
-
-export default function App() {
-  const [count, setCount] = useState(0);
-
+const APP_TSX = `export default function App() {
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex items-center justify-center p-6">
-      <div className="max-w-xl w-full text-center space-y-6">
-        <span className="inline-block px-3 py-1 rounded-full text-xs uppercase tracking-wider border border-amber-200/30 text-amber-200">
-          wybitnastrona.pl
-        </span>
-        <h1 className="text-4xl md:text-5xl font-medium tracking-tight">
-          Twoja wybitna strona
-        </h1>
-        <p className="text-neutral-400">
-          Zacznij od opisania pomysłu w czacie po lewej. AI wygeneruje pliki,
-          które zobaczysz tutaj na żywo.
+      <div className="max-w-md text-center space-y-4">
+        <div className="inline-block h-8 w-8 rounded-full border-2 border-amber-200/30 border-t-amber-200 animate-spin" />
+        <h1 className="text-2xl font-medium">Buduję Twoją stronę…</h1>
+        <p className="text-sm text-neutral-400">
+          AI generuje sekcje biznesowe. Za chwilę zobaczysz wynik tutaj na żywo.
         </p>
-        <button
-          type="button"
-          onClick={() => setCount((c) => c + 1)}
-          className="px-4 py-2 rounded-lg bg-amber-200 text-neutral-950 font-medium hover:bg-amber-100 transition"
-        >
-          Kliknięć: {count}
-        </button>
       </div>
     </div>
   );

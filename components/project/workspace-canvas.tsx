@@ -17,7 +17,6 @@ import {
   Pencil,
   PictureInPicture2,
   RotateCw,
-  SquareTerminal,
 } from "lucide-react";
 import { AppleIcon, AndroidIcon } from "@/components/brand-icons";
 import { DatabasePanel } from "@/components/project/database-panel";
@@ -34,8 +33,11 @@ const WCRuntime = dynamic(
   () => import("@/components/webcontainer/wc-runtime").then((m) => m.WCRuntime),
   { ssr: false, loading: () => <WCLoader /> },
 );
-const WCTerminal = dynamic(
-  () => import("@/components/webcontainer/wc-terminal").then((m) => m.WCTerminal),
+const CodeWithTerminal = dynamic(
+  () =>
+    import("@/components/project/code-with-terminal").then(
+      (m) => m.CodeWithTerminal,
+    ),
   { ssr: false, loading: () => <WCLoader /> },
 );
 const WorkspaceCodeEditor = dynamic(
@@ -55,7 +57,7 @@ function WCLoader() {
   );
 }
 
-type WorkspaceView = "preview" | "code" | "database" | "snapshots" | "terminal" | "stripe";
+type WorkspaceView = "preview" | "code" | "database" | "snapshots" | "stripe";
 
 type Props = {
   project: Project;
@@ -109,25 +111,39 @@ export function WorkspaceCanvas({
   const [buildFile, setBuildFile] = useState<string | null>(null);
   const [writtenFiles, setWrittenFiles] = useState<string[]>([]);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    function clearAll() {
+      setBuildFile(null);
+      setWrittenFiles([]);
+    }
     function handlePartialWrite(e: Event) {
       const { path } = (e as CustomEvent<{ path: string; content: string }>).detail;
       setBuildFile(path);
       setWrittenFiles((prev) =>
         prev.includes(path) ? prev : [...prev, path],
       );
-      // Hide overlay 3 seconds after the last write event
+      // Soft timeout: hide overlay 3 seconds after the last write event (idle).
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-      idleTimerRef.current = setTimeout(() => {
-        setBuildFile(null);
-        setWrittenFiles([]);
-      }, 3000);
+      idleTimerRef.current = setTimeout(clearAll, 3000);
+      // Hard timeout: always hide overlay after 10 seconds, niezaleznie od eventow.
+      // Chroni przed sytuacjami gdy stream wisi i overlay zostaje na ekranie.
+      if (hardTimerRef.current) clearTimeout(hardTimerRef.current);
+      hardTimerRef.current = setTimeout(clearAll, 10_000);
+    }
+    function handleStreamEnd() {
+      clearAll();
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      if (hardTimerRef.current) clearTimeout(hardTimerRef.current);
     }
     window.addEventListener("wybitna:partial-write", handlePartialWrite);
+    window.addEventListener("wybitna:partial-write-end", handleStreamEnd);
     return () => {
       window.removeEventListener("wybitna:partial-write", handlePartialWrite);
+      window.removeEventListener("wybitna:partial-write-end", handleStreamEnd);
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      if (hardTimerRef.current) clearTimeout(hardTimerRef.current);
     };
   }, []);
 
@@ -308,7 +324,6 @@ export function WorkspaceCanvas({
         onOpenLive={handleOpenLive}
         opening={opening}
         displayUrl={displayUrl}
-        useWC={useWC}
         isCodeOnly={isCodeOnly}
         platform={(project.mode as "ios" | "android" | "web" | null) ?? null}
         projectId={project.id}
@@ -374,15 +389,13 @@ export function WorkspaceCanvas({
               />
             </div>
             <div className={view === "code" ? "h-full" : "hidden h-full"}>
-              <WorkspaceCodeEditor
+              <CodeWithTerminal
                 projectId={project.id}
                 files={project.files}
                 lockedPaths={project.locked_files}
                 readOnly={buildFile !== null}
+                showTerminal={useWC}
               />
-            </div>
-            <div className={view === "terminal" ? "h-full" : "hidden h-full"}>
-              <WCTerminal />
             </div>
           </>
         )}
@@ -517,7 +530,6 @@ function CanvasTopbar({
   onOpenLive,
   opening,
   displayUrl,
-  useWC,
   isCodeOnly,
   platform,
   projectId,
@@ -532,7 +544,6 @@ function CanvasTopbar({
   onOpenLive: () => void;
   opening: boolean;
   displayUrl: string;
-  useWC: boolean;
   isCodeOnly: boolean;
   platform: "ios" | "android" | "web" | null;
   projectId: string;
@@ -559,14 +570,6 @@ function CanvasTopbar({
           active={view === "code"}
           onClick={() => onViewChange("code")}
         />
-        {useWC && (
-          <ToggleButton
-            icon={SquareTerminal}
-            label="Terminal"
-            active={view === "terminal"}
-            onClick={() => onViewChange("terminal")}
-          />
-        )}
       </div>
 
       {/* Dodatkowe panele — Baza / Historia (baza ma sens tylko dla web) */}

@@ -27,6 +27,7 @@ const PACKAGE_JSON = `{
   "dependencies": {
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-router-dom": "^6.28.0",
     "lucide-react": "^0.469.0",
     "framer-motion": "^11.3.0",
     "clsx": "^2.1.1",
@@ -50,6 +51,7 @@ import { fileURLToPath, URL } from "node:url";
 
 export default defineConfig({
   plugins: [react()],
+  appType: "spa",
   resolve: {
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
   },
@@ -118,9 +120,34 @@ createRoot(document.getElementById("root")!).render(
 `;
 
 const STYLES_CSS = `:root {
-  --accent: oklch(0.7 0.22 250);
-  --accent-fg: oklch(0.98 0 0);
-  --radius: 0.5rem;
+  /* ── Accent palettes (switch by overriding --accent / --accent-fg) ── */
+  --accent:       oklch(0.7 0.22 250);   /* default: electric blue   */
+  --accent-fg:    oklch(0.98 0 0);       /* text on --accent         */
+
+  /* Named palette tokens — AI picks one set and applies to :root */
+  --accent-ocean: oklch(0.60 0.20 240);  /* deep blue                */
+  --accent-sky:   oklch(0.72 0.18 220);  /* light sky blue           */
+  --accent-lime:  oklch(0.78 0.22 128);  /* neon lime-green          */
+  --accent-fire:  oklch(0.65 0.24  35);  /* vivid amber-orange       */
+  --accent-rose:  oklch(0.66 0.22   5);  /* hot pink / rose          */
+  --accent-violet:oklch(0.62 0.26 300);  /* deep violet              */
+  --accent-teal:  oklch(0.70 0.16 185);  /* teal / cyan              */
+  --accent-gold:  oklch(0.78 0.17  80);  /* warm gold                */
+
+  /* ── Surface tokens ─────────────────────────────────────────────── */
+  --bg:           oklch(0.08 0 0);       /* page background (dark)   */
+  --bg-card:      oklch(0.12 0 0);       /* card / panel background  */
+  --bg-muted:     oklch(0.16 0 0);       /* subtle muted surface     */
+  --border:       oklch(0.22 0 0);       /* default border           */
+
+  /* ── Typography tokens ───────────────────────────────────────────── */
+  --text:         oklch(0.96 0 0);       /* primary text             */
+  --text-muted:   oklch(0.55 0 0);       /* secondary / muted text   */
+
+  /* ── Shape ────────────────────────────────────────────────────────── */
+  --radius:       0.75rem;
+  --radius-lg:    1.25rem;
+  --radius-xl:    1.75rem;
 }
 
 * {
@@ -129,6 +156,8 @@ const STYLES_CSS = `:root {
 
 body {
   margin: 0;
+  background-color: var(--bg);
+  color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -140,6 +169,27 @@ import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
+}
+`;
+
+const USE_IS_MOBILE_TS = `import { useEffect, useState } from "react";
+
+const MOBILE_BREAKPOINT = 768;
+
+export function useIsMobile(): boolean {
+  const [isMobile, setIsMobile] = useState<boolean>(
+    () => window.innerWidth < MOBILE_BREAKPOINT,
+  );
+
+  useEffect(() => {
+    const mql = window.matchMedia(\`(max-width: \${MOBILE_BREAKPOINT - 1}px)\`);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mql.addEventListener("change", handler);
+    setIsMobile(mql.matches);
+    return () => mql.removeEventListener("change", handler);
+  }, []);
+
+  return isMobile;
 }
 `;
 
@@ -374,6 +424,9 @@ import { cn } from "@/lib/utils";
 
 interface SectionHeaderProps {
   number?: string;
+  /** Short eyebrow label above the title (e.g. "Uslugi", "O nas") */
+  eyebrow?: string;
+  /** @deprecated use eyebrow */
   label?: string;
   title: string;
   subtitle?: string;
@@ -383,12 +436,14 @@ interface SectionHeaderProps {
 
 export function SectionHeader({
   number,
+  eyebrow,
   label,
   title,
   subtitle,
   center = false,
   className,
 }: SectionHeaderProps) {
+  const tag = eyebrow ?? label;
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
@@ -397,7 +452,7 @@ export function SectionHeader({
       transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
       className={cn("mb-12 md:mb-16", center && "text-center", className)}
     >
-      {(number || label) && (
+      {(number || tag) && (
         <div
           className={cn(
             "flex items-center gap-3 mb-4",
@@ -405,32 +460,33 @@ export function SectionHeader({
           )}
         >
           {number && (
-            <span className="text-xs font-mono text-neutral-400 tracking-widest">
+            <span className="text-xs font-mono tracking-widest" style={{ color: "var(--text-muted)" }}>
               {number}
             </span>
           )}
-          {number && label && (
-            <span className="text-neutral-300 text-xs">—</span>
+          {number && tag && (
+            <span style={{ color: "var(--border)" }} className="text-xs">—</span>
           )}
-          {label && (
+          {tag && (
             <span
               className="text-xs uppercase tracking-[0.2em] font-semibold"
               style={{ color: "var(--accent)" }}
             >
-              {label}
+              {tag}
             </span>
           )}
         </div>
       )}
-      <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold leading-tight tracking-tight">
+      <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold leading-tight tracking-tight" style={{ color: "var(--text)" }}>
         {title}
       </h2>
       {subtitle && (
         <p
           className={cn(
-            "mt-4 text-base md:text-lg text-neutral-500 leading-relaxed",
+            "mt-4 text-base md:text-lg leading-relaxed",
             center ? "mx-auto max-w-2xl" : "max-w-2xl",
           )}
+          style={{ color: "var(--text-muted)" }}
         >
           {subtitle}
         </p>
@@ -826,6 +882,7 @@ export function getViteReactStarterFiles(): ProjectFiles {
     "/src/main.tsx": { code: MAIN_TSX, hidden: true },
     // Utility & design system — hidden, pre-installed for AI use
     "/src/lib/utils.ts": { code: LIB_UTILS_TS, hidden: true },
+    "/src/hooks/useIsMobile.ts": { code: USE_IS_MOBILE_TS, hidden: true },
     "/src/components/ui/button.tsx": { code: UI_BUTTON_TSX, hidden: true },
     "/src/components/ui/card.tsx": { code: UI_CARD_TSX, hidden: true },
     "/src/components/ui/badge.tsx": { code: UI_BADGE_TSX, hidden: true },
@@ -840,8 +897,12 @@ export function getViteReactStarterFiles(): ProjectFiles {
     "/src/components/ui/accordion.tsx": { code: UI_ACCORDION_TSX, hidden: true },
     "/src/components/ui/select.tsx": { code: UI_SELECT_TSX, hidden: true },
     "/src/components/ui/scroll-area.tsx": { code: UI_SCROLL_AREA_TSX, hidden: true },
-    "/src/components/sections/SectionHeader.tsx": {
+    "/src/components/ui/SectionHeader.tsx": {
       code: SECTION_HEADER_TSX,
+      hidden: true,
+    },
+    "/src/components/sections/SectionHeader.tsx": {
+      code: `export { SectionHeader } from "@/components/ui/SectionHeader";`,
       hidden: true,
     },
     // Main app file — visible and active in editor

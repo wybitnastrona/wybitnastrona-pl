@@ -36,7 +36,7 @@ export async function buildRagContext(
     if (!data || data.length === 0) return "";
 
     return (
-      "\n\nKONTEKST Z TWOJEJ BAZY WIEDZY (uzyj jezeli pomocne):\n" +
+      "\n\n[KNOWLEDGE_CONTEXT] WIEDZA UZYTKOWNIKA — NAJWYZSZY PRIORYTET (uzyj tych faktow doslownie, nie wymyslaj przykladowych tekstow):\n" +
       (data as Array<{ title: string; content: string }>)
         .map((d, i) => `[${i + 1}] ${d.title}\n${d.content}`)
         .join("\n\n")

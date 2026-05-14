@@ -38,6 +38,8 @@ export const maxDuration = 300;
 const GENERATION_HANDOFF_DEADLINE_MS = 240_000;
 /** Max kroków z narzędziami na turę build/continue; reszta przez „Kontynuuj generowanie”. */
 const BUILD_CONTINUE_MAX_STEPS = 28;
+/** Twardy limit generateImage na turę — chroni przed timeoutem DALL-E/Cloudinary. */
+const MAX_IMAGES_PER_GENERATION = 3;
 
 const writeFileSchema = z.object({
   path: z
@@ -310,7 +312,7 @@ export async function POST(req: Request) {
   // ─── Pobierz projekt ────────────────────────────────────────────────────────
   const { data: project, error: projectError } = await supabase
     .from("projects")
-    .select("id, user_id, files, prompt, locked_files, template, mode, custom_system_context, is_wybitny")
+    .select("id, user_id, title, files, prompt, locked_files, template, mode, custom_system_context, is_wybitny")
     .eq("id", projectId)
     .maybeSingle();
 
@@ -428,6 +430,8 @@ export async function POST(req: Request) {
    * (oszczednosc tokenow + wymusza single-shot generacje).
    */
   const writtenPathsThisTurn = new Set<string>();
+  /** Licznik wywolan generateImage w tej turze — twardy limit 3. */
+  let imageCount = 0;
   if (mode === "build" || mode === "continue") {
     deadlineTimer = setTimeout(() => {
       handoffFromDeadline = true;
@@ -504,10 +508,21 @@ export async function POST(req: Request) {
     }),
     generateImage: tool({
       description:
-        "Generates a thematic AI image (DALL-E 3) matching the page context, rehosted on Cloudinary for stability. Returns { url, alt }. ALWAYS use this for hero images, gallery photos, team portraits, product images — NEVER use gray placeholder divs. Build the prompt based on the website's purpose (e.g. 'cozy kindergarten classroom with happy children, bright colors' for a kindergarten site).",
+        `Generates a thematic AI image (DALL-E 3) matching the page context, rehosted on Cloudinary for stability. Returns { url, alt }. ALWAYS use for hero/section images and team portraits — NEVER use gray placeholder divs. HARD LIMIT: max ${MAX_IMAGES_PER_GENERATION} calls per generation (4th call returns error). Choose strategically: 1 hero + 2 sections; for remaining sections use lucide-react icons with gradient backgrounds instead.`,
       inputSchema: generateImageSchema,
       execute: async ({ prompt, style, size }) => {
-        void bumpJob(supabase, jobId, `generateImage: ${prompt.slice(0, 50)}`);
+        if (imageCount >= MAX_IMAGES_PER_GENERATION) {
+          return {
+            ok: false,
+            error: `Limit obrazow osiagniety (${MAX_IMAGES_PER_GENERATION} na cala generacje). Dla pozostalych sekcji uzyj stylowych placeholderow (gradient + ikona z lucide-react) zamiast generateImage. Przyklad: <div className="rounded-2xl bg-gradient-to-br from-amber-200 to-rose-300 p-8"><Star className="w-12 h-12 text-white" /></div>.`,
+          };
+        }
+        imageCount += 1;
+        void bumpJob(
+          supabase,
+          jobId,
+          `generateImage ${imageCount}/${MAX_IMAGES_PER_GENERATION}: ${prompt.slice(0, 50)}`,
+        );
         return generateImageForAI(
           prompt,
           style ?? "photography",
@@ -737,6 +752,75 @@ export async function POST(req: Request) {
             label,
             triggeringUserMessageId,
           ).catch(() => {});
+        }
+
+        // ─── Post-procesor: fallback /.wybitna/project-info.json ────────────
+        // Jezeli AI pominelo wymagany plik konfiguracji, generujemy minimalna
+        // wersje na podstawie tego co AI zapisalo (sekcje + tytul projektu).
+        // Lepiej miec marker projektu niz nic.
+        const isBuildLike = mode === "build" || mode === "continue";
+        const hasWybitna = !!files["/.wybitna/project-info.json"];
+        if (isBuildLike && !hasWybitna) {
+          const sectionsDetected = Object.keys(files)
+            .filter((p) => p.startsWith("/src/components/sections/"))
+            .map((p) =>
+              p.replace("/src/components/sections/", "").replace(/\.tsx$/, ""),
+            );
+          const hasRouter = Object.keys(files).some((p) =>
+            p.startsWith("/src/pages/"),
+          );
+          const fallbackInfo = {
+            type: hasRouter ? "B" : "A",
+            router: hasRouter ? "react-router-dom" : "state-based",
+            industry: "unknown",
+            industry_vertical: "unknown",
+            brandName: (project.title as string | null) ?? "",
+            accentPalette: "--accent-ocean",
+            fontStyle: "Clean Sans",
+            palette: {
+              accent: "oklch(0.60 0.20 240)",
+              bg: "oklch(0.08 0 0)",
+            },
+            sections: sectionsDetected,
+            features: [],
+            timestamp: new Date().toISOString(),
+            generatedBy: "post-processor-fallback",
+          };
+          files["/.wybitna/project-info.json"] = {
+            code: JSON.stringify(fallbackInfo, null, 2),
+            hidden: false,
+          };
+          console.warn(
+            `[generate] Auto-dopisano /.wybitna/project-info.json (project ${projectId}) — AI pominelo plik konfiguracji.`,
+          );
+        }
+
+        // Diagnostyka: log brakow minimum struktury (bez throw).
+        if (isBuildLike && projectTemplate === "react-ts") {
+          const missingMinimum: string[] = [];
+          if (!files["/src/data/config.ts"])
+            missingMinimum.push("/src/data/config.ts");
+          if (!files["/src/App.tsx"]) missingMinimum.push("/src/App.tsx");
+          const hasNav =
+            !!files["/src/components/sections/Nav.tsx"] ||
+            !!files["/src/components/layout/Navbar.tsx"];
+          const hasHero = !!files["/src/components/sections/Hero.tsx"];
+          const hasFooter =
+            !!files["/src/components/sections/Footer.tsx"] ||
+            !!files["/src/components/layout/Footer.tsx"];
+          if (!hasNav) missingMinimum.push("Nav/Navbar");
+          if (!hasHero) missingMinimum.push("Hero");
+          if (!hasFooter) missingMinimum.push("Footer");
+          if (missingMinimum.length > 0) {
+            console.warn(
+              `[generate] Project ${projectId} brakuje minimum: ${missingMinimum.join(", ")}`,
+            );
+            void bumpJob(
+              supabase,
+              jobId,
+              `missing-minimum: ${missingMinimum.join(", ")}`,
+            );
+          }
         }
 
         await updateProjectFiles(projectId, files);

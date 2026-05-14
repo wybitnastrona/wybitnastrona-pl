@@ -534,21 +534,48 @@ function PublishDialog({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [slug, setSlug] = useState(project.slug ?? "");
+  const [slugDraft, setSlugDraft] = useState(project.slug ?? "");
   const [isPublic, setIsPublic] = useState(project.is_public);
   const [justPublished, setJustPublished] = useState(false);
+  const [slugError, setSlugError] = useState<string | null>(null);
+
+  const slugDraftNormalized = slugDraft
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "");
+  const slugDraftValid =
+    /^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])?$/.test(slugDraftNormalized);
 
   async function handlePublish() {
+    setSlugError(null);
+    if (slugDraftNormalized && !slugDraftValid) {
+      setSlugError(
+        "Subdomena musi miec 3-32 znakow (a-z, 0-9, -), nie zaczynac/konczyc myslnikiem.",
+      );
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch(`/api/projects/${project.id}/publish`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          slugDraftNormalized ? { slug: slugDraftNormalized } : {},
+        ),
       });
       if (res.ok) {
         const data = (await res.json()) as { slug: string };
         setSlug(data.slug);
+        setSlugDraft(data.slug);
         setIsPublic(true);
         setJustPublished(true);
         router.refresh();
+      } else {
+        const err = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          code?: string;
+        };
+        setSlugError(err.error ?? "Nie udalo sie opublikowac. Sprobuj ponownie.");
       }
     } finally {
       setLoading(false);
@@ -572,6 +599,9 @@ function PublishDialog({
   }
 
   const url = slug ? buildSubdomainUrl(slug, publishDomain) : "";
+  const previewUrl = slugDraftNormalized
+    ? buildSubdomainUrl(slugDraftNormalized, publishDomain)
+    : `https://{subdomena}.${publishDomain}`;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -607,10 +637,50 @@ function PublishDialog({
                 size="icon-sm"
                 variant="outline"
                 onClick={() => window.open(url, "_blank")}
-                aria-label="Otworz na zywo"
+                aria-label="Otworz w nowej karcie"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
               </Button>
+            </div>
+            <div className="rounded-lg border border-beige/15 bg-background/60 p-3 text-sm">
+              <p className="mb-2 font-medium text-foreground">Zmien subdomene</p>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={slugDraft}
+                  onChange={(e) => {
+                    setSlugDraft(e.target.value);
+                    setSlugError(null);
+                  }}
+                  placeholder={slug}
+                  className="font-mono text-xs"
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                />
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  .{publishDomain}
+                </span>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handlePublish}
+                  disabled={
+                    loading ||
+                    slugDraftNormalized === slug ||
+                    !slugDraftValid
+                  }
+                  className="bg-beige text-beige-foreground hover:bg-beige/90"
+                >
+                  {loading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    "Zapisz"
+                  )}
+                </Button>
+              </div>
+              {slugError && (
+                <p className="mt-2 text-xs text-rose-300">{slugError}</p>
+              )}
             </div>
             <div className="rounded-lg border border-beige/15 bg-background/60 p-3 text-sm">
               <p className="font-medium text-foreground">
@@ -644,10 +714,40 @@ function PublishDialog({
             </p>
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">
-            Klikniecie ponizej wygeneruje unikalny adres i opublikuje
-            projekt w internecie.
-          </p>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Wybierz nazwe subdomeny lub zostaw puste — wygenerujemy losowy
+              adres. Subdomena musi miec 3-32 znakow (a-z, 0-9, -).
+            </p>
+            <div>
+              <p className="mb-1 text-xs uppercase tracking-wider text-muted-foreground">
+                Twoj adres
+              </p>
+              <p className="mb-2 truncate font-mono text-xs text-beige/80">
+                {previewUrl}
+              </p>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={slugDraft}
+                  onChange={(e) => {
+                    setSlugDraft(e.target.value);
+                    setSlugError(null);
+                  }}
+                  placeholder="np. moj-salon"
+                  className="font-mono text-xs"
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                />
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  .{publishDomain}
+                </span>
+              </div>
+              {slugError && (
+                <p className="mt-2 text-xs text-rose-300">{slugError}</p>
+              )}
+            </div>
+          </div>
         )}
 
         <DialogFooter>
@@ -666,7 +766,10 @@ function PublishDialog({
             <Button
               type="button"
               onClick={handlePublish}
-              disabled={loading}
+              disabled={
+                loading ||
+                (slugDraftNormalized.length > 0 && !slugDraftValid)
+              }
               className="bg-beige text-beige-foreground hover:bg-beige/90"
             >
               {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}

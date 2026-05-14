@@ -80,6 +80,23 @@ export function ErrorWatcher({ onFixRequest, isStreaming }: Props) {
     return () => window.removeEventListener("message", handler);
   }, []);
 
+  // Podczas streamu (AI pisze pliki) Vite zglasza tranzytowe HMR 500-tki przy
+  // kazdym czesciowo zapisanym pliku. NIE chcemy ich pokazywac uzytkownikowi —
+  // czyscimy bufor errors w momencie rozpoczecia streamu i tlumimy renderowanie
+  // bannera do konca generacji. Po zakonczeniu (isStreaming=false), jezeli blad
+  // dalej wystepuje, postMessage ze srodka iframe odpali go ponownie.
+  useEffect(() => {
+    if (isStreaming) {
+      setErrors([]);
+      setDismissed(false);
+      setAutoCountdown(null);
+      if (cancelTimerRef.current) {
+        clearTimeout(cancelTimerRef.current);
+        cancelTimerRef.current = null;
+      }
+    }
+  }, [isStreaming]);
+
   const latest = errors[errors.length - 1];
 
   const fire = useCallback(
@@ -153,7 +170,7 @@ export function ErrorWatcher({ onFixRequest, isStreaming }: Props) {
     return () => clearTimeout(id);
   }, [isStreaming, errors.length]);
 
-  if (dismissed || !latest) return null;
+  if (dismissed || !latest || isStreaming) return null;
 
   const cooldownActive =
     autoFix && autoAttempts >= MAX_AUTO_FIX_ATTEMPTS;

@@ -96,7 +96,6 @@ export function WorkspaceCanvas({
       ? "code"
       : "preview";
   const [view, setView] = useState<WorkspaceView>(initialView);
-  const [opening, setOpening] = useState(false);
   const [lockDialogOpen, setLockDialogOpen] = useState(false);
   const [editTextMode, setEditTextMode] = useState(false);
   const [floatingOpen, setFloatingOpen] = useState(false);
@@ -284,22 +283,13 @@ export function WorkspaceCanvas({
     return () => clearTimeout(id);
   }, [selectMode]);
 
-  async function handleOpenLive() {
-    setOpening(true);
-    try {
-      const res = await fetch(`/api/projects/${project.id}/publish`, {
-        method: "POST",
-      });
-      if (res.ok) {
-        const data = (await res.json()) as { url?: string };
-        if (data.url) {
-          window.open(data.url, "_blank", "noopener");
-        }
-        router.refresh();
-      }
-    } finally {
-      setOpening(false);
-    }
+  /**
+   * Otwiera w nowej karcie podglad z WebContainera (wcUrl).
+   * Publikacja na subdomene odbywa sie osobno przez PublishDialog w topbarze.
+   */
+  function handleOpenLive() {
+    if (!wcUrl) return;
+    window.open(wcUrl, "_blank", "noopener");
   }
 
   const liveSlug = project.slug;
@@ -322,7 +312,7 @@ export function WorkspaceCanvas({
         view={view}
         onViewChange={setView}
         onOpenLive={handleOpenLive}
-        opening={opening}
+        previewReady={!!wcUrl}
         displayUrl={displayUrl}
         isCodeOnly={isCodeOnly}
         platform={(project.mode as "ios" | "android" | "web" | null) ?? null}
@@ -528,7 +518,7 @@ function CanvasTopbar({
   view,
   onViewChange,
   onOpenLive,
-  opening,
+  previewReady,
   displayUrl,
   isCodeOnly,
   platform,
@@ -542,7 +532,7 @@ function CanvasTopbar({
   view: WorkspaceView;
   onViewChange: (view: WorkspaceView) => void;
   onOpenLive: () => void;
-  opening: boolean;
+  previewReady: boolean;
   displayUrl: string;
   isCodeOnly: boolean;
   platform: "ios" | "android" | "web" | null;
@@ -663,7 +653,7 @@ function CanvasTopbar({
         <span className="hidden sm:inline">Zablokuj pliki</span>
       </button>
 
-      {/* Akcja koncowa: code-only → eksport ZIP, web → otworz na zywo */}
+      {/* Akcja koncowa: code-only → eksport ZIP, web → otworz w nowej karcie (wcUrl) */}
       {isCodeOnly ? (
         <a
           href={`/api/export/zip?projectId=${encodeURIComponent(projectId)}`}
@@ -677,15 +667,16 @@ function CanvasTopbar({
         <button
           type="button"
           onClick={onOpenLive}
-          disabled={opening}
-          className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-beige/15 bg-card/40 px-2 text-xs text-foreground/80 transition hover:border-beige/30 hover:bg-white/5 hover:text-beige disabled:opacity-60"
+          disabled={!previewReady}
+          title={
+            previewReady
+              ? "Otwiera podglad WebContainera w nowej karcie"
+              : "Poczekaj az WebContainer wystartuje serwer (kilkanascie sekund)"
+          }
+          className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-beige/15 bg-card/40 px-2 text-xs text-foreground/80 transition hover:border-beige/30 hover:bg-white/5 hover:text-beige disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {opening ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
-          ) : (
-            <ExternalLink className="h-3 w-3" />
-          )}
-          <span className="hidden sm:inline">Otwórz na żywo</span>
+          <ExternalLink className="h-3 w-3" />
+          <span className="hidden sm:inline">Otwórz w nowej karcie</span>
         </button>
       )}
     </div>

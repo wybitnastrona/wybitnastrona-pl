@@ -102,7 +102,7 @@ ${ELEMENT_PICKER_SCRIPT}
 ${ERROR_LISTENER_SCRIPT}
     </script>
   </head>
-  <body>
+  <body class="bg-white text-neutral-900" style="background-color:#ffffff;color:#0a0a0a;">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
@@ -160,8 +160,12 @@ const STYLES_CSS = `@import "tailwindcss";
 
 body {
   margin: 0;
-  background-color: var(--bg);
-  color: var(--text);
+  /* Fallback: gdy --bg/OKLCH nie zaladuja sie (lub przegladarka nie wspiera oklch),
+     uzytkownik widzi bialy ekran zamiast czarnej dziury. */
+  background-color: #ffffff;
+  background-color: var(--bg, #ffffff);
+  color: #0a0a0a;
+  color: var(--text, #0a0a0a);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -861,11 +865,11 @@ export { ScrollArea };
 
 const APP_TSX = `export default function App() {
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-white text-neutral-900 flex items-center justify-center p-6">
       <div className="max-w-md text-center space-y-4">
-        <div className="inline-block h-8 w-8 rounded-full border-2 border-amber-200/30 border-t-amber-200 animate-spin" />
+        <div className="inline-block h-8 w-8 rounded-full border-2 border-amber-400/30 border-t-amber-500 animate-spin" />
         <h1 className="text-2xl font-medium">Buduję Twoją stronę…</h1>
-        <p className="text-sm text-neutral-400">
+        <p className="text-sm text-neutral-500">
           AI generuje sekcje biznesowe. Za chwilę zobaczysz wynik tutaj na żywo.
         </p>
       </div>

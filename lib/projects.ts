@@ -177,14 +177,54 @@ export async function updateProjectTitle(
   if (error) throw error;
 }
 
+/** Walidacja niestandardowej subdomeny (3-32 znaki, [a-z0-9-], nie zaczyna/konczy myslnikiem). */
+const SLUG_REGEX = /^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])?$/;
+
+export class PublishError extends Error {
+  constructor(
+    public readonly code: "invalid_slug" | "slug_taken" | "not_found",
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+export function isValidPublishSlug(value: string): boolean {
+  return SLUG_REGEX.test(value);
+}
+
 export async function publishProject(
   id: string,
+  customSlug?: string | null,
 ): Promise<{ slug: string; isPublic: boolean }> {
   const supabase = await createClient();
   const existing = await getProject(id);
-  if (!existing) throw new Error("Project not found");
+  if (!existing) throw new PublishError("not_found", "Project not found");
 
-  const slug = existing.slug ?? generateSlug();
+  let slug = existing.slug ?? generateSlug();
+
+  const trimmed = customSlug?.trim().toLowerCase() ?? "";
+  if (trimmed && trimmed !== existing.slug) {
+    if (!isValidPublishSlug(trimmed)) {
+      throw new PublishError(
+        "invalid_slug",
+        "Subdomena musi miec 3-32 znakow (a-z, 0-9, -); nie moze zaczynac/konczyc sie myslnikiem.",
+      );
+    }
+    const { count, error: countError } = await supabase
+      .from("projects")
+      .select("id", { count: "exact", head: true })
+      .eq("slug", trimmed)
+      .neq("id", id);
+    if (countError) throw countError;
+    if ((count ?? 0) > 0) {
+      throw new PublishError(
+        "slug_taken",
+        "Ta subdomena jest juz zajeta — wybierz inna.",
+      );
+    }
+    slug = trimmed;
+  }
 
   const { error } = await supabase
     .from("projects")

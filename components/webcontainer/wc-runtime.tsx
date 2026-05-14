@@ -109,14 +109,13 @@ export function WCRuntime({
   }, []);
 
   return (
-    <div className="relative h-full w-full bg-[#0a0a0a]">
+    <div className="relative h-full w-full bg-white">
       {previewUrl ? (
         <iframe
           src={previewUrl}
           title="Preview"
           className="h-full w-full border-0"
           allow="cross-origin-isolated"
-          sandbox="allow-scripts allow-forms allow-same-origin allow-popups"
         />
       ) : (
         !hideStatusOverlay && (

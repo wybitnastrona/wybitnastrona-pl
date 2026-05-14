@@ -99,6 +99,7 @@ export async function uploadImageToCloudinary(
     overwrite: false,
     unique_filename: true,
     use_filename: false,
+    timeout: 25_000,
   });
 
   return result.secure_url;

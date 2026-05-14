@@ -15,6 +15,9 @@ import {
 
 const DALLE_ENDPOINT = "https://api.openai.com/v1/images/generations";
 
+const DALLE_TIMEOUT_MS = 45_000;
+const CLOUDINARY_TIMEOUT_MS = 30_000;
+
 const SIZE_MAP: Record<string, "1792x1024" | "1024x1792" | "1024x1024"> = {
   landscape: "1792x1024",
   portrait: "1024x1792",
@@ -59,6 +62,8 @@ export async function generateImageForAI(
   const dallePrompt = `${prefix}${prompt}. No text overlays, no watermarks, no logos, no people with recognizable faces.`;
   const dalleSize = SIZE_MAP[size] ?? SIZE_MAP.landscape;
 
+  const dalleController = new AbortController();
+  const dalleTimer = setTimeout(() => dalleController.abort(), DALLE_TIMEOUT_MS);
   try {
     const res = await fetch(DALLE_ENDPOINT, {
       method: "POST",
@@ -74,6 +79,7 @@ export async function generateImageForAI(
         quality: "standard",
         response_format: "url",
       }),
+      signal: dalleController.signal,
     });
 
     if (!res.ok) {
@@ -88,10 +94,19 @@ export async function generateImageForAI(
     const dalleUrl = data.data?.[0]?.url;
     if (!dalleUrl) return picsum(prompt);
 
-    // Re-host na Cloudinary zeby URL byl trwaly (DALL-E URLs wygasaja po ~1h)
+    // Re-host na Cloudinary zeby URL byl trwaly (DALL-E URLs wygasaja po ~1h).
+    // Twardy timeout (30s) zeby nie blokowac calej generacji gdy Cloudinary wisi.
     if (projectId && isCloudinaryConfigured()) {
       try {
-        const stableUrl = await uploadImageToCloudinary(dalleUrl, projectId);
+        const stableUrl = await Promise.race<string>([
+          uploadImageToCloudinary(dalleUrl, projectId),
+          new Promise<string>((_, reject) =>
+            setTimeout(
+              () => reject(new Error("Cloudinary upload timeout")),
+              CLOUDINARY_TIMEOUT_MS,
+            ),
+          ),
+        ]);
         return { url: stableUrl, alt: prompt, source: "cloudinary" };
       } catch (err) {
         console.warn(
@@ -105,6 +120,8 @@ export async function generateImageForAI(
   } catch (err) {
     console.error("[image-generator] network error", err);
     return picsum(prompt);
+  } finally {
+    clearTimeout(dalleTimer);
   }
 }
 

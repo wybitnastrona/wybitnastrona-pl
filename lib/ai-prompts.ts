@@ -52,7 +52,16 @@ ZASADY OGOLNE
 - Kazda strona musi miec: Hero, min. 3 sekcje tresci, Footer z prawami autorskimi.
 
 OBRAZY — KRYTYCZNE ZASADY
-- ZAWSZE wywolaj generateImage() dla: hero section, zdjecia tla, galerii, portretow, zdjec produktow.
+- LIMIT: MAX 3 wywolania generateImage na CALA strone (4. wywolanie zwroci blad).
+  Wybieraj strategicznie: 1 hero + max 2 sekcje (np. About + Services). Dla pozostalych
+  sekcji uzyj stylowych placeholderow zamiast generateImage:
+  \`\`\`tsx
+  <div className="flex items-center justify-center rounded-2xl bg-gradient-to-br from-[var(--accent)]/20 to-[var(--accent)]/5 p-12">
+    <Star className="w-16 h-16 text-[var(--accent)]" strokeWidth={1.5} />
+  </div>
+  \`\`\`
+  Lub kolaz ikon Lucide na tle z gradientem, lub typograficzny tile (duza liczba/litera).
+- ZAWSZE wywolaj generateImage() dla: hero section (1x), kluczowych sekcji wizualnych (max 2x).
 - NIGDY nie uzywaj szarych placeholder divow ani URL z picsum.photos / via.placeholder.com / unsplash.it.
 - generateImage() zwraca trwaly URL (Cloudinary CDN gdy skonfigurowane) — bezpiecznie wstawiaj
   do /src/data/config.ts jako stala. NIE wygasa po godzinie jak surowy DALL-E.
@@ -131,6 +140,23 @@ Przed wywolaniem jakiegokolwiek narzedzia napisz krotki tok rozumowania (3-6 zda
 4. Wymien 1-3 zalozenia ktore wziales przed faktyczna implementacja.
 
 Dopiero potem wywolaj showPlan. Tok rozumowania pisz po polsku, naturalnie.
+
+KOLEJNOSC GENERACJI (Bolt.new-style — szybki podglad podczas budowania):
+Generuj iteracyjnie, fundamenty PIERWSZE, kompozytor OSTATNI. Tak WebContainer
+moze wystartowac preview gdy dopisujesz sekcje:
+1) writeFile /src/data/config.ts (puste IMAGES.*, listy mock — od razu importowalny).
+2) patchFile /src/styles.css — wybierz akcent z MATRYCY BRANZOWEJ (jeden patch).
+3) writeFile /src/App.tsx — TYMCZASOWY skeleton: import Nav + Hero + Footer i renderowanie ich
+   (3 importy do plikow ktore za chwile stworzysz). Vite od razu startuje dev server.
+4) writeFile /src/components/sections/Nav.tsx, Hero.tsx, Footer.tsx — minimum widoczne.
+5) generateImage(...) max 3 razy -> patchFile /src/data/config.ts (IMAGES.hero, IMAGES.about, IMAGES.services).
+6) writeFile pozostalych sekcji (Services, Pricing, About, Contact, Testimonials, FAQ — ile potrzeba).
+7) Jezeli App.tsx wymaga rozszerzenia o nowe sekcje (poza Nav/Hero/Footer), zrob to przez patchFile
+   (NIE writeFile po raz drugi — single-shot guard zablokuje).
+8) Na samym koncu: writeFile /.wybitna/project-info.json (OBOWIAZKOWY).
+
+Efekt: uzytkownik widzi Hero juz w pierwszych 30s, reszta sekcji doczytuje sie inkrementalnie
+poprzez HMR Vite. Tak dziala Bolt.new / Lovable.
 `;
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -531,22 +557,28 @@ Wygeneruj KOMPLETNA strone w JEDNEJ iteracji. Pisz pliki RAZ, kompletne, gotowe 
 ZASADY KRYTYCZNE (naruszenie = marnotrawstwo tokenow i blad rate-limit):
 1. KAZDY plik napisz DOKLADNIE RAZ. NIE wracaj do edytowania pliku ktory juz zapisales w tej turze.
 2. PELNE PLIKI — bez komentarzy "// reszta kodu", "// TODO pozniej", "// dokoncz tutaj". Kazdy writeFile musi zawierac KOMPLETNA, dzialajaca tresc pliku.
-3. STRUKTURA (wybierz typ na podstawie projektu, napisz ktory i dlaczego w showPlan):
+3. STRUKTURA — MIN-PLIKI (kazda strona MUSI je miec; backend dopisze skeletony gdy ktoregos zabraknie):
    TYP A — LANDING PAGE (domyslny, Lovable-style):
-   - /src/data/config.ts — NAJPIERW: WSZYSTKIE teksty, tablice uslug/cen, dane mock, linki obrazow.
-   - /src/components/sections/Nav.tsx — nawigacja state-based (NIE router URL).
-   - /src/components/sections/Hero.tsx — pełnoekranowy hero z duzym headline i CTA.
-   - /src/components/sections/[NazwaSekcji].tsx — kazda sekcja w osobnym pliku (About, Services, Pricing, Testimonials, Contact, FAQ itd.).
-   - /src/components/sections/Footer.tsx — copyright, linki, social media.
-   - /src/App.tsx — OSTATNI: TYLKO importy sekcji + useState dla nawigacji.
-   - /.wybitna/project-info.json — konfiguracja projektu (typ A, paletka, branza, sekcje, timestamp).
+   OBOWIAZKOWE:
+   1) /src/data/config.ts — WSZYSTKIE teksty, tablice uslug/cen, dane mock, IMAGES.*.
+   2) /src/components/sections/Nav.tsx — nawigacja state-based (NIE router URL).
+   3) /src/components/sections/Hero.tsx — pelnoekranowy hero z duzym headline i CTA.
+   4) MIN. 3 dodatkowe sekcje w /src/components/sections/ (wybierz adekwatne: About, Services,
+      Pricing, Testimonials, Contact, Features, FAQ — laczna liczba sekcji 5-8).
+   5) /src/components/sections/Footer.tsx — copyright, linki, social.
+   6) /src/App.tsx — OSTATNI: TYLKO importy sekcji + useState dla nawigacji.
+   7) /.wybitna/project-info.json — konfiguracja projektu (OBOWIAZKOWY, ostatni plik).
    TYP B — MULTI-PAGE APP (bolt.new-style, tylko gdy potrzebne osobne URL):
-   - /src/data/config.ts — NAJPIERW: WSZYSTKIE teksty, tablice i dane.
-   - /src/components/layout/Navbar.tsx — nawigacja z <Link to="/..."> (react-router-dom).
-   - /src/components/layout/Footer.tsx — footer wspolny dla wszystkich stron.
-   - /src/pages/HomePage.tsx, /src/pages/[NazwaStrony].tsx — kazda strona osobny plik.
-   - /src/App.tsx — OSTATNI: BrowserRouter + Routes setup.
-   - /.wybitna/project-info.json — konfiguracja projektu (typ B, router, timestamp).
+   OBOWIAZKOWE:
+   1) /src/data/config.ts — NAJPIERW: WSZYSTKIE teksty, tablice i dane.
+   2) /src/components/layout/Navbar.tsx — nawigacja z <Link to="/..."> (react-router-dom).
+   3) /src/components/layout/Footer.tsx — footer wspolny dla wszystkich stron.
+   4) MIN. 2 pliki w /src/pages/ (HomePage.tsx + AboutPage.tsx lub ContactPage.tsx).
+   5) /src/App.tsx — OSTATNI: BrowserRouter + Routes setup.
+   6) /.wybitna/project-info.json — konfiguracja projektu (OBOWIAZKOWY, ostatni plik).
+
+   UWAGA: Pominiecie ktoregos z minimum = backend dopisze skeleton (gorsza jakosc niz AI-generated),
+   wiec ZAWSZE generuj wszystkie. Nie zostawiaj projektu z 2-3 plikami.
 4. ZAKAZ SINGLE-FILE — ABSOLUTNIE KRYTYCZNE:
    - App.tsx moze miec MAKSYMALNIE 80 linii. Zawiera WYLACZNIE importy komponentow + ich JSX.
    - NIE WOLNO pisac calej logiki, state ani sekcji w App.tsx.
@@ -556,6 +588,7 @@ ZASADY KRYTYCZNE (naruszenie = marnotrawstwo tokenow i blad rate-limit):
 6. KOLEJNOSC: data/content.ts → komponenty/sekcje/strony → App.tsx na koncu.
 7. BEZ readFile — pliki sa swieze. NIE uzywaj patchFile w build mode.
 8. NIE pisz /index.html, /package.json, /vite.config.ts, /src/main.tsx, /src/lib/utils.ts, /src/components/ui/* — sa juz preinstalowane w projekcie.
+   Plik /.wybitna/project-info.json piszesz DOKLADNIE RAZ na koncu generacji — pozniej edytuj go TYLKO przez patchFile (np. dopisac nowa sekcje do listy).
 9. ANIMACJE WEJSCIA (obowiazkowe w kazdej sekcji):
    Kazdy blok treści w sekcji MUSI byc owiniety animacja framer-motion:
    \`\`\`tsx
@@ -653,9 +686,24 @@ ZASADY KRYTYCZNE (naruszenie = marnotrawstwo tokenow i blad rate-limit):
     - "features": lista wdrozonych funkcji, np. ["scroll-animations", "mobile-menu", "contact-form",
       "multi-page-routing", "form-validation", "image-gallery", "pricing-table", "testimonials-carousel"].
     Dla TYP B ustaw "type": "B", "router": "react-router-dom".
-13. WERYFIKACJA IMPORTOW — zanim zakonczysz odpowiedz, sprawdz mentalnie:
-    Czy kazdy import w App.tsx i komponentach ma odpowiadajacy plik wygenerowany przez writeFile?
-    Brakujacy plik = Vite HMR error 500 = strona nie dziala. Dopisz brakujace pliki.
+13. WERYFIKACJA IMPORTOW — ABSOLUTNY ZAKAZ POPRZEDNICH IMPORTOW BEZ PLIKU:
+    ZAKAZ uzywania importu, ktorego fizycznie NIE wygenerowales przez writeFile w bieznej sesji.
+    Przed kazdym writeFile App.tsx (i kazdej sekcji) zrob mentalna liste:
+    - Dla kazdego importu z @/components/sections/X lub @/components/layout/X sprawdz,
+      ze writeFile ${'`'}/src/components/sections/X.tsx${'`'} byl JUZ wczesniej wykonany w tej turze.
+    - Jezeli komponent jeszcze nie istnieje, NAJPIERW writeFile dla niego, DOPIERO POTEM uzyj importu.
+
+    KAZDY brakujacy plik importowany z App.tsx = HMR 500 = bialy/czarny ekran w preview =
+    pętla bledow w konsoli (n x "Failed to load resource: 500" / "[hmr] Failed to reload").
+    Backend tego nie naprawi za Ciebie. To Ty musisz pisac pliki w kolejnosci zaleznosci.
+
+    KOLEJNOSC (Bolt.new-style):
+    a) /src/data/config.ts
+    b) /src/components/sections/Nav.tsx, Hero.tsx, Footer.tsx
+    c) /src/App.tsx (skeleton z 3 importami: Nav, Hero, Footer)
+    d) Pozostale sekcje (Services, Pricing, About, Contact...)
+    e) patchFile App.tsx zeby dodac nowe sekcje (NIE writeFile drugi raz!)
+    f) /.wybitna/project-info.json
 14. DESIGN SYSTEM (bolt.new-style — obowiazkowe odstepy i zaokraglenia):
     Stosuj spójny system projektu we wszystkich sekcjach:
     - Odstepy sekcji: py-20 (pionowo), max-w-7xl mx-auto px-6 (kontener)

@@ -9,9 +9,8 @@ function GoogleIcon({ className }: { className?: string }) {
   return (
     <svg
       className={className}
-      viewBox="0 0 24 24"
-      width="18"
-      height="18"
+      viewBox="0 0 48 48"
+      preserveAspectRatio="xMidYMid meet"
       aria-hidden="true"
     >
       <path

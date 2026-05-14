@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import {
@@ -20,7 +20,6 @@ import {
   SquareTerminal,
 } from "lucide-react";
 import { AppleIcon, AndroidIcon } from "@/components/brand-icons";
-import { SandpackRunner } from "@/components/sandpack/sandpack-runner";
 import { DatabasePanel } from "@/components/project/database-panel";
 import { SnapshotPanel } from "@/components/project/snapshot-panel";
 import { ErrorWatcher } from "@/components/project/error-watcher";
@@ -28,17 +27,22 @@ import { LockFilesDialog } from "@/components/project/lock-files-dialog";
 import { FloatingPreview } from "@/components/project/floating-preview";
 import { StripePanel } from "@/components/project/stripe-panel";
 import { TEMPLATES } from "@/lib/templates";
+import { mergeWebContainerReactFiles } from "@/lib/webcontainer/merge-wc-files";
 import type { Project } from "@/lib/types/project";
-import type { SandpackViewMode } from "@/components/sandpack/sandpack-runner";
 
-// Lazy/dynamic importy — izolują błędy WC (brak COOP/COEP, @webcontainer/api)
-// od reszty workspace. Jeśli WC nie załaduje się, Sandpack nadal działa.
 const WCRuntime = dynamic(
   () => import("@/components/webcontainer/wc-runtime").then((m) => m.WCRuntime),
   { ssr: false, loading: () => <WCLoader /> },
 );
 const WCTerminal = dynamic(
   () => import("@/components/webcontainer/wc-terminal").then((m) => m.WCTerminal),
+  { ssr: false, loading: () => <WCLoader /> },
+);
+const WorkspaceCodeEditor = dynamic(
+  () =>
+    import("@/components/project/workspace-code-editor").then(
+      (m) => m.WorkspaceCodeEditor,
+    ),
   { ssr: false, loading: () => <WCLoader /> },
 );
 
@@ -133,7 +137,7 @@ export function WorkspaceCanvas({
   useEffect(() => {
     function getIframe() {
       return document.querySelector(
-        ".sp-preview-iframe, iframe[title='Sandpack Preview']",
+        "iframe[title='Preview']",
       ) as HTMLIFrameElement | null;
     }
 
@@ -152,6 +156,39 @@ export function WorkspaceCanvas({
       "*",
     );
   }, [editTextMode]);
+
+  // Picker w iframe → workspace-canvas (zdarzenie `wybitna:pick` z element-picker-script).
+  useEffect(() => {
+    function onPick(e: MessageEvent) {
+      const data = e.data;
+      if (data?.type !== "wybitna:pick") return;
+      onElementPick({
+        x: typeof data.x === "number" ? data.x : 0,
+        y: typeof data.y === "number" ? data.y : 0,
+        selector: typeof data.selector === "string" ? data.selector : undefined,
+        html: typeof data.html === "string" ? data.html : undefined,
+        tagName: typeof data.tagName === "string" ? data.tagName : undefined,
+      });
+    }
+    window.addEventListener("message", onPick);
+    return () => window.removeEventListener("message", onPick);
+  }, [onElementPick]);
+
+  // Trigger trybu picker z menu „Wskaż w podglądzie".
+  useEffect(() => {
+    if (!onActivatePreviewPickMode) return;
+    function handler() {
+      const iframe = document.querySelector(
+        "iframe[title='Preview']",
+      ) as HTMLIFrameElement | null;
+      iframe?.contentWindow?.postMessage(
+        { type: "wybitna:set-pick-mode", active: true },
+        "*",
+      );
+    }
+    window.addEventListener("wybitna:request-pick-mode", handler);
+    return () => window.removeEventListener("wybitna:request-pick-mode", handler);
+  }, [onActivatePreviewPickMode]);
 
   useEffect(() => {
     async function onMessage(e: MessageEvent) {
@@ -197,21 +234,34 @@ export function WorkspaceCanvas({
   }, [project.id, router]);
 
   const templateDef = TEMPLATES.find((t) => t.id === (project.template ?? "react-ts"));
-  // Fail-safe: jeśli template nieznany lub nie ma flagi webContainerOnly → Sandpack
-  const useWC = templateDef?.webContainerOnly === true;
-  // Code-only template (iOS / Android) → bez preview, tylko edytor + banner ZIP.
   const isCodeOnly = templateDef?.codeOnly === true;
 
-  // Zawsze "split": edytor + podgląd pozostają zamontowane (stabilny bundler / Saver).
-  // Na zakładce „Kod” kolumnę podglądu zwężamy (collapsePreview) — bez TIME_OUT obok kodu.
-  const sandpackMode: SandpackViewMode = "split";
+  // Po migracji WebContainer obsługuje wszystkie szablony web (z dev serverem).
+  // Code-only (iOS / Android / watchOS / tvOS / visionOS) nie ma podglądu.
+  const useWC = !isCodeOnly;
+  const wcFiles = useMemo(
+    () =>
+      useWC ? mergeWebContainerReactFiles(project.files) : project.files,
+    [useWC, project.files],
+  );
+  const [wcUrl, setWcUrl] = useState<string | null>(null);
 
-  // „Wybierz” ma sens tylko nad podglądem — przełącz na Podgląd przy włączeniu trybu.
   useEffect(() => {
     if (!selectMode) return;
     queueMicrotask(() => {
       setView("preview");
     });
+    // Aktywuj tryb picker w iframe WC.
+    const id = setTimeout(() => {
+      const iframe = document.querySelector(
+        "iframe[title='Preview']",
+      ) as HTMLIFrameElement | null;
+      iframe?.contentWindow?.postMessage(
+        { type: "wybitna:set-pick-mode", active: true },
+        "*",
+      );
+    }, 80);
+    return () => clearTimeout(id);
   }, [selectMode]);
 
   async function handleOpenLive() {
@@ -237,15 +287,14 @@ export function WorkspaceCanvas({
     liveSlug && project.is_public
       ? buildSubdomainUrl(liveSlug, publishDomain)
       : null;
-  // Pelny URL podgladu — uzywany w BrowserFrame i CanvasTopbar.
-  // Zawsze pokazujemy realny slug projektu (generowany w createProject).
+  // URL widoczny w pasku adresu workspace. Priorytet: lokalny URL z WebContainera
+  // → subdomena publikacyjna → placeholder root domain.
   const displayUrl =
+    wcUrl ??
     liveUrl ??
     (liveSlug
       ? buildSubdomainUrl(liveSlug, publishDomain)
       : `https://${publishDomain}`);
-
-  const isSandpackView = view === "preview" || view === "code";
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
@@ -266,10 +315,10 @@ export function WorkspaceCanvas({
         onToggleFloating={() => setFloatingOpen((v) => !v)}
       />
 
-      {/* Floating preview window (Rork-style) */}
       {floatingOpen && !isCodeOnly && (
         <FloatingPreview
           previewUrl={displayUrl}
+          iframeSrc={wcUrl ?? undefined}
           onClose={() => setFloatingOpen(false)}
         />
       )}
@@ -308,54 +357,39 @@ export function WorkspaceCanvas({
       />
 
       <div className="relative min-h-0 flex-1">
-        {useWC ? (
+        {useWC && (
           <>
-            {/* WebContainer runtime — zawsze zamontowany, ukrywany przez CSS */}
+            {/* Preview (iframe z dev-servera Vite) — zawsze zamontowany, ukrywany przez CSS,
+                dzieki czemu nie tracimy stanu serwera przy przelaczaniu Kod ↔ Podglad. */}
             <div className={view === "preview" ? "h-full" : "hidden h-full"}>
               <WCRuntime
-                files={project.files}
+                projectId={project.id}
+                files={wcFiles}
                 runCommand={templateDef?.runCommand}
+                onServerReady={(url) => setWcUrl(url)}
+              />
+            </div>
+            <div className={view === "code" ? "h-full" : "hidden h-full"}>
+              <WorkspaceCodeEditor
+                projectId={project.id}
+                files={project.files}
+                lockedPaths={project.locked_files}
+                readOnly={buildFile !== null}
               />
             </div>
             <div className={view === "terminal" ? "h-full" : "hidden h-full"}>
               <WCTerminal />
             </div>
           </>
-        ) : (
-          /* Sandpack — zawsze zamontowany, przelacznik Code/Preview to props,
-             nie remount, dzieki czemu nie traci stanu kompilacji.
-             Code-only templates (iOS / Android) wymuszaja collapsePreview=true. */
-          <div className={isSandpackView ? "h-full" : "hidden h-full"}>
-            <SandpackRunner
-              files={project.files}
-              viewMode={sandpackMode}
-              collapseChrome={view === "preview" && !isCodeOnly}
-              collapsePreview={view === "code" || isCodeOnly}
-              selectMode={view === "preview" && selectMode && !isCodeOnly}
-              onElementPick={onElementPick}
-              projectId={project.id}
-              isGenerating={buildFile !== null}
-              onRequestPreviewPickMode={() => {
-                setView("preview");
-                onActivatePreviewPickMode?.();
-              }}
-              previewFrame={
-                view === "preview" && !isCodeOnly
-                  ? {
-                      platform: ((project.mode as
-                        | "ios"
-                        | "android"
-                        | "web"
-                        | "watchos"
-                        | "tvos"
-                        | "visionos"
-                        | null) ?? "web"),
-                      url: displayUrl,
-                    }
-                  : undefined
-              }
-            />
-          </div>
+        )}
+
+        {isCodeOnly && view === "code" && (
+          <WorkspaceCodeEditor
+            projectId={project.id}
+            files={project.files}
+            lockedPaths={project.locked_files}
+            readOnly={buildFile !== null}
+          />
         )}
 
         {view === "database" && <DatabasePanel project={project} />}
@@ -506,7 +540,6 @@ function CanvasTopbar({
 }) {
   return (
     <div className="flex h-10 shrink-0 items-center gap-2 border-b border-beige/10 bg-background/80 px-2">
-      {/* Glowne przelaczniki widoku — Podglad / Kod (tylko gdy template wspiera preview) */}
       <div className="flex items-center gap-0.5 rounded-md border border-beige/15 bg-card/40 p-0.5">
         {!isCodeOnly && (
           <ToggleButton
@@ -516,14 +549,12 @@ function CanvasTopbar({
             onClick={() => onViewChange("preview")}
           />
         )}
-        {!useWC && (
-          <ToggleButton
-            icon={Code2}
-            label="Kod"
-            active={view === "code"}
-            onClick={() => onViewChange("code")}
-          />
-        )}
+        <ToggleButton
+          icon={Code2}
+          label="Kod"
+          active={view === "code"}
+          onClick={() => onViewChange("code")}
+        />
         {useWC && (
           <ToggleButton
             icon={SquareTerminal}

@@ -15,6 +15,7 @@
     "@codesandbox/sandpack-react": "^2.20.0",
     "@codesandbox/sandpack-themes": "^2.0.21",
     "@lucide/lab": "^0.1.2",
+    "@monaco-editor/react": "^4.7.0",
     "@octokit/rest": "^22.0.1",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.105.4",

@@ -6,11 +6,14 @@ import { wcManager } from "./wc-manager";
 import type { ProjectFiles } from "@/lib/types/project";
 
 type Props = {
+  projectId: string;
   files: ProjectFiles;
-  /** Komenda uruchamiajaca dev server, np `npm run dev`. Pomin gdy template tego nie potrzebuje. */
+  /** Komenda uruchamiająca dev server, np `npm run dev`. */
   runCommand?: { cmd: string; args: string[] };
   /** Callback z URL preview (gdy server-ready). */
   onServerReady?: (url: string) => void;
+  /** Czy ukryć overlay statusu (gdy iframe jest osadzony zewnętrznie). */
+  hideStatusOverlay?: boolean;
 };
 
 type Status =
@@ -21,14 +24,21 @@ type Status =
   | "running"
   | "error";
 
-export function WCRuntime({ files, runCommand, onServerReady }: Props) {
+export function WCRuntime({
+  projectId,
+  files,
+  runCommand,
+  onServerReady,
+  hideStatusOverlay = false,
+}: Props) {
   const [status, setStatus] = useState<Status>("idle");
-  const [previewUrl, setPreviewUrl] = useState<string | null>(
-    wcManager.getServerUrl(),
+  const [previewUrl, setPreviewUrl] = useState<string | null>(() =>
+    wcManager.getCurrentProjectId() === projectId
+      ? wcManager.getServerUrl()
+      : null,
   );
   const prevFilesRef = useRef<ProjectFiles | null>(null);
 
-  // Pierwsza inicjalizacja — boot + mount + npm install + dev server
   useEffect(() => {
     let cancelled = false;
     const off = wcManager.on((ev) => {
@@ -52,7 +62,7 @@ export function WCRuntime({ files, runCommand, onServerReady }: Props) {
 
     (async () => {
       try {
-        await wcManager.loadProject(files, runCommand);
+        await wcManager.loadProject(projectId, files, runCommand);
         prevFilesRef.current = files;
       } catch (err) {
         console.error("WC load error", err);
@@ -65,13 +75,13 @@ export function WCRuntime({ files, runCommand, onServerReady }: Props) {
       off();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [projectId]);
 
-  // Hot-reload: gdy AI zakończy generowanie i router.refresh() zmieni files prop,
-  // zapisujemy do WC tylko pliki, które faktycznie się zmieniły.
+  // Hot-reload: gdy AI zakończy generowanie i `files` się zmieni, zapisujemy
+  // tylko zmienione pliki w wirtualnym FS WC. Vite HMR przeładuje moduły.
   useEffect(() => {
     const prev = prevFilesRef.current;
-    if (!prev) return; // jeszcze nie zamontowany
+    if (!prev) return;
 
     const changed = Object.entries(files).filter(
       ([path, f]) => prev[path]?.code !== f.code,
@@ -86,10 +96,10 @@ export function WCRuntime({ files, runCommand, onServerReady }: Props) {
     })().catch((err) => console.error("WC hot-reload error", err));
   }, [files]);
 
-  // Nasłuch na wybitna:partial-write — live update podczas streamowania AI
   useEffect(() => {
     function handlePartialWrite(e: Event) {
-      const { path, content } = (e as CustomEvent<{ path: string; content: string }>).detail;
+      const { path, content } = (e as CustomEvent<{ path: string; content: string }>)
+        .detail;
       wcManager.writeFile(path, content).catch(() => {});
     }
     window.addEventListener("wybitna:partial-write", handlePartialWrite);
@@ -105,13 +115,16 @@ export function WCRuntime({ files, runCommand, onServerReady }: Props) {
           src={previewUrl}
           title="Preview"
           className="h-full w-full border-0"
+          allow="cross-origin-isolated"
           sandbox="allow-scripts allow-forms allow-same-origin allow-popups"
         />
       ) : (
-        <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          {statusLabel(status)}
-        </div>
+        !hideStatusOverlay && (
+          <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            {statusLabel(status)}
+          </div>
+        )
       )}
     </div>
   );

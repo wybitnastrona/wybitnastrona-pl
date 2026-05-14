@@ -81,40 +81,43 @@ Dopiero potem wywolaj showPlan. Tok rozumowania pisz po polsku, naturalnie.
 // Per-template stack rules
 // ────────────────────────────────────────────────────────────────────────────
 
-const REACT_TS_STACK = `STACK: React 19 + TypeScript (Sandpack — srodowisko przegladarkowe bez serwera)
+const REACT_TS_STACK = `STACK: Vite + React 19 + TypeScript (WebContainer — pelne srodowisko Node w przegladarce)
 
-KRYTYCZNE ZASADY SANDPACK (naruszenie = aplikacja sie nie wylacze lub pokazuje "Page not found"):
+UKLAD PROJEKTU (Vite — standardowy):
+- /package.json (juz istnieje — patchuj przez patchFile, NIE nadpisuj calego pliku).
+- /vite.config.ts (juz istnieje).
+- /index.html (juz istnieje, w roocie — NIE w /public/).
+- /src/main.tsx (entry, juz istnieje — renderuje <App />).
+- /src/App.tsx — TUTAJ pisz glowny komponent (export default function App).
+- /src/components/*.tsx — komponenty UI.
+- /src/lib/*.ts — helpery / fetchery.
 
-ROUTING — BEZWZGLEDNY ZAKAZ:
+KRYTYCZNE — ZAKAZ ROUTERA URL:
 - ZAKAZ: react-router-dom, react-router, @tanstack/router, wouter, next/link, next/navigation.
-- ZAKAZ: window.location.href, window.history, <a href="/..."> do wewnetrznych stron.
+- ZAKAZ: window.location.href, window.history.pushState, <a href="/..."> do wewnetrznych stron.
 - ZAKAZ: <BrowserRouter>, <HashRouter>, <Routes>, <Route>, useNavigate, useLocation.
-- JEDYNY dozwolony routing: useState + warunkowy render (patrz przyklad nizej).
 - Klikniety link do "innej strony" musi wywolac setPage("about"), NIE przechodzic do URL.
 
-PRZYKLADY — CO MOZNA a CZEGO NIE WOLNO:
-// ❌ ZLE (spowoduje "Page not found"):
+PRZYKLADY ROUTINGU:
+// BLAD (Vite preview pokaze "Page not found" przy odswiezeniu /kontakt):
 <a href="/kontakt">Kontakt</a>
 <Link to="/about">O nas</Link>
 navigate("/dashboard")
 
-// ✅ DOBRZE (state-based routing):
+// DOBRZE (state-based):
 const [page, setPage] = useState<"home"|"about"|"contact">("home");
 <button onClick={() => setPage("contact")}>Kontakt</button>
 {page === "home" && <HomePage />}
 {page === "contact" && <ContactPage />}
 
-// ✅ DOBRZE — anchor do sekcji na tej samej stronie:
-<a href="#features">Funkcje</a>  // # - tylko wewnatrz tej samej strony
+// DOBRZE — anchor do sekcji na tej samej stronie:
+<a href="#features">Funkcje</a>
 
 POZOSTALE ZASADY:
 - React 19 + TypeScript (.tsx). Tailwind CSS przez CDN — klas uzywaj swobodnie.
-- BEZ dodatkowych zaleznosci NPM oprocz react/react-dom (chyba ze user wyraznie poprosi).
-- Glowny plik: /App.tsx (export default function App).
-- /index.tsx i /index.html SA JUZ UTWORZONE — NIE nadpisuj ich bez powodu.
+- BEZ dodatkowych zaleznosci NPM oprocz react/react-dom + vite (chyba ze user wyraznie poprosi i wtedy patchuj /package.json).
 - Jesli musisz dotknac /index.html, ZAWSZE zostaw: <script src="https://cdn.tailwindcss.com"></script>
-- NIGDY nie tworz /public/index.html — nadpisuje dokument i usuwa Tailwind.
-- Komponenty trzymaj w /components/*.tsx.
+- NIGDY nie tworz /public/index.html — Vite go nie uzywa do bootstrapu.
 - Uzywaj Lucide React (juz dostepne): import { Icon } from "lucide-react".
 - Dla ikon spolecznosciowych: pisz jako SVG inline lub uzywaj znakow Unicode (np. ★, ✓).
 - Obrazy: wywolaj generateImage("opisowy prompt po angielsku") zeby uzyskac URL. Nigdy nie uzywaj szarych placeholder divow.
@@ -134,12 +137,12 @@ const NEXTJS_STACK = `STACK: Next.js 16 + App Router + TypeScript
 - Obrazki: \`next/image\`. Linki: \`next/link\`.
 - Persystencja danych: Supabase server client (z cookies) w server components / actions.`;
 
-const VUE_STACK = `STACK: Vue 3 + Vite + TypeScript (Sandpack)
+const VUE_STACK = `STACK: Vue 3 + Vite + TypeScript (WebContainer)
 - Composition API z \`<script setup lang="ts">\`.
 - Tailwind CSS przez CDN — klasy sa dostepne.
 - Glowny plik: /src/App.vue. Entry: /src/main.ts (juz utworzone).
 - Komponenty w /src/components/*.vue.
-- BEZ dodatkowych zaleznosci NPM oprocz vue (chyba ze user wyraznie poprosi).
+- BEZ dodatkowych zaleznosci NPM oprocz vue (chyba ze user wyraznie poprosi i wtedy patchuj /package.json).
 - Routing: state-based, bez vue-router (chyba ze user prosi).`;
 
 const ASTRO_STACK = `STACK: Astro + TypeScript (WebContainer)

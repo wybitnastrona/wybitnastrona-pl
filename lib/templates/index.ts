@@ -92,9 +92,8 @@ export const TEMPLATES: TemplateDef[] = [
   {
     id: "react-ts",
     label: "React + Vite",
-    description: "Klasyczna aplikacja React z TypeScript. Najszybsza w Sandpacku.",
-    sandpackTemplate: "react-ts",
-    webContainerOnly: false,
+    description: "Klasyczna aplikacja React z TypeScript w WebContainerze.",
+    webContainerOnly: true,
     getFiles: getReactTsTemplate,
     dependencies: REACT_TS_DEPS,
     runCommand: REACT_TS_RUN,

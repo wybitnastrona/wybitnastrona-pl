@@ -6,6 +6,11 @@ import { NextResponse, type NextRequest } from "next/server";
  *
  * Edge: brak sesji Supabase — lookup przez REST + anon key (tylko zweryfikowane,
  * publiczne projekty).
+ *
+ * COOP/COEP dla /project/*: `same-origin` + `require-corp` — wymagane przez
+ * WebContainer (SharedArrayBuffer + crossOriginIsolated). Dla zasobów ładowanych
+ * z subdomeny WebContainera używamy COEP=require-corp; samego dev-servera nie
+ * wymaga (zasoby ładowane są w osobnym iframe origin).
  */
 
 export const config = {
@@ -93,8 +98,9 @@ export async function middleware(request: NextRequest) {
   if (isInternalHost(host, roots)) {
     const res = NextResponse.next();
     if (url.pathname.startsWith("/project/")) {
-      res.headers.set("Cross-Origin-Embedder-Policy", "credentialless");
+      res.headers.set("Cross-Origin-Embedder-Policy", "require-corp");
       res.headers.set("Cross-Origin-Opener-Policy", "same-origin");
+      res.headers.set("Cross-Origin-Resource-Policy", "cross-origin");
     }
     return res;
   }

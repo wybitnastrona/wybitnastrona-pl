@@ -78,6 +78,7 @@ const INDEX_HTML = `<!doctype html>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>wybitnastrona.pl - preview</title>
+    <link rel="canonical" href="https://wybitnastrona.pl" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
 ${ELEMENT_PICKER_SCRIPT}

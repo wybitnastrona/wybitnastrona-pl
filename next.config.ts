@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 /**
  * `Cross-Origin-Embedder-Policy: require-corp` + `Cross-Origin-Opener-Policy: same-origin`
- * ustawia `middleware.ts` (Edge) dla `/project/*`.
+ * ustawia `proxy.ts` (Edge) dla `/project/*`.
  * Wymagane przez WebContainer (SharedArrayBuffer + crossOriginIsolated).
  */
 const nextConfig: NextConfig = {

@@ -2,7 +2,7 @@
 
 Klon bolt.new w paletcie czerni i beżu, z polskim UI. Stack:
 
-- **Next.js 16** (App Router, Turbopack, **`middleware.ts`** — rewrite subdomen + nagłówki COOP/COEP)
+- **Next.js 16** (App Router, Turbopack, **`proxy.ts`** — rewrite subdomen + nagłówki COOP/COEP)
 - **Tailwind CSS v4** + **shadcn/ui** + **Lucide**
 - **Supabase** (`@supabase/ssr`) — auth (email/hasło + Google) + persistencja projektów
 - **Anthropic Claude** (Sonnet) — generowanie kodu przez tool calls (`writeFile`, `deleteFile`)
@@ -14,7 +14,7 @@ Klon bolt.new w paletcie czerni i beżu, z polskim UI. Stack:
 - Hero w stylu bolt.new + sugestie startowe
 - Generator AI w `/project/[id]` (split view: chat + Sandpack code/preview)
 - Dashboard z listą projektów
-- Publish na subdomenę przez `middleware.ts` (rewrite do `/sites/[slug]`)
+- Publish na subdomenę przez `proxy.ts` (rewrite do `/sites/[slug]`)
 - Eksport projektu jako ZIP (Vite + React)
 - Public share `/p/[slug]` z przyciskiem Remix
 - Showcase, How it works, FAQ, Pricing
@@ -69,7 +69,7 @@ npm run dev
 
 ## Subdomeny — jak to działa
 
-`middleware.ts` w katalogu głównym sprawdza nagłówek `Host`. Jeśli pasuje do wzorca `<slug>.<NEXT_PUBLIC_ROOT_DOMAIN>` lub domena własna z tabeli `projects`, robi `NextResponse.rewrite` do `/sites/<slug>`. W przeciwnym wypadku odświeża sesję Supabase.
+`proxy.ts` w katalogu głównym sprawdza nagłówek `Host`. Jeśli pasuje do wzorca `<slug>.<NEXT_PUBLIC_ROOT_DOMAIN>` lub domena własna z tabeli `projects`, robi `NextResponse.rewrite` do `/sites/<slug>`. W przeciwnym wypadku odświeża sesję Supabase.
 
 ### Dev
 
@@ -132,7 +132,7 @@ project/
 │   └── utils.ts
 │
 ├── supabase/migrations/0001_projects.sql
-├── middleware.ts                          # subdomain / custom domain rewrite + sesja Supabase
+├── proxy.ts                               # subdomain / custom domain rewrite + nagłówki COOP/COEP
 ├── next.config.ts
 └── .env.local.example
 ```
@@ -141,7 +141,7 @@ project/
 
 ```mermaid
 flowchart TB
-  user[Uzytkownik] --> mw[middleware.ts]
+  user[Uzytkownik] --> mw[proxy.ts]
   mw -->|"host = wybitnastrona.pl"| supabaseRefresh[updateSession]
   mw -->|"host = slug.wybitnastrona.pl"| rewrite["rewrite -> /sites/slug"]
   supabaseRefresh --> nextApp[Next.js App Router]
@@ -171,4 +171,4 @@ npm run lint          # ESLint
 - [ ] WebContainers (terminal w przeglądarce, `npm install`)
 - [ ] Real-time collaboration (Supabase Realtime)
 - [ ] Generator OG dla każdego projektu
-- [ ] Dopasować docs Supabase do aktualnej konwencji Next (`middleware.ts`)
+- [ ] Dopasować docs Supabase do aktualnej konwencji Next (`proxy.ts`)

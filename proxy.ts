@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 /**
  * Routing subdomen publikacji oraz domen własnych (custom_domain w `projects`).
- * Rewrite do `/sites/[slug]` — ten sam przepływ co wcześniej w `proxy.ts` (Next 16).
+ * Rewrite do `/sites/[slug]`.
  *
  * Edge: brak sesji Supabase — lookup przez REST + anon key (tylko zweryfikowane,
  * publiczne projekty).
@@ -78,7 +78,7 @@ async function lookupSlugByCustomDomain(host: string): Promise<string | null> {
   }
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const url = request.nextUrl.clone();
   const rawHost = (request.headers.get("host") ?? "").toLowerCase();
   if (!rawHost) return NextResponse.next();

@@ -313,7 +313,7 @@ export async function POST(req: Request) {
     );
   }
 
-  // FREE tier rate-limity: monthly 100, daily 30.
+  // FREE tier rate-limity: monthly 1500, daily 800.
   if (userTier === "free") {
     const { FREE_TIER_LIMITS } = await import("@/lib/ai-models");
     const now = Date.now();
@@ -336,9 +336,10 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           error: "free_monthly_limit",
-          message: `Przekroczyłeś limit ${FREE_TIER_LIMITS.monthlyCredits} kredytów/miesiąc w planie FREE.`,
+          message: `Przekroczyłeś miesięczny limit FREE (${FREE_TIER_LIMITS.monthlyCredits} kr/mc). Zużyto: ${effectiveMonthly} kr, wymagane: ${pointsRequired} kr.`,
           monthlyUsed: effectiveMonthly,
           monthlyLimit: FREE_TIER_LIMITS.monthlyCredits,
+          pointsRequired,
           upgradeUrl: "/pricing",
         },
         { status: 402 },
@@ -348,9 +349,10 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           error: "free_daily_limit",
-          message: `Przekroczyłeś limit ${FREE_TIER_LIMITS.dailyCredits} kredytów/dzień w planie FREE.`,
+          message: `Przekroczyłeś dzienny limit FREE (${FREE_TIER_LIMITS.dailyCredits} kr/dzień). Zużyto: ${effectiveDaily} kr, wymagane: ${pointsRequired} kr.`,
           dailyUsed: effectiveDaily,
           dailyLimit: FREE_TIER_LIMITS.dailyCredits,
+          pointsRequired,
           upgradeUrl: "/pricing",
         },
         { status: 402 },

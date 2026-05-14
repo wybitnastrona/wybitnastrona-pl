@@ -47,12 +47,13 @@ export const CREDITS_PER_PLN = 50; // 1 PLN = 50 kredytów → 1 kredyt = 0.02 P
 
 /**
  * Limity FREE tier — rate-limit zachecajacy do PRO.
- * monthlyCredits=100 = max 1 generacja Sonnet/mc; dailyCredits=30 = max 1 Haiku/dzien.
+ * monthlyCredits=1500 = 1 generacja Sonnet (240) + kilka poprawek Sonnet/Haiku/discuss.
+ * dailyCredits=800 = max ~3 generacje Sonnet lub kilkanaście Haiku w jednej sesji.
  * Reset realizowany przez RPC bump_usage_counters (atomicznie).
  */
 export const FREE_TIER_LIMITS = {
-  monthlyCredits: 100,
-  dailyCredits: 30,
+  monthlyCredits: 1500,
+  dailyCredits: 800,
 } as const;
 
 export const AI_MODELS: AiModelDef[] = [

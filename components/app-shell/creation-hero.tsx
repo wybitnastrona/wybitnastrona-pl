@@ -319,7 +319,7 @@ export function CreationHero({ userTier = "free" }: CreationHeroProps) {
             <>
               {" • "}
               <span className="text-muted-foreground">
-                FREE: 100 kr/mc, 30 kr/dzień —{" "}
+                FREE: 1500 kr/mc, 800 kr/dzień —{" "}
                 <a href="/pricing" className="underline hover:text-beige">
                   odblokuj PRO
                 </a>

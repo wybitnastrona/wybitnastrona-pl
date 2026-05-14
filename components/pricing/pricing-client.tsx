@@ -110,11 +110,11 @@ function FreeTierCard() {
         <span className="text-xs text-muted-foreground">/ mc</span>
       </div>
       <p className="text-sm text-muted-foreground">
-        Wypróbuj kreator. Limit 100 kr/mc i 30 kr/dzień.
+        Wypróbuj kreator. Limit 1500 kr/mc i 800 kr/dzień.
       </p>
       <ul className="space-y-2 text-sm text-foreground/90">
         <Feature>Strony web (React + Vite + Tailwind)</Feature>
-        <Feature>100 kredytów / mc, 30 / dzień</Feature>
+        <Feature>1500 kredytów / mc, 800 / dzień</Feature>
         <Feature>Domyślny model: Pan Programista (Sonnet 4.6)</Feature>
         <Feature>Auto-subdomena {`{slug}.wybitny.website`}</Feature>
         <Feature>Projekty prywatne</Feature>

@@ -14,13 +14,14 @@ import { DefaultChatTransport, type UIMessage } from "ai";
 import {
   ArrowUp,
   CheckCircle2,
-  ChevronDown,
+  ChevronsUpDown,
+  Lightbulb,
   ListTodo,
   Loader2,
   MessagesSquare,
   MousePointer2,
   Paperclip,
-  Rocket,
+  Plus,
   RotateCcw,
   Sparkles,
   Wrench,
@@ -756,18 +757,17 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
             disabled={isStreaming}
           />
 
-          <div className="flex flex-wrap items-center gap-1 bg-card/30 px-2 pb-2">
+          <div className="flex items-center gap-1 bg-card/30 px-2 pb-2">
+            {/* + attach */}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               aria-label="Załącz plik (zdjęcia, PDF, kod, CSV — max 5 MB)"
               title="Załącz plik — zdjęcia, PDF, pliki kodu, CSV (max 5 MB)"
-              className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition hover:bg-white/5 hover:text-beige"
+              className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white/5 text-muted-foreground transition hover:bg-white/10 hover:text-beige"
             >
-              <Paperclip className="h-3.5 w-3.5" />
+              <Plus className="h-4 w-4" />
             </button>
-
-            <ModeButton mode={mode} onChange={setModeSync} />
 
             <ModelSelector
               value={model}
@@ -775,39 +775,42 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
               currentLabel={modelDef.displayName ?? modelDef.labelShort}
             />
 
+            <div className="flex-1" />
+
             <SelectModeButton
               active={selectMode}
               onToggle={() => onSelectModeChange(!selectMode)}
             />
 
-            <div className="ml-auto flex items-center gap-1">
-              <VoiceButton
-                onTranscript={(text) => {
-                  setInput((prev) => (prev ? `${prev} ${text}` : text));
-                }}
-              />
-              {isStreaming ? (
-                <Button
-                  type="button"
-                  size="icon-sm"
-                  onClick={() => stop()}
-                  className="bg-beige/20 text-beige hover:bg-beige/30"
-                  aria-label="Zatrzymaj"
-                >
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                </Button>
-              ) : (
-                <Button
-                  type="submit"
-                  size="icon-sm"
-                  disabled={!input.trim() && attachments.length === 0}
-                  className="bg-beige text-beige-foreground hover:bg-beige/90 disabled:opacity-40"
-                  aria-label="Wyslij"
-                >
-                  <ArrowUp className="h-3.5 w-3.5" />
-                </Button>
-              )}
-            </div>
+            <PlanModeButton mode={mode} onChange={setModeSync} />
+
+            <VoiceButton
+              onTranscript={(text) => {
+                setInput((prev) => (prev ? `${prev} ${text}` : text));
+              }}
+            />
+
+            {isStreaming ? (
+              <Button
+                type="button"
+                size="icon-sm"
+                onClick={() => stop()}
+                className="rounded-full bg-beige/20 text-beige hover:bg-beige/30"
+                aria-label="Zatrzymaj"
+              >
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                size="icon-sm"
+                disabled={!input.trim() && attachments.length === 0}
+                className="rounded-full bg-blue-500 text-white hover:bg-blue-400 disabled:opacity-40"
+                aria-label="Wyślij"
+              >
+                <ArrowUp className="h-3.5 w-3.5" />
+              </Button>
+            )}
           </div>
         </div>
       </form>
@@ -833,12 +836,11 @@ function ModelSelector({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className="flex h-7 max-w-[180px] cursor-pointer items-center gap-1 rounded-md px-2 text-[11px] text-foreground/85 transition hover:bg-white/5"
+        className="flex h-7 max-w-[160px] cursor-pointer items-center gap-1 rounded-md px-2 text-[11px] font-medium text-foreground/80 transition hover:bg-white/5 hover:text-foreground"
         aria-label="Wybierz model"
       >
-        <Sparkles className="h-3 w-3 text-beige/70" />
         <span className="truncate">{currentLabel}</span>
-        <ChevronDown className="h-3 w-3 opacity-60" />
+        <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" sideOffset={8} className="w-72">
         <DropdownMenuGroup>
@@ -889,98 +891,64 @@ function SelectModeButton({
       type="button"
       onClick={onToggle}
       aria-pressed={active}
-      className={`flex h-6 cursor-pointer items-center gap-1 rounded px-1.5 text-[10px] transition ${
+      title="Tryb wyboru elementu w podglądzie"
+      className={`flex h-7 cursor-pointer items-center gap-1 rounded-md px-2 text-[11px] transition ${
         active
           ? "bg-beige/15 text-beige"
           : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
       }`}
-      title="Tryb wyboru elementu w podgladzie"
     >
-      <MousePointer2 className="h-2.5 w-2.5" />
+      <MousePointer2 className="h-3 w-3" />
       Wybierz
     </button>
   );
 }
 
-const MODE_META: Record<
-  ChatMode,
-  { label: string; icon: typeof Rocket; description: string }
-> = {
-  build: {
-    label: "Budowa",
-    icon: Rocket,
-    description: "Generuj i edytuj kod od razu. AI pisze pliki bezpośrednio.",
-  },
-  plan: {
-    label: "Planuj",
-    icon: ListTodo,
-    description: "AI najpierw pokaże plan kroków. Zatwierdzasz zanim zacznie pisać kod.",
-  },
-  discuss: {
-    label: "Chat",
-    icon: MessagesSquare,
-    description: "Rozmowa o kodzie bez zmian. Tańszy tryb — nie pisze plików.",
-  },
-};
-
-function ModeButton({
+/**
+ * Single-button mode toggle: build ↔ plan ↔ discuss.
+ * Click cycles forward; when active (non-build) label is highlighted.
+ */
+function PlanModeButton({
   mode,
   onChange,
 }: {
   mode: ChatMode;
   onChange: (mode: ChatMode) => void;
 }) {
-  const Icon = MODE_META[mode].icon;
-  const isPlanActive = mode === "plan";
-  const isChatActive = mode === "discuss";
-  const activeStyle = isPlanActive
-    ? "bg-amber-400/10 text-amber-300"
-    : isChatActive
-      ? "bg-blue-400/10 text-blue-300"
-      : "bg-beige/10 text-beige";
+  const CYCLE: Record<ChatMode, ChatMode> = {
+    build: "plan",
+    plan: "discuss",
+    discuss: "build",
+  };
+
+  const isActive = mode !== "build";
+
+  const label = mode === "discuss" ? "Chat" : "Planuj";
+  const Icon = mode === "discuss" ? MessagesSquare : Lightbulb;
+  const activeClass =
+    mode === "plan"
+      ? "bg-amber-400/10 text-amber-300"
+      : mode === "discuss"
+        ? "bg-blue-400/10 text-blue-300"
+        : "text-muted-foreground hover:bg-white/5 hover:text-foreground";
+
+  const titleMap: Record<ChatMode, string> = {
+    build: "Przełącz w tryb planowania — AI pokaże plan zanim zacznie pisać kod",
+    plan: "Aktywny: Planowanie. Kliknij → Chat (rozmowa bez edycji plików)",
+    discuss: "Aktywny: Chat. Kliknij → tryb budowy",
+  };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        className={`flex h-7 cursor-pointer items-center gap-1 rounded-md px-2.5 text-[11px] font-medium transition ${activeStyle}`}
-        title={MODE_META[mode].description}
-        aria-label="Wybierz tryb"
-      >
-        <Icon className="h-3 w-3" />
-        {MODE_META[mode].label}
-        <ChevronDown className="h-3 w-3 opacity-60" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" sideOffset={6} className="w-60">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel className="px-2 py-1 text-xs uppercase tracking-wider text-muted-foreground">
-            Tryb pracy
-          </DropdownMenuLabel>
-          {(Object.keys(MODE_META) as ChatMode[]).map((m) => {
-            const meta = MODE_META[m];
-            const ItemIcon = meta.icon;
-            return (
-              <DropdownMenuItem
-                key={m}
-                onClick={() => onChange(m)}
-                className={
-                  m === mode
-                    ? "flex-col items-start bg-beige/10 text-beige"
-                    : "flex-col items-start"
-                }
-              >
-                <div className="flex w-full items-center gap-2">
-                  <ItemIcon className="h-3.5 w-3.5" />
-                  <span className="font-medium">{meta.label}</span>
-                </div>
-                <p className="text-[10px] text-muted-foreground">
-                  {meta.description}
-                </p>
-              </DropdownMenuItem>
-            );
-          })}
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <button
+      type="button"
+      onClick={() => onChange(CYCLE[mode])}
+      aria-pressed={isActive}
+      title={titleMap[mode]}
+      className={`flex h-7 cursor-pointer items-center gap-1 rounded-md px-2 text-[11px] font-medium transition ${activeClass}`}
+    >
+      <Icon className="h-3 w-3" />
+      {label}
+    </button>
   );
 }
 

@@ -46,12 +46,11 @@ const PACKAGE_JSON = `{
 
 const VITE_CONFIG = `import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import path from "path";
 
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: { "@": path.resolve(__dirname, "./src") },
+    alias: { "@": "/src" },
   },
   server: {
     host: "0.0.0.0",
@@ -440,6 +439,365 @@ export function SectionHeader({
 }
 `;
 
+const UI_LABEL_TSX = `import * as React from "react";
+import { cn } from "@/lib/utils";
+
+const Label = React.forwardRef<
+  HTMLLabelElement,
+  React.LabelHTMLAttributes<HTMLLabelElement>
+>(({ className, ...props }, ref) => (
+  <label
+    ref={ref}
+    className={cn(
+      "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
+      className,
+    )}
+    {...props}
+  />
+));
+Label.displayName = "Label";
+
+export { Label };
+`;
+
+const UI_SEPARATOR_TSX = `import * as React from "react";
+import { cn } from "@/lib/utils";
+
+interface SeparatorProps extends React.HTMLAttributes<HTMLDivElement> {
+  orientation?: "horizontal" | "vertical";
+  decorative?: boolean;
+}
+
+const Separator = React.forwardRef<HTMLDivElement, SeparatorProps>(
+  ({ className, orientation = "horizontal", decorative = true, ...props }, ref) => (
+    <div
+      ref={ref}
+      role={decorative ? "none" : "separator"}
+      aria-orientation={decorative ? undefined : orientation}
+      className={cn(
+        "shrink-0 bg-neutral-200",
+        orientation === "horizontal" ? "h-px w-full" : "h-full w-px",
+        className,
+      )}
+      {...props}
+    />
+  ),
+);
+Separator.displayName = "Separator";
+
+export { Separator };
+`;
+
+const UI_SKELETON_TSX = `import { cn } from "@/lib/utils";
+
+function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      className={cn("animate-pulse rounded-md bg-neutral-200", className)}
+      {...props}
+    />
+  );
+}
+
+export { Skeleton };
+`;
+
+const UI_AVATAR_TSX = `import * as React from "react";
+import { cn } from "@/lib/utils";
+
+interface AvatarProps extends React.HTMLAttributes<HTMLDivElement> {
+  src?: string;
+  alt?: string;
+  initials?: string;
+  size?: "sm" | "md" | "lg" | "xl";
+}
+
+const sizeClasses = {
+  sm: "h-8 w-8 text-xs",
+  md: "h-10 w-10 text-sm",
+  lg: "h-12 w-12 text-base",
+  xl: "h-16 w-16 text-lg",
+};
+
+function Avatar({ className, src, alt, initials, size = "md", ...props }: AvatarProps) {
+  return (
+    <div
+      className={cn(
+        "relative flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-neutral-200 font-semibold text-neutral-700 select-none",
+        sizeClasses[size],
+        className,
+      )}
+      {...props}
+    >
+      {src ? (
+        <img
+          src={src}
+          alt={alt ?? "Avatar"}
+          crossOrigin="anonymous"
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <span>{initials ?? "?"}</span>
+      )}
+    </div>
+  );
+}
+
+export { Avatar };
+`;
+
+const UI_PROGRESS_TSX = `import * as React from "react";
+import { cn } from "@/lib/utils";
+
+interface ProgressProps extends React.HTMLAttributes<HTMLDivElement> {
+  value?: number;
+  max?: number;
+}
+
+const Progress = React.forwardRef<HTMLDivElement, ProgressProps>(
+  ({ className, value = 0, max = 100, ...props }, ref) => {
+    const percentage = Math.min(Math.max((value / max) * 100, 0), 100);
+    return (
+      <div
+        ref={ref}
+        role="progressbar"
+        aria-valuenow={value}
+        aria-valuemin={0}
+        aria-valuemax={max}
+        className={cn(
+          "relative h-2 w-full overflow-hidden rounded-full bg-neutral-200",
+          className,
+        )}
+        {...props}
+      >
+        <div
+          className="h-full rounded-full bg-neutral-900 transition-all duration-500 ease-out"
+          style={{ width: \`\${percentage}%\` }}
+        />
+      </div>
+    );
+  },
+);
+Progress.displayName = "Progress";
+
+export { Progress };
+`;
+
+const UI_TABS_TSX = `import * as React from "react";
+import { cn } from "@/lib/utils";
+
+interface TabsContextValue {
+  activeTab: string;
+  setActiveTab: (value: string) => void;
+}
+
+const TabsContext = React.createContext<TabsContextValue>({
+  activeTab: "",
+  setActiveTab: () => {},
+});
+
+interface TabsProps extends React.HTMLAttributes<HTMLDivElement> {
+  defaultValue: string;
+  value?: string;
+  onValueChange?: (value: string) => void;
+}
+
+function Tabs({ defaultValue, value, onValueChange, className, children, ...props }: TabsProps) {
+  const [activeTab, setActiveTab] = React.useState(value ?? defaultValue);
+
+  const handleChange = React.useCallback(
+    (v: string) => {
+      setActiveTab(v);
+      onValueChange?.(v);
+    },
+    [onValueChange],
+  );
+
+  return (
+    <TabsContext.Provider value={{ activeTab: value ?? activeTab, setActiveTab: handleChange }}>
+      <div className={cn("w-full", className)} {...props}>
+        {children}
+      </div>
+    </TabsContext.Provider>
+  );
+}
+
+function TabsList({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      className={cn(
+        "inline-flex h-10 items-center justify-center rounded-lg bg-neutral-100 p-1 text-neutral-500",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+interface TabsTriggerProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  value: string;
+}
+
+function TabsTrigger({ className, value, children, ...props }: TabsTriggerProps) {
+  const { activeTab, setActiveTab } = React.useContext(TabsContext);
+  const isActive = activeTab === value;
+  return (
+    <button
+      type="button"
+      onClick={() => setActiveTab(value)}
+      className={cn(
+        "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-all focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50",
+        isActive
+          ? "bg-white text-neutral-900 shadow-sm"
+          : "hover:bg-white/50 hover:text-neutral-900",
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
+
+interface TabsContentProps extends React.HTMLAttributes<HTMLDivElement> {
+  value: string;
+}
+
+function TabsContent({ className, value, children, ...props }: TabsContentProps) {
+  const { activeTab } = React.useContext(TabsContext);
+  if (activeTab !== value) return null;
+  return (
+    <div className={cn("mt-4 focus-visible:outline-none", className)} {...props}>
+      {children}
+    </div>
+  );
+}
+
+export { Tabs, TabsList, TabsTrigger, TabsContent };
+`;
+
+const UI_ACCORDION_TSX = `import * as React from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+interface AccordionItemProps {
+  value: string;
+  trigger: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+}
+
+function AccordionItem({ value, trigger, children, className }: AccordionItemProps) {
+  const [open, setOpen] = React.useState(false);
+
+  return (
+    <div className={cn("border-b border-neutral-200 last:border-0", className)}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between py-4 text-sm font-medium text-left transition-colors hover:text-neutral-600 focus-visible:outline-none"
+        aria-expanded={open}
+      >
+        <span>{trigger}</span>
+        <motion.span
+          animate={{ rotate: open ? 180 : 0 }}
+          transition={{ duration: 0.2 }}
+          className="shrink-0 text-neutral-500"
+        >
+          <ChevronDown className="h-4 w-4" />
+        </motion.span>
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            key="content"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="pb-4 text-sm text-neutral-600 leading-relaxed">
+              {children}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+interface AccordionProps extends React.HTMLAttributes<HTMLDivElement> {
+  type?: "single" | "multiple";
+}
+
+function Accordion({ className, children, ...props }: AccordionProps) {
+  return (
+    <div className={cn("divide-y divide-neutral-200 rounded-lg border border-neutral-200", className)} {...props}>
+      {children}
+    </div>
+  );
+}
+
+export { Accordion, AccordionItem };
+`;
+
+const UI_SELECT_TSX = `import * as React from "react";
+import { ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+export interface SelectProps
+  extends React.SelectHTMLAttributes<HTMLSelectElement> {}
+
+const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
+  ({ className, children, ...props }, ref) => (
+    <div className="relative">
+      <select
+        ref={ref}
+        className={cn(
+          "flex h-10 w-full appearance-none rounded-md border border-neutral-300 bg-white pl-3 pr-8 py-2 text-sm text-neutral-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50",
+          className,
+        )}
+        {...props}
+      >
+        {children}
+      </select>
+      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
+    </div>
+  ),
+);
+Select.displayName = "Select";
+
+export { Select };
+`;
+
+const UI_SCROLL_AREA_TSX = `import * as React from "react";
+import { cn } from "@/lib/utils";
+
+interface ScrollAreaProps extends React.HTMLAttributes<HTMLDivElement> {
+  maxHeight?: string;
+}
+
+function ScrollArea({ className, maxHeight = "24rem", children, ...props }: ScrollAreaProps) {
+  return (
+    <div
+      className={cn("relative overflow-hidden rounded-md", className)}
+      {...props}
+    >
+      <div
+        className="h-full w-full overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-neutral-300"
+        style={{ maxHeight }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+export { ScrollArea };
+`;
+
 const APP_TSX = `export default function App() {
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex items-center justify-center p-6">
@@ -472,6 +830,15 @@ export function getViteReactStarterFiles(): ProjectFiles {
     "/src/components/ui/badge.tsx": { code: UI_BADGE_TSX, hidden: true },
     "/src/components/ui/input.tsx": { code: UI_INPUT_TSX, hidden: true },
     "/src/components/ui/textarea.tsx": { code: UI_TEXTAREA_TSX, hidden: true },
+    "/src/components/ui/label.tsx": { code: UI_LABEL_TSX, hidden: true },
+    "/src/components/ui/separator.tsx": { code: UI_SEPARATOR_TSX, hidden: true },
+    "/src/components/ui/skeleton.tsx": { code: UI_SKELETON_TSX, hidden: true },
+    "/src/components/ui/avatar.tsx": { code: UI_AVATAR_TSX, hidden: true },
+    "/src/components/ui/progress.tsx": { code: UI_PROGRESS_TSX, hidden: true },
+    "/src/components/ui/tabs.tsx": { code: UI_TABS_TSX, hidden: true },
+    "/src/components/ui/accordion.tsx": { code: UI_ACCORDION_TSX, hidden: true },
+    "/src/components/ui/select.tsx": { code: UI_SELECT_TSX, hidden: true },
+    "/src/components/ui/scroll-area.tsx": { code: UI_SCROLL_AREA_TSX, hidden: true },
     "/src/components/sections/SectionHeader.tsx": {
       code: SECTION_HEADER_TSX,
       hidden: true,

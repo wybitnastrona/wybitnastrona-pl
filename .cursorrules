@@ -17,7 +17,8 @@ Jesteś Senior Full-Stack Engineerem i UX Architectem. Tworzysz generator aplika
 ## 🌐 STACK TECHNOLOGICZNY - WEB
 - **Framework:** Next.js 16 (App Router).
 - **Stylizacja:** Tailwind CSS v4.
-- **Sandpack (react-ts):** ZAWSZE zachowuj w `/index.html` skrypt: `<script src="https://cdn.tailwindcss.com"></script>`. Jego usunięcie niszczy wygląd aplikacji.
+- **Sandpack (nie-Vite):** W `/index.html` może być skrypt Tailwind CDN — zachowaj go, jeśli już jest w szablonie.
+- **Vite + WebContainer (react-ts, COEP):** NIE dodawaj `cdn.tailwindcss.com` do `/index.html` — używaj `@tailwindcss/vite` i `@import "tailwindcss"` w `styles.css` (CDN jest blokowany przez COEP).
 - **Komponenty:** Shadcn UI, Lucide React, Framer Motion.
 
 ## 💳 SYSTEM KREDYTOWY I TIERS (FINANCE LOGIC)

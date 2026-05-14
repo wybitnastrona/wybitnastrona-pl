@@ -12,6 +12,10 @@ import { createClient } from "@/lib/supabase/server";
 import { updateProjectFiles, createSnapshot } from "@/lib/projects";
 import type { ProjectFiles } from "@/lib/types/project";
 import {
+  isViteProjectFiles,
+  stripTailwindCdnFromIndexHtml,
+} from "@/lib/sandpack/merge-preview-files";
+import {
   DEFAULT_MODEL_ID,
   getModel,
   resolveAnthropicModel,
@@ -469,10 +473,17 @@ export async function POST(req: Request) {
             };
           }
         }
-        files[normalized] = { ...files[normalized], code: content };
+        let outContent = content;
+        if (
+          normalized === "/index.html" &&
+          (projectTemplate === "react-ts" || isViteProjectFiles(files))
+        ) {
+          outContent = stripTailwindCdnFromIndexHtml(content);
+        }
+        files[normalized] = { ...files[normalized], code: outContent };
         writtenPathsThisTurn.add(normalized);
         void bumpJob(supabase, jobId, `writeFile: ${normalized}`, { path: normalized, kind: "write" });
-        return { ok: true, path: normalized, bytes: content.length };
+        return { ok: true, path: normalized, bytes: outContent.length };
       },
     }),
     deleteFile: tool({
@@ -555,9 +566,16 @@ export async function POST(req: Request) {
             newString +
             content.slice(idx + oldString.length);
         }
-        files[normalized] = { ...files[normalized], code: content };
+        let patched = content;
+        if (
+          normalized === "/index.html" &&
+          (projectTemplate === "react-ts" || isViteProjectFiles(files))
+        ) {
+          patched = stripTailwindCdnFromIndexHtml(content);
+        }
+        files[normalized] = { ...files[normalized], code: patched };
         void bumpJob(supabase, jobId, `patchFile: ${normalized}`, { path: normalized, kind: "patch" });
-        return { ok: true, path: normalized, editsApplied: edits.length, content };
+        return { ok: true, path: normalized, editsApplied: edits.length, content: patched };
       },
     }),
     readFile: tool({

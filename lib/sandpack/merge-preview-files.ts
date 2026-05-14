@@ -4,6 +4,34 @@ import { getStarterFiles } from "./starter";
 const TAILWIND_CDN_SCRIPT =
   '<script src="https://cdn.tailwindcss.com"></script>';
 
+/** Projekty Vite (WebContainer) — Tailwind jest bundlowany; CDN psuje COEP. */
+export function isViteProjectFiles(files: ProjectFiles): boolean {
+  return !!(
+    files["/vite.config.ts"] ||
+    files["/vite.config.mjs"] ||
+    files["/vite.config.mts"]
+  );
+}
+
+/**
+ * Usuwa skrypt Tailwind CDN z HTML (wymagane przy COEP / WebContainer).
+ * Wywoluj przy kazdym zapisie /index.html dla projektow Vite.
+ */
+export function stripTailwindCdnFromIndexHtml(html: string): string {
+  let out = html;
+  // Pelny tag <script src="...tailwind..."></script>
+  out = out.replace(
+    /<script[^>]*\bsrc\s*=\s*["'][^"']*(?:cdn\.tailwindcss\.com|@tailwindcss\/browser|cdn\.jsdelivr\.net\/npm\/@tailwindcss)[^"']*["'][^>]*>\s*<\/script>\s*/gi,
+    "",
+  );
+  // Samozamykajacy (rzadki)
+  out = out.replace(
+    /<script[^>]*\bsrc\s*=\s*["'][^"']*(?:cdn\.tailwindcss\.com|@tailwindcss\/browser|cdn\.jsdelivr\.net\/npm\/@tailwindcss)[^"']*["'][^>]*\/>\s*/gi,
+    "",
+  );
+  return out;
+}
+
 /**
  * True only when a real external script tag loads Tailwind (not a comment / string
  * mentioning tailwindcss.com — that used to skip injection and break the preview).
@@ -73,15 +101,24 @@ ${trimmed}
 }
 
 /**
- * Gwarantuje, że /index.html w zbiorze plików zawiera skrypt Tailwind CDN.
- * Używane przy zapisie do bazy (updateProjectFiles), żeby baza nigdy nie trzymała
- * HTML bez Tailwinda — niezależnie od tego co AI wygenerowała.
+ * Przy zapisie do bazy:
+ *  - Projekty Vite (WebContainer): USUWAJ Tailwind CDN z /index.html — COEP blokuje
+ *    zewnetrzny skrypt; style pochodza z @tailwindcss/vite + /src/styles.css.
+ *  - Sandpack (brak vite.config): wstrzykuj CDN jesli go brak (stary podglad Sandpack).
  */
 export function ensureTailwindInProjectFiles(files: ProjectFiles): ProjectFiles {
   const entry = files["/index.html"];
   if (!entry || typeof entry.code !== "string") return files;
-  const fixed = injectTailwindIntoHtml(entry.code);
-  if (fixed === entry.code) return files;
+
+  let code = entry.code;
+  if (isViteProjectFiles(files)) {
+    const stripped = stripTailwindCdnFromIndexHtml(code);
+    if (stripped === code) return files;
+    return { ...files, "/index.html": { ...entry, code: stripped } };
+  }
+
+  const fixed = injectTailwindIntoHtml(code);
+  if (fixed === code) return files;
   return { ...files, "/index.html": { ...entry, code: fixed } };
 }
 

@@ -37,6 +37,7 @@ const PACKAGE_JSON = `{
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.0",
+    "@types/node": "^22.10.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.4",
@@ -68,6 +69,15 @@ export default defineConfig({
 `;
 
 const TSCONFIG = `{
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
+}
+`;
+
+const TSCONFIG_APP = `{
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
@@ -86,6 +96,93 @@ const TSCONFIG = `{
   },
   "include": ["src"]
 }
+`;
+
+const TSCONFIG_NODE = `{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["vite.config.ts"]
+}
+`;
+
+const TAILWIND_CONFIG = `/** @type {import('tailwindcss').Config} */
+export default {
+  content: ["./index.html", "./src/**/*.{ts,tsx}"],
+  theme: { extend: {} },
+  plugins: [],
+};
+`;
+
+const POSTCSS_CONFIG = `// Tailwind v4 jest obslugiwany przez @tailwindcss/vite plugin (zobacz vite.config.ts).
+// Ten plik istnieje wylacznie dla zgodnosci narzedzi i edytorow.
+export default {
+  plugins: {},
+};
+`;
+
+const ESLINT_CONFIG = `// Minimalna konfiguracja ESLint (flat config).
+// Dodatkowe plugins (react-hooks, typescript-eslint) instaluj na zyczenie:
+//   npm i -D eslint @eslint/js typescript-eslint eslint-plugin-react-hooks
+export default [
+  { ignores: ["dist", "node_modules"] },
+];
+`;
+
+const GITIGNORE = `# Logs
+logs
+*.log
+npm-debug.log*
+
+# Dependencies
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+`;
+
+const VITE_ENV_DTS = `/// <reference types="vite/client" />
+`;
+
+const WYBITNA_CONFIG_JSON = `{
+  "template": "wybitna-vite-react-ts",
+  "version": 1
+}
+`;
+
+const WYBITNA_PROMPT = `Dla wszystkich projektów: twórz strony piękne, unikalne i gotowe do produkcji. Nie kopiuj szablonów — projektuj tak, jakby każda strona była wizytówką klienta.
+
+Używaj Tailwind CSS (v4, przez @tailwindcss/vite), React Hooks i Lucide React dla ikon. Nie instaluj dodatkowych pakietów UI (Radix, Headless UI, NextUI) — preinstalowana biblioteka w /src/components/ui/ wystarcza dla 99% przypadków.
+
+Logo i ikony twórz wyłącznie za pomocą lucide-react. Trzymaj się design systemu OKLCH z /src/styles.css — używaj zmiennych CSS (var(--accent), var(--bg-card), var(--text)) zamiast hardcoded kolorów Tailwind.
+
+Każda sekcja MUSI mieć atrybut id zgodny z linkiem nawigacji (<section id="uslugi">, <a href="#uslugi">).
+
+Folder /public/images/ jest do dyspozycji — wstawiaj tam logo SVG, ikony lub statyczne grafiki. Dla zdjęć dynamicznych używaj generateImage (max 3 wywołania).
+`;
+
+const GITKEEP = `# Folder zarezerwowany dla statycznych zasobow projektu.
+# Wstawiaj tu logo SVG, ikony, manifest icons itp.
+# Dla dynamicznych zdjec uzyj generateImage (max 3 na strone).
 `;
 
 const INDEX_HTML = `<!doctype html>
@@ -158,6 +255,10 @@ const STYLES_CSS = `@import "tailwindcss";
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
   /* Fallback: gdy --bg/OKLCH nie zaladuja sie (lub przegladarka nie wspiera oklch),
@@ -169,6 +270,11 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Offset scrollu o wysokosc sticky navbara (jezeli AI uzyje sticky) */
+section[id] {
+  scroll-margin-top: 80px;
 }
 `;
 
@@ -266,13 +372,15 @@ import { cn } from "@/lib/utils";
 const Card = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
+>(({ className, style, ...props }, ref) => (
   <div
     ref={ref}
     className={cn(
-      "rounded-xl border border-neutral-200 bg-white text-neutral-950 shadow-sm",
+      "rounded-xl border shadow-sm",
+      "bg-[var(--bg-card)] text-[var(--text)] border-[var(--border)]",
       className,
     )}
+    style={style}
     {...props}
   />
 ));
@@ -296,7 +404,7 @@ const CardTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <h3
     ref={ref}
-    className={cn("text-xl font-semibold leading-tight tracking-tight", className)}
+    className={cn("text-xl font-semibold leading-tight tracking-tight text-[var(--text)]", className)}
     {...props}
   />
 ));
@@ -308,7 +416,7 @@ const CardDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <p
     ref={ref}
-    className={cn("text-sm text-neutral-500 leading-relaxed", className)}
+    className={cn("text-sm leading-relaxed text-[var(--text-muted)]", className)}
     {...props}
   />
 ));
@@ -388,7 +496,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
       <input
         type={type}
         className={cn(
-          "flex h-10 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50",
+          "flex h-10 w-full rounded-md border px-3 py-2 text-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50",
+          "bg-[var(--bg-card)] text-[var(--text)] border-[var(--border)] placeholder:text-[var(--text-muted)]",
           className,
         )}
         ref={ref}
@@ -413,7 +522,8 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     return (
       <textarea
         className={cn(
-          "flex min-h-[100px] w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50 resize-none",
+          "flex min-h-[100px] w-full rounded-md border px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50 resize-none",
+          "bg-[var(--bg-card)] text-[var(--text)] border-[var(--border)] placeholder:text-[var(--text-muted)]",
           className,
         )}
         ref={ref}
@@ -540,7 +650,7 @@ const Separator = React.forwardRef<HTMLDivElement, SeparatorProps>(
       role={decorative ? "none" : "separator"}
       aria-orientation={decorative ? undefined : orientation}
       className={cn(
-        "shrink-0 bg-neutral-200",
+        "shrink-0 bg-[var(--border)]",
         orientation === "horizontal" ? "h-px w-full" : "h-full w-px",
         className,
       )}
@@ -558,7 +668,7 @@ const UI_SKELETON_TSX = `import { cn } from "@/lib/utils";
 function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("animate-pulse rounded-md bg-neutral-200", className)}
+      className={cn("animate-pulse rounded-md bg-[var(--bg-muted)]", className)}
       {...props}
     />
   );
@@ -588,7 +698,7 @@ function Avatar({ className, src, alt, initials, size = "md", ...props }: Avatar
   return (
     <div
       className={cn(
-        "relative flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-neutral-200 font-semibold text-neutral-700 select-none",
+        "relative flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--bg-muted)] font-semibold text-[var(--text)] select-none",
         sizeClasses[size],
         className,
       )}
@@ -630,13 +740,13 @@ const Progress = React.forwardRef<HTMLDivElement, ProgressProps>(
         aria-valuemin={0}
         aria-valuemax={max}
         className={cn(
-          "relative h-2 w-full overflow-hidden rounded-full bg-neutral-200",
+          "relative h-2 w-full overflow-hidden rounded-full bg-[var(--bg-muted)]",
           className,
         )}
         {...props}
       >
         <div
-          className="h-full rounded-full bg-neutral-900 transition-all duration-500 ease-out"
+          className="h-full rounded-full bg-[var(--accent)] transition-all duration-500 ease-out"
           style={{ width: \`\${percentage}%\` }}
         />
       </div>
@@ -691,7 +801,7 @@ function TabsList({ className, ...props }: React.HTMLAttributes<HTMLDivElement>)
   return (
     <div
       className={cn(
-        "inline-flex h-10 items-center justify-center rounded-lg bg-neutral-100 p-1 text-neutral-500",
+        "inline-flex h-10 items-center justify-center rounded-lg bg-[var(--bg-muted)] p-1 text-[var(--text-muted)]",
         className,
       )}
       {...props}
@@ -713,8 +823,8 @@ function TabsTrigger({ className, value, children, ...props }: TabsTriggerProps)
       className={cn(
         "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-all focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50",
         isActive
-          ? "bg-white text-neutral-900 shadow-sm"
-          : "hover:bg-white/50 hover:text-neutral-900",
+          ? "bg-[var(--bg-card)] text-[var(--text)] shadow-sm"
+          : "hover:bg-[var(--bg-card)]/50 hover:text-[var(--text)]",
         className,
       )}
       {...props}
@@ -757,18 +867,18 @@ function AccordionItem({ value, trigger, children, className }: AccordionItemPro
   const [open, setOpen] = React.useState(false);
 
   return (
-    <div className={cn("border-b border-neutral-200 last:border-0", className)}>
+    <div className={cn("border-b border-[var(--border)] last:border-0", className)}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between py-4 text-sm font-medium text-left transition-colors hover:text-neutral-600 focus-visible:outline-none"
+        className="flex w-full items-center justify-between py-4 text-sm font-medium text-left text-[var(--text)] transition-colors hover:text-[var(--accent)] focus-visible:outline-none"
         aria-expanded={open}
       >
         <span>{trigger}</span>
         <motion.span
           animate={{ rotate: open ? 180 : 0 }}
           transition={{ duration: 0.2 }}
-          className="shrink-0 text-neutral-500"
+          className="shrink-0 text-[var(--text-muted)]"
         >
           <ChevronDown className="h-4 w-4" />
         </motion.span>
@@ -783,7 +893,7 @@ function AccordionItem({ value, trigger, children, className }: AccordionItemPro
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
             className="overflow-hidden"
           >
-            <div className="pb-4 text-sm text-neutral-600 leading-relaxed">
+            <div className="pb-4 text-sm text-[var(--text-muted)] leading-relaxed">
               {children}
             </div>
           </motion.div>
@@ -799,7 +909,7 @@ interface AccordionProps extends React.HTMLAttributes<HTMLDivElement> {
 
 function Accordion({ className, children, ...props }: AccordionProps) {
   return (
-    <div className={cn("divide-y divide-neutral-200 rounded-lg border border-neutral-200", className)} {...props}>
+    <div className={cn("divide-y divide-[var(--border)] rounded-lg border border-[var(--border)] bg-[var(--bg-card)]", className)} {...props}>
       {children}
     </div>
   );
@@ -821,14 +931,15 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       <select
         ref={ref}
         className={cn(
-          "flex h-10 w-full appearance-none rounded-md border border-neutral-300 bg-white pl-3 pr-8 py-2 text-sm text-neutral-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50",
+          "flex h-10 w-full appearance-none rounded-md border pl-3 pr-8 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50",
+          "bg-[var(--bg-card)] text-[var(--text)] border-[var(--border)]",
           className,
         )}
         {...props}
       >
         {children}
       </select>
-      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
+      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
     </div>
   ),
 );
@@ -880,15 +991,31 @@ const APP_TSX = `export default function App() {
 
 export function getViteReactStarterFiles(): ProjectFiles {
   return {
-    // Build infrastructure — hidden from file tree
-    "/package.json": { code: PACKAGE_JSON, hidden: true },
-    "/vite.config.ts": { code: VITE_CONFIG, hidden: true },
-    "/tsconfig.json": { code: TSCONFIG, hidden: true },
-    "/index.html": { code: INDEX_HTML, hidden: true },
-    // App entry points — hidden, managed by starter
+    // ── Build infrastructure (widoczne — Bolt-style file tree) ──
+    "/package.json": { code: PACKAGE_JSON },
+    "/vite.config.ts": { code: VITE_CONFIG },
+    "/tsconfig.json": { code: TSCONFIG },
+    "/tsconfig.app.json": { code: TSCONFIG_APP },
+    "/tsconfig.node.json": { code: TSCONFIG_NODE },
+    "/tailwind.config.js": { code: TAILWIND_CONFIG },
+    "/postcss.config.js": { code: POSTCSS_CONFIG },
+    "/eslint.config.js": { code: ESLINT_CONFIG },
+    "/.gitignore": { code: GITIGNORE },
+    "/index.html": { code: INDEX_HTML },
+    "/vite-env.d.ts": { code: VITE_ENV_DTS },
+
+    // ── Wybitna metadata (widoczne) ──
+    "/.wybitna/config.json": { code: WYBITNA_CONFIG_JSON },
+    "/.wybitna/prompt": { code: WYBITNA_PROMPT },
+
+    // ── Public assets folder (widoczne — AI moze tu wstawiac grafiki) ──
+    "/public/images/.gitkeep": { code: GITKEEP },
+
+    // ── App entry points (hidden — preinstalowane przez starter) ──
     "/src/styles.css": { code: STYLES_CSS, hidden: true },
     "/src/main.tsx": { code: MAIN_TSX, hidden: true },
-    // Utility & design system — hidden, pre-installed for AI use
+
+    // ── Utility & design system (hidden — preinstalowane dla AI) ──
     "/src/lib/utils.ts": { code: LIB_UTILS_TS, hidden: true },
     "/src/hooks/useIsMobile.ts": { code: USE_IS_MOBILE_TS, hidden: true },
     "/src/components/ui/button.tsx": { code: UI_BUTTON_TSX, hidden: true },
@@ -913,7 +1040,8 @@ export function getViteReactStarterFiles(): ProjectFiles {
       code: `export { SectionHeader } from "@/components/ui/SectionHeader";`,
       hidden: true,
     },
-    // Main app file — visible and active in editor
+
+    // ── Main app file (widoczny + aktywny) ──
     "/src/App.tsx": { code: APP_TSX, active: true },
   };
 }

@@ -12,6 +12,7 @@ import {
   Eye,
   FileCode2,
   History,
+  ImageIcon,
   Loader2,
   Lock,
   Pencil,
@@ -25,6 +26,7 @@ import { ErrorWatcher } from "@/components/project/error-watcher";
 import { LockFilesDialog } from "@/components/project/lock-files-dialog";
 import { FloatingPreview } from "@/components/project/floating-preview";
 import { StripePanel } from "@/components/project/stripe-panel";
+import { AssetManager } from "@/components/project/asset-manager";
 import { TEMPLATES } from "@/lib/templates";
 import { mergeWebContainerReactFiles } from "@/lib/webcontainer/merge-wc-files";
 import type { Project } from "@/lib/types/project";
@@ -57,7 +59,13 @@ function WCLoader() {
   );
 }
 
-type WorkspaceView = "preview" | "code" | "database" | "snapshots" | "stripe";
+type WorkspaceView =
+  | "preview"
+  | "code"
+  | "database"
+  | "snapshots"
+  | "stripe"
+  | "assets";
 
 type Props = {
   project: Project;
@@ -284,12 +292,19 @@ export function WorkspaceCanvas({
   }, [selectMode]);
 
   /**
-   * Otwiera w nowej karcie podglad z WebContainera (wcUrl).
-   * Publikacja na subdomene odbywa sie osobno przez PublishDialog w topbarze.
+   * Smart fallback dla "Otworz w nowej karcie":
+   * - Jezeli projekt opublikowany -> otwiera {slug}.{publishDomain} w nowej karcie.
+   * - Jezeli nie -> dispatchuje event 'wybitna:request-publish' ktory otwiera
+   *   PublishDialog w topbarze. Bezposrednie window.open(wcUrl) nie dziala —
+   *   StackBlitz WebContainer wymaga "Connect to project" -> 404.
    */
   function handleOpenLive() {
-    if (!wcUrl) return;
-    window.open(wcUrl, "_blank", "noopener");
+    if (project.is_public && project.slug) {
+      const url = buildSubdomainUrl(project.slug, publishDomain);
+      window.open(url, "_blank", "noopener");
+      return;
+    }
+    window.dispatchEvent(new CustomEvent("wybitna:request-publish"));
   }
 
   const liveSlug = project.slug;
@@ -312,7 +327,7 @@ export function WorkspaceCanvas({
         view={view}
         onViewChange={setView}
         onOpenLive={handleOpenLive}
-        previewReady={!!wcUrl}
+        isPublished={project.is_public && !!project.slug}
         displayUrl={displayUrl}
         isCodeOnly={isCodeOnly}
         platform={(project.mode as "ios" | "android" | "web" | null) ?? null}
@@ -413,6 +428,8 @@ export function WorkspaceCanvas({
             }}
           />
         )}
+
+        {view === "assets" && <AssetManager files={project.files} />}
 
         {view === "preview" && onFixError && (
           <ErrorWatcher onFixRequest={onFixError} isStreaming={isStreaming} />
@@ -518,7 +535,7 @@ function CanvasTopbar({
   view,
   onViewChange,
   onOpenLive,
-  previewReady,
+  isPublished,
   displayUrl,
   isCodeOnly,
   platform,
@@ -532,7 +549,7 @@ function CanvasTopbar({
   view: WorkspaceView;
   onViewChange: (view: WorkspaceView) => void;
   onOpenLive: () => void;
-  previewReady: boolean;
+  isPublished: boolean;
   displayUrl: string;
   isCodeOnly: boolean;
   platform: "ios" | "android" | "web" | null;
@@ -578,6 +595,14 @@ function CanvasTopbar({
             label="Stripe"
             active={view === "stripe"}
             onClick={() => onViewChange("stripe")}
+          />
+        )}
+        {!isCodeOnly && (
+          <ToggleButton
+            icon={ImageIcon}
+            label="Zasoby"
+            active={view === "assets"}
+            onClick={() => onViewChange("assets")}
           />
         )}
         <ToggleButton
@@ -667,13 +692,12 @@ function CanvasTopbar({
         <button
           type="button"
           onClick={onOpenLive}
-          disabled={!previewReady}
           title={
-            previewReady
-              ? "Otwiera podglad WebContainera w nowej karcie"
-              : "Poczekaj az WebContainer wystartuje serwer (kilkanascie sekund)"
+            isPublished
+              ? "Otwiera opublikowana strone w nowej karcie"
+              : "Najpierw opublikuj projekt — klikniecie otworzy dialog publikacji"
           }
-          className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-beige/15 bg-card/40 px-2 text-xs text-foreground/80 transition hover:border-beige/30 hover:bg-white/5 hover:text-beige disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-beige/15 bg-card/40 px-2 text-xs text-foreground/80 transition hover:border-beige/30 hover:bg-white/5 hover:text-beige"
         >
           <ExternalLink className="h-3 w-3" />
           <span className="hidden sm:inline">Otwórz w nowej karcie</span>

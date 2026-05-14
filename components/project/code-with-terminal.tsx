@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Loader2, TerminalSquare } from "lucide-react";
 import { WorkspaceCodeEditor } from "@/components/project/workspace-code-editor";
+import { WcStatusBar } from "@/components/project/wc-status-bar";
 import type { ProjectFiles } from "@/lib/types/project";
 
 const WCTerminal = dynamic(
@@ -125,6 +126,8 @@ export function CodeWithTerminal({
           </div>
         </>
       )}
+
+      <WcStatusBar />
     </div>
   );
 }

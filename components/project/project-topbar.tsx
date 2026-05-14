@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   BarChart3,
@@ -76,6 +76,17 @@ export function ProjectTopbar({
     project.is_public && project.slug
       ? buildSubdomainUrl(project.slug, publishDomain)
       : null;
+
+  // Pozwala innym komponentom (np. WorkspaceCanvas) otworzyc PublishDialog
+  // bez prop drilling — przez globalny event window.
+  useEffect(() => {
+    function openPublish() {
+      setPublishOpen(true);
+    }
+    window.addEventListener("wybitna:request-publish", openPublish);
+    return () =>
+      window.removeEventListener("wybitna:request-publish", openPublish);
+  }, []);
 
   return (
     <header className="flex h-14 items-center justify-between gap-3 border-b border-beige/10 bg-background/80 px-4 backdrop-blur">

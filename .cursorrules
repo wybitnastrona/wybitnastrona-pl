@@ -35,3 +35,44 @@ Jesteś Senior Full-Stack Engineerem i UX Architectem. Tworzysz generator aplika
 - **Estetyka:** Emergent.sh vibe — minimalizm, beż, głęboka czerń, zaokrąglone rogi (radius-lg).
 - **Język:** Komunikacja z użytkownikiem i generowane treści — język polski.
 - **Błędy:** Wykorzystuj `ErrorWatcher` i `Auto-fix loop` do naprawy błędów w podglądzie Sandpack.
+
+## 🧭 NAWIGACJA KOTWICOWA (anchor scroll w generowanych stronach)
+- **TYP A (landing one-page):** każda sekcja MUSI mieć `id` zgodny z linkiem nawigacji.
+  - Poprawnie: `<a href="#uslugi">Uslugi</a>` + `<section id="uslugi">...</section>`.
+  - Standardowe ID: `hero`, `o-nas`, `uslugi`, `cennik`, `opinie`, `portfolio`, `kontakt`, `faq`.
+  - ZAKAZ używania `<a href="#xyz">` bez odpowiadającego `<section id="xyz">`.
+- **TYP B (multi-page React Router):** użyj `<Link to="/o-nas">`, NIE `<a href="/o-nas">`.
+- W `/src/styles.css` preinstalowane: `html { scroll-behavior: smooth }` i
+  `section[id] { scroll-margin-top: 80px }` — nie nadpisuj.
+
+## 🪟 "OTWÓRZ W NOWEJ KARCIE" — SMART FALLBACK
+- Przycisk **"Otwórz w nowej karcie"** w canvas-topbarze NIE otwiera surowego URL WebContainera
+  (StackBlitz wymaga "Connect to project" → 404 na `/webcontainer/connect/[id]`).
+- Działanie zależne od stanu projektu:
+  - `project.is_public && project.slug` → `window.open({slug}.{publishDomain})`.
+  - W przeciwnym razie → `window.dispatchEvent("wybitna:request-publish")` → otwiera PublishDialog
+    w `ProjectTopbar`. Użytkownik wybiera subdomenę i klika "Opublikuj".
+
+## 🧰 STARTER VITE/REACT — WIDOCZNE DRZEWO PLIKÓW (Bolt-style)
+- Konfiguracje są **widoczne**, nie hidden: `package.json`, `vite.config.ts`,
+  `tsconfig.json` (+ `tsconfig.app.json` + `tsconfig.node.json`), `tailwind.config.js`,
+  `postcss.config.js`, `eslint.config.js`, `.gitignore`, `index.html`, `vite-env.d.ts`.
+- Wbudowane foldery metadanych:
+  - `/.wybitna/config.json` — `{"template": "wybitna-vite-react-ts"}`.
+  - `/.wybitna/prompt` — instrukcja stylu generacji (czyta ją zarówno AI jak i użytkownik).
+  - `/public/images/.gitkeep` — folder na statyczne grafiki (logo SVG, ikony).
+- Pre-instalowane UI (`/src/components/ui/*`) są **hidden** w drzewie — używaj importów,
+  nie kopiuj kodu.
+
+## 🖼️ ZASOBY STATYCZNE vs generateImage
+- **`/public/images/`** — logo SVG, ikony, manifest icons (`writeFile` + `<img src="/images/logo.svg">`).
+- **`generateImage()`** — dynamiczne zdjęcia (hero, sekcje wizualne). MAX 3 wywołania na stronę.
+  4. wywołanie zwraca błąd — używaj wtedy placeholderów Lucide z gradientem akcent.
+
+## 🪄 EDYTOR (Monaco) — UX
+- Walidacja semantyczna TS jest **wyłączona** w przeglądarce (pełna walidacja zachodzi w WebContainer
+  podczas Vite dev-server). Edytor wyłącznie podświetla syntax-errors, nie zaśmieca "Cannot find module".
+- Streaming kodu z AI używa `editor.executeEdits` (typing-effect Bolt/Cursor), nie pełnego
+  `model.setValue` — zachowuje pozycję kursora.
+- **Scroll-lock:** gdy user odscrolluje w górę (>80px od dołu), auto-scroll przy nowych chunkach
+  jest wyłączony — user może czytać wcześniejsze fragmenty bez "skakania".

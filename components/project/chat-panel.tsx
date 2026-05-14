@@ -249,7 +249,25 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     messages.length,
   ]);
 
+  // Smart auto-scroll: trzymamy `stickyBottom = true` dopoki uzytkownik jest
+  // blisko dolu (< 80px). Gdy odscrolluje wyzej, wylacza sie auto-scroll dla
+  // nowych wiadomosci/streamingu — uzytkownik moze spokojnie czytac wczesniejsze
+  // partie kodu bez "skakania" do dolu.
+  const stickyBottomRef = useRef(true);
+
   useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const handleScroll = () => {
+      const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+      stickyBottomRef.current = distance < 80;
+    };
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    if (!stickyBottomRef.current) return;
     scrollRef.current?.scrollTo({
       top: scrollRef.current.scrollHeight,
       behavior: "smooth",

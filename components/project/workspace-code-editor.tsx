@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { Check, Loader2 } from "lucide-react";
+import type { editor } from "monaco-editor";
+import type { Monaco } from "@monaco-editor/react";
+import { Check, Copy, Loader2 } from "lucide-react";
 import { WorkspaceFileTree } from "./workspace-file-tree";
 import { wcManager } from "@/components/webcontainer/wc-manager";
 import type { ProjectFiles } from "@/lib/types/project";
@@ -78,7 +80,17 @@ export function WorkspaceCodeEditor({
    */
   const [streamingContent, setStreamingContent] = useState<string>("");
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [copied, setCopied] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Monaco editor reference (live ref do executeEdits typing-anim).
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  // Tresc pliku w ostatnim renderze streamu (do append-detection).
+  const prevStreamContentRef = useRef<string>("");
+  // Sciezka pliku ktora byla streamowana ostatnio — reset typing-anim na zmianie pliku.
+  const prevStreamPathRef = useRef<string | null>(null);
+  // Czy uzytkownik recznie odscrollowal w gore (scroll-lock).
+  const userScrolledRef = useRef(false);
 
   // Priorytet ścieżek: streamingPath (live) > selectedPath > pickInitialPath(files).
   // Jezeli wybrany plik znika z props (AI nadpisuje), pokazujemy automatycznie
@@ -115,6 +127,124 @@ export function WorkspaceCodeEditor({
 
   const lockedSet = useMemo(() => new Set(lockedPaths), [lockedPaths]);
   const isLocked = activePath ? lockedSet.has(activePath) : false;
+
+  // Emituj zmiane aktywnego pliku do globalnego eventu — WcStatusBar i ew. inne
+  // komponenty (np. wskaznik kursora) moga sluchac bez prop drillingu.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.dispatchEvent(
+      new CustomEvent("wybitna:active-file", { detail: { path: activePath } }),
+    );
+  }, [activePath]);
+
+  // Konfiguracja TypeScript w Monaco — wylaczamy "czerwone falki" dla
+  // sekcji ktorych Monaco nie potrafi rozwiazac (typy reactowe, lucide-react,
+  // framer-motion itd.) bo te paczki sa preinstalowane w WebContainerze, a
+  // nie w przegladarce. Syntax validation zostaje wlaczony — to wykryje
+  // realne bledy gramatyczne (brak nawiasu, missing semicolon).
+  const handleEditorWillMount = useCallback((monaco: Monaco) => {
+    monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+      noSemanticValidation: true,
+      noSyntaxValidation: false,
+      noSuggestionDiagnostics: true,
+    });
+    monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+      noSemanticValidation: true,
+      noSyntaxValidation: false,
+      noSuggestionDiagnostics: true,
+    });
+    monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
+      target: monaco.languages.typescript.ScriptTarget.ES2022,
+      jsx: monaco.languages.typescript.JsxEmit.ReactJSX,
+      moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+      allowSyntheticDefaultImports: true,
+      esModuleInterop: true,
+      allowNonTsExtensions: true,
+      isolatedModules: true,
+      strict: false,
+    });
+  }, []);
+
+  // Mount handler — zapisuje editorRef, podpina onDidScrollChange dla scroll-lock.
+  const handleEditorDidMount = useCallback(
+    (instance: editor.IStandaloneCodeEditor) => {
+      editorRef.current = instance;
+
+      // Scroll-lock: jezeli uzytkownik scrolluje wyzej niz dol minus 80px,
+      // wylaczamy auto-scroll przy nowych chunkach.
+      instance.onDidScrollChange(() => {
+        const top = instance.getScrollTop();
+        const height = instance.getScrollHeight();
+        const layout = instance.getLayoutInfo();
+        const maxTop = Math.max(0, height - layout.height);
+        userScrolledRef.current = top < maxTop - 80;
+      });
+    },
+    [],
+  );
+
+  // Typing-animation: gdy AI streamuje plik, zamiast `value={streamingContent}`
+  // (ktore powoduje full re-render Monaco — caly model.setValue), korzystamy
+  // z editor.executeEdits z append delta. Daje to klasyczny efekt pisania
+  // "litera po literze" znany z Bolt/Cursor. Reset prevContentRef kiedy:
+  // - zmienia sie streamingPath (nowy plik),
+  // - tresc nie jest append-only (patchFile lub overwrite).
+  useEffect(() => {
+    const ed = editorRef.current;
+    if (!ed || !streamingPath || streamingPath !== activePath) return;
+    const model = ed.getModel();
+    if (!model) return;
+
+    const pathChanged = prevStreamPathRef.current !== streamingPath;
+    if (pathChanged) {
+      prevStreamPathRef.current = streamingPath;
+      prevStreamContentRef.current = "";
+      model.setValue("");
+    }
+
+    const prev = prevStreamContentRef.current;
+    if (
+      !pathChanged &&
+      streamingContent.startsWith(prev) &&
+      streamingContent.length > prev.length
+    ) {
+      const delta = streamingContent.slice(prev.length);
+      const lastLine = model.getLineCount();
+      const lastCol = model.getLineMaxColumn(lastLine);
+      ed.executeEdits("ai-stream", [
+        {
+          range: {
+            startLineNumber: lastLine,
+            startColumn: lastCol,
+            endLineNumber: lastLine,
+            endColumn: lastCol,
+          },
+          text: delta,
+          forceMoveMarkers: true,
+        },
+      ]);
+      if (!userScrolledRef.current) {
+        ed.revealLine(model.getLineCount());
+      }
+    } else if (streamingContent !== prev) {
+      model.setValue(streamingContent);
+      if (!userScrolledRef.current) {
+        ed.revealLine(model.getLineCount());
+      }
+    }
+    prevStreamContentRef.current = streamingContent;
+  }, [streamingContent, streamingPath, activePath]);
+
+  // Reset typing-animation state po zakonczeniu streamu (event-driven).
+  useEffect(() => {
+    if (!streamingPath) {
+      prevStreamContentRef.current = "";
+      prevStreamPathRef.current = null;
+      userScrolledRef.current = false;
+    }
+  }, [streamingPath]);
+
+  // Definicja handleCopyCode ponizej (po obliczeniu currentCode).
 
   function scheduleSave(nextOverrides: Record<string, string>) {
     if (readOnly) return;
@@ -160,18 +290,29 @@ export function WorkspaceCodeEditor({
   }
 
   // Wartosc dla edytora — priorytet:
-  //  1. streamingContent (gdy AI aktualnie pisze ten plik),
+  //  1. streaming (gdy AI aktualnie pisze ten plik) — tresc steruje useEffect
+  //     przez executeEdits, prop `value` zostaje ustawiony tylko na pierwszy
+  //     chunk; pozniejsze zmiany pomijaja React (zeby uniknac full re-render).
   //  2. overrides (lokalne edycje uzytkownika),
   //  3. files (zapisane w bazie).
+  const isStreamingActive = streamingPath !== null && streamingPath === activePath;
   const currentCode =
     activePath != null
-      ? activePath === streamingPath
+      ? isStreamingActive
         ? streamingContent
         : (overrides[activePath] ?? files[activePath]?.code ?? "")
       : "";
-  // Edytor jest read-only podczas streamingu AI — uzytkownik widzi live update,
-  // ale nie moze edytowac (bo zmiana znikalaby po nastepnym chunku).
-  const isStreamingActive = streamingPath !== null && streamingPath === activePath;
+
+  const handleCopyCode = useCallback(async () => {
+    if (!activePath) return;
+    try {
+      await navigator.clipboard.writeText(currentCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (err) {
+      console.warn("clipboard failed", err);
+    }
+  }, [activePath, currentCode]);
 
   return (
     <div className="flex h-full w-full">
@@ -194,21 +335,45 @@ export function WorkspaceCodeEditor({
               </span>
             )}
           </span>
-          <SaveBadge
-            status={saveStatus}
-            locked={isLocked}
-            readOnly={readOnly}
-            streaming={isStreamingActive}
-          />
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleCopyCode}
+              disabled={!activePath}
+              className="inline-flex h-5 items-center gap-1 rounded border border-beige/15 bg-card/30 px-1.5 text-[10px] uppercase tracking-wider text-foreground/70 transition hover:border-beige/30 hover:bg-white/5 hover:text-beige disabled:cursor-not-allowed disabled:opacity-50"
+              title="Kopiuj caly plik"
+            >
+              {copied ? (
+                <>
+                  <Check className="h-2.5 w-2.5" />
+                  Skopiowano
+                </>
+              ) : (
+                <>
+                  <Copy className="h-2.5 w-2.5" />
+                  Kopiuj plik
+                </>
+              )}
+            </button>
+            <SaveBadge
+              status={saveStatus}
+              locked={isLocked}
+              readOnly={readOnly}
+              streaming={isStreamingActive}
+            />
+          </div>
         </div>
         <div className="min-h-0 flex-1">
           {activePath ? (
             <MonacoEditor
               height="100%"
               language={inferLanguage(activePath)}
-              value={currentCode}
+              value={isStreamingActive ? undefined : currentCode}
               theme="vs-dark"
               onChange={handleChange}
+              beforeMount={handleEditorWillMount}
+              onMount={handleEditorDidMount}
+              path={activePath}
               options={{
                 fontFamily: 'var(--font-geist-mono), "Fira Code", monospace',
                 fontSize: 13,
@@ -221,6 +386,10 @@ export function WorkspaceCodeEditor({
                 automaticLayout: true,
                 padding: { top: 12, bottom: 12 },
                 renderLineHighlight: "gutter",
+                // Wylacz "Cannot find name" itd. dla edytora — pelna walidacja
+                // zachodzi w WebContainerze podczas Vite dev-server.
+                quickSuggestions: { other: true, comments: false, strings: false },
+                renderValidationDecorations: "off",
               }}
             />
           ) : (

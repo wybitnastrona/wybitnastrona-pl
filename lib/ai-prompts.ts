@@ -65,6 +65,10 @@ OBRAZY — KRYTYCZNE ZASADY
 - NIGDY nie uzywaj szarych placeholder divow ani URL z picsum.photos / via.placeholder.com / unsplash.it.
 - generateImage() zwraca trwaly URL (Cloudinary CDN gdy skonfigurowane) — bezpiecznie wstawiaj
   do /src/data/config.ts jako stala. NIE wygasa po godzinie jak surowy DALL-E.
+- FOLDER /public/images/ — jest do dyspozycji dla statycznych grafik (logo SVG, ikony manifestu,
+  custom assets). Jezeli chcesz wstawic logo, mozesz: a) wywolac generateImage, ALBO b) zapisac
+  plik np. /public/images/logo.svg przez writeFile i zaladowac przez \`<img src="/images/logo.svg">\`.
+  Nie marnuj generateImage na proste logo — uzyj lucide-react lub inline SVG przez writeFile.
 
 ZGODNOSC Z BRANZA (WERYFIKUJ KAZDY PROMPT):
 - Prompt do generateImage MUSI byc zgodny z industry_vertical projektu.
@@ -211,6 +215,42 @@ ZASADA: Domyslnie uzyj TYP A (landing/sections-style). Przelacz na TYP B (React 
 TYLKO gdy uzytkownik prosi o "aplikacje", "panel", "dashboard", "blog", "sklep"
 lub wyraznie wspomina wiele oddzielnych podstron z URL.
 
+NAWIGACJA KOTWICOWA — OBOWIAZKOWA dla TYP A (landing page):
+Kazda sekcja MUSI miec atrybut \`id\` zgodny z linkiem w Navbarze. ZAKAZ uzywania
+linkow \`href="#..."\` bez odpowiadajacego \`<section id="...">\` — przycisk wtedy nic
+nie robi, uzytkownik klika i nic sie nie dzieje.
+
+POPRAWNIE:
+\`\`\`tsx
+// Nav.tsx
+<a href="#uslugi">Uslugi</a>
+<a href="#cennik">Cennik</a>
+<a href="#kontakt">Kontakt</a>
+
+// App.tsx (lub odpowiednie sekcje)
+<section id="uslugi"><Services /></section>
+<section id="cennik"><Pricing /></section>
+<section id="kontakt"><Contact /></section>
+\`\`\`
+
+STANDARDOWE ID (uzywaj tych, nie wymyslaj nowych):
+- \`hero\` (sekcja Hero — opcjonalnie)
+- \`o-nas\` (About / O nas)
+- \`uslugi\` (Services / Uslugi / Oferta)
+- \`cennik\` (Pricing / Cennik)
+- \`opinie\` (Testimonials / Opinie)
+- \`portfolio\` (Portfolio / Realizacje)
+- \`kontakt\` (Contact / Kontakt)
+- \`faq\` (FAQ / Pytania)
+
+Plynne przewijanie (\`scroll-behavior: smooth\`) jest juz wlaczone w /src/styles.css
+(preinstalowane) — nie nadpisuj. \`scroll-margin-top: 80px\` na \`section[id]\` jest
+juz ustawione zeby kotwice nie wpadaly pod sticky navbar.
+
+DLA TYP B (multi-page z react-router-dom):
+- Uzyj \`<Link to="/o-nas">\` (NIE \`<a href="/o-nas">\` — pelne przeladowanie).
+- W ramach jednej strony tez mozesz uzywac \`<a href="#sekcja">\` (anchor scroll).
+
 DOSTEPNE PAKIETY (preinstalowane — NIE dodawaj ich do package.json):
 - framer-motion — import { motion, AnimatePresence } from "framer-motion"
 - lucide-react — import { Icon } from "lucide-react"
@@ -333,6 +373,17 @@ ZASADY OGOLNE:
   - Mono / Technical: dodaj font-mono dla naglowkow technicznych / numerow / kodu.
   Zastosuj wybor w /src/styles.css przez patchFile (--accent: oklch(...)) ORAZ w
   klasach Tailwind komponentow Hero/H1.
+
+  PREINSTALOWANE KOMPONENTY UI (Card, Input, Textarea, Select, Tabs, Accordion,
+  Skeleton, Avatar, Progress, Separator) JUZ uzywaja zmiennych OKLCH — dziedzicza
+  paleta automatycznie. NIE nadpisuj im tla \`bg-white\` / \`bg-neutral-100\` /
+  \`text-neutral-900\` przez className — to zlamie spojnosc kolorystyczna.
+  Jezeli chcesz inny kolor karty, ustaw \`--bg-card\` w /src/styles.css przez patchFile.
+
+  ZAKAZ MIESZANIA SYSTEMOW: jezeli sekcja ma ciemne tlo (\`var(--bg)\` = OKLCH dark),
+  to wszystkie karty, inputy i texty wewnatrz MUSZA tez byc ciemne / kontrastowe.
+  ZAKAZ wstawiania \`bg-white text-black\` na ciemnym layoucie — staje sie to "bialy
+  prostokat na czarnym tle" i wyglada jak blad renderowania.
 
 - IKONY — ABSOLUTNY ZAKAZ SVG INLINE: NIE pisz <svg>...</svg> recznie. ZAWSZE importuj ikony z lucide-react: import { Star, Zap, CheckCircle, ArrowRight, Phone, Mail, MapPin } from "lucide-react". Uzyj <Star className="w-5 h-5" /> itp.
 - Obrazy: wywolaj generateImage("opisowy prompt po angielsku") zeby uzyskac URL. Nigdy nie uzywaj szarych placeholder divow.

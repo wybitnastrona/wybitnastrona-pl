@@ -36,9 +36,11 @@ const PACKAGE_JSON = `{
     "@radix-ui/react-slot": "^1.1.0"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.1.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.4",
+    "tailwindcss": "^4.1.0",
     "typescript": "^5.5.3",
     "vite": "^5.4.10"
   }
@@ -47,10 +49,11 @@ const PACKAGE_JSON = `{
 
 const VITE_CONFIG = `import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 import { fileURLToPath, URL } from "node:url";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [tailwindcss(), react()],
   appType: "spa",
   resolve: {
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
@@ -92,7 +95,6 @@ const INDEX_HTML = `<!doctype html>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>wybitnastrona.pl - preview</title>
     <link rel="canonical" href="https://wybitnastrona.pl" />
-    <script src="https://cdn.tailwindcss.com" crossorigin="anonymous"></script>
     <script>
 ${ELEMENT_PICKER_SCRIPT}
     </script>
@@ -119,7 +121,9 @@ createRoot(document.getElementById("root")!).render(
 );
 `;
 
-const STYLES_CSS = `:root {
+const STYLES_CSS = `@import "tailwindcss";
+
+:root {
   /* ── Accent palettes (switch by overriding --accent / --accent-fg) ── */
   --accent:       oklch(0.7 0.22 250);   /* default: electric blue   */
   --accent-fg:    oklch(0.98 0 0);       /* text on --accent         */

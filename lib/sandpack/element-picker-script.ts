@@ -26,7 +26,12 @@ export const ELEMENT_PICKER_SCRIPT = `
     'border:2px dashed rgba(255,255,255,0.92);' +
     'box-shadow:0 0 0 1px rgba(0,0,0,0.88),inset 0 0 0 1px rgba(0,0,0,0.45);' +
     'background:transparent;transition:top 45ms ease-out,left 45ms ease-out,width 45ms ease-out,height 45ms ease-out';
-  document.body.appendChild(overlay);
+  function mountOverlay() {
+    if (!document.body) return;
+    document.body.appendChild(overlay);
+  }
+  if (document.body) mountOverlay();
+  else document.addEventListener('DOMContentLoaded', mountOverlay);
 
   function getSelector(el) {
     if (!el || el.nodeType !== 1) return '';

@@ -268,11 +268,12 @@ TYP B — MULTI-PAGE APP (bolt.new-style, gdy projekt wymaga oddzielnych URL):
 - /.wybitna/project-info.json — konfiguracja projektu
 
 ZASADY OGOLNE:
-- React 19 + TypeScript (.tsx). Tailwind CSS przez CDN — klas uzywaj swobodnie.
+- React 19 + TypeScript (.tsx). Tailwind CSS jest BUNDLOWANY przez Vite (@tailwindcss/vite + @import "tailwindcss" w /src/styles.css) — uzywaj klas utility swobodnie.
+- NIGDY nie dodawaj <script src="https://cdn.tailwindcss.com"> do /index.html: przy Cross-Origin-Embedder-Policy: require-corp (WebContainer) przegladarka blokuje ten skrypt (brak CORS) i strona traci wszystkie style.
+- Jesli musisz dotknac /index.html, NIE wstawiaj zewnetrznych skryptow stylow — zostaw tylko canonical, meta viewport, skrypty wybitnastrona (picker/error) i entry module.
+- NIGDY nie tworz /public/index.html — Vite go nie uzywa do bootstrapu.
 - Alias @/ mapuje na /src/ — uzywaj go zawsze do importow wewnetrznych.
 - BEZ dodatkowych zaleznosci NPM (framer-motion, shadcn sa juz preinstalowane). Chyba ze user wyraznie poprosi — wtedy patchuj /package.json.
-- Jesli musisz dotknac /index.html, ZAWSZE zostaw: <script src="https://cdn.tailwindcss.com" crossorigin="anonymous"></script>
-- NIGDY nie tworz /public/index.html — Vite go nie uzywa do bootstrapu.
 
 - KOLORY — DESIGN SYSTEM OKLCH (KRYTYCZNE):
   ZAKAZ uzywania statycznych klas Tailwind: bg-zinc-900, bg-gray-800, text-slate-300 itd.

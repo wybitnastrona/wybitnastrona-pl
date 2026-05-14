@@ -26,8 +26,8 @@ export type ProjectModeDef = {
   suggestions: { label: string; prompt: string }[];
   /** Krotki opis stacku — pokazywany w dropdownie. */
   stackHint: string;
-  /** Minimalny tier ktory ma dostep do tego trybu (free/pro/wybitny). */
-  requiresTier: "free" | "pro" | "wybitny";
+  /** Minimalny tier ktory ma dostep do tego trybu (free/pro). */
+  requiresTier: "free" | "pro";
   /** Jesli true — zakładka pokazana, ale zablokowana (overlay "Wkrotce"). */
   comingSoon?: boolean;
 };
@@ -85,7 +85,7 @@ export const PROJECT_MODES: ProjectModeDef[] = [
     stackHint: "WatchKit + SwiftUI 10+, Complications, HealthKit",
     placeholder: "Opisz aplikacje na Apple Watch...",
     defaultTemplate: "watchos",
-    requiresTier: "wybitny",
+    requiresTier: "pro",
     suggestions: [
       { label: "Tracker bicia serca", prompt: "Aplikacja Apple Watch monitorujaca tetno z HealthKit i Live Activity" },
       { label: "Trening interwalowy", prompt: "Aplikacja na Apple Watch do treningu interwalowego z haptic feedback i SwiftCharts" },
@@ -100,7 +100,7 @@ export const PROJECT_MODES: ProjectModeDef[] = [
     stackHint: "tvOS 17+ SwiftUI z focus engine",
     placeholder: "Opisz aplikacje na Apple TV...",
     defaultTemplate: "tvos",
-    requiresTier: "wybitny",
+    requiresTier: "pro",
     suggestions: [
       { label: "Galeria zdjec", prompt: "Aplikacja TV do przegladania zdjec z iCloud z focus engine i kategorii" },
       { label: "Karaoke", prompt: "Aplikacja Karaoke na Apple TV z biblioteka piosenek i lyrics overlay" },
@@ -115,7 +115,7 @@ export const PROJECT_MODES: ProjectModeDef[] = [
     stackHint: "visionOS 1+ z RealityKit, ImmersiveSpace, Volumetric",
     placeholder: "Opisz aplikacje na Vision Pro...",
     defaultTemplate: "visionos",
-    requiresTier: "wybitny",
+    requiresTier: "pro",
     suggestions: [
       { label: "Wizualizator 3D", prompt: "Aplikacja Vision Pro z wizualizatorem modeli 3D w ImmersiveSpace i Volumetric WindowGroup" },
       { label: "Planetarium", prompt: "Aplikacja Vision Pro pokazujaca planety i gwiazdozbiory w immersive space" },
@@ -131,9 +131,9 @@ export function getModeById(id: ProjectMode | string | undefined): ProjectModeDe
 
 /** Tryby projektu dostepne dla danego tiera. */
 export function availableModesForTier(
-  userTier: "free" | "pro" | "wybitny" | string | undefined,
+  userTier: "free" | "pro" | string | undefined,
 ): ProjectModeDef[] {
-  const tierRank: Record<string, number> = { free: 0, pro: 1, wybitny: 2 };
+  const tierRank: Record<string, number> = { free: 0, pro: 1 };
   const u = (userTier as string) ?? "free";
   const rank = tierRank[u] ?? 0;
   return PROJECT_MODES.filter((m) => rank >= (tierRank[m.requiresTier] ?? 0));

@@ -65,11 +65,22 @@ export function ErrorWatcher({ onFixRequest, isStreaming }: Props) {
     }
   }
 
+  // isStreaming jako ref dla synchronizacji wewnatrz handler-a postMessage
+  // (uniknij synchronicznego setState w effect ze wzgledu na react-hooks rules).
+  const isStreamingRef = useRef(isStreaming);
+  useEffect(() => {
+    isStreamingRef.current = isStreaming;
+  }, [isStreaming]);
+
   // Listen for errors posted by the preview iframe.
+  // Podczas streamu AI pisze pliki czesciowo i Vite zglasza tranzytowe HMR 500
+  // przy kazdym chunkcie. Tlumimy te bledy az do `isStreaming=false` — pelny
+  // banner pokazujemy tylko gdy AI skonczy generacje.
   useEffect(() => {
     const handler = (e: MessageEvent) => {
       const data = e.data;
       if (data?.type !== "wybitna:error") return;
+      if (isStreamingRef.current) return; // pomijamy bledy z czasu streamu
       setErrors((prev) => {
         const next = [...prev, data as IframeError];
         return next.slice(-3);
@@ -79,23 +90,6 @@ export function ErrorWatcher({ onFixRequest, isStreaming }: Props) {
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
   }, []);
-
-  // Podczas streamu (AI pisze pliki) Vite zglasza tranzytowe HMR 500-tki przy
-  // kazdym czesciowo zapisanym pliku. NIE chcemy ich pokazywac uzytkownikowi —
-  // czyscimy bufor errors w momencie rozpoczecia streamu i tlumimy renderowanie
-  // bannera do konca generacji. Po zakonczeniu (isStreaming=false), jezeli blad
-  // dalej wystepuje, postMessage ze srodka iframe odpali go ponownie.
-  useEffect(() => {
-    if (isStreaming) {
-      setErrors([]);
-      setDismissed(false);
-      setAutoCountdown(null);
-      if (cancelTimerRef.current) {
-        clearTimeout(cancelTimerRef.current);
-        cancelTimerRef.current = null;
-      }
-    }
-  }, [isStreaming]);
 
   const latest = errors[errors.length - 1];
 

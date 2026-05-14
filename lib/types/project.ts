@@ -26,6 +26,8 @@ export type Project = {
   custom_system_context?: string | null;
   /** Paths that AI is forbidden to write/patch/delete. */
   locked_files: string[];
+  /** Static HTML snapshot for dashboard thumbnails (no JS, sandboxed iframe). */
+  preview_html?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -40,4 +42,6 @@ export type ProjectListItem = Pick<
   | "mode"
   | "created_at"
   | "updated_at"
->;
+> & {
+  preview_html?: string | null;
+};

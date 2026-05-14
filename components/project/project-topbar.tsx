@@ -557,6 +557,73 @@ function PublishDialog({
   const slugDraftValid =
     /^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])?$/.test(slugDraftNormalized);
 
+  // Live check dostepnosci slug (debounce 350ms, anuluje poprzedni fetch).
+  type ServerCheck =
+    | { status: "idle" }
+    | { status: "checking" }
+    | { status: "available" }
+    | { status: "taken"; reason: string };
+  const [serverCheck, setServerCheck] = useState<ServerCheck>({
+    status: "idle",
+  });
+
+  // shouldCheck = warunki sa spelnione zeby trafic do API.
+  const shouldCheck =
+    slugDraftValid && slugDraftNormalized !== (project.slug ?? "");
+
+  // Derived state — gdy nie ma warunkow do checku, status zawsze "idle"
+  // (server-state moze byc stale z poprzedniego draftu — ignorujemy).
+  const slugCheck: ServerCheck = shouldCheck
+    ? serverCheck
+    : { status: "idle" };
+
+  useEffect(() => {
+    if (!shouldCheck) return;
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      if (cancelled) return;
+      setServerCheck({ status: "checking" });
+      try {
+        const r = await fetch(
+          `/api/projects/check-slug?slug=${encodeURIComponent(slugDraftNormalized)}&excludeProjectId=${project.id}`,
+        );
+        if (cancelled) return;
+        if (!r.ok) {
+          setServerCheck({
+            status: "taken",
+            reason: "Nie udalo sie sprawdzic — sprobuj ponownie.",
+          });
+          return;
+        }
+        const data = (await r.json()) as {
+          available: boolean;
+          valid: boolean;
+          error?: string;
+        };
+        if (data.available) {
+          setServerCheck({ status: "available" });
+        } else {
+          setServerCheck({
+            status: "taken",
+            reason: data.error ?? "Ta subdomena jest juz zajeta.",
+          });
+        }
+      } catch {
+        if (!cancelled)
+          setServerCheck({
+            status: "taken",
+            reason: "Blad sieci podczas sprawdzania.",
+          });
+      }
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [shouldCheck, slugDraftNormalized, project.id]);
+
+  const slugBlocked = slugCheck.status === "taken";
+
   async function handlePublish() {
     setSlugError(null);
     if (slugDraftNormalized && !slugDraftValid) {
@@ -678,7 +745,8 @@ function PublishDialog({
                   disabled={
                     loading ||
                     slugDraftNormalized === slug ||
-                    !slugDraftValid
+                    !slugDraftValid ||
+                    slugBlocked
                   }
                   className="bg-beige text-beige-foreground hover:bg-beige/90"
                 >
@@ -689,9 +757,11 @@ function PublishDialog({
                   )}
                 </Button>
               </div>
-              {slugError && (
-                <p className="mt-2 text-xs text-rose-300">{slugError}</p>
-              )}
+              <SlugStatus
+                check={slugCheck}
+                slugError={slugError}
+                isDirty={slugDraftNormalized !== slug}
+              />
             </div>
             <div className="rounded-lg border border-beige/15 bg-background/60 p-3 text-sm">
               <p className="font-medium text-foreground">
@@ -754,9 +824,11 @@ function PublishDialog({
                   .{publishDomain}
                 </span>
               </div>
-              {slugError && (
-                <p className="mt-2 text-xs text-rose-300">{slugError}</p>
-              )}
+              <SlugStatus
+                check={slugCheck}
+                slugError={slugError}
+                isDirty={slugDraftNormalized.length > 0}
+              />
             </div>
           </div>
         )}
@@ -779,7 +851,8 @@ function PublishDialog({
               onClick={handlePublish}
               disabled={
                 loading ||
-                (slugDraftNormalized.length > 0 && !slugDraftValid)
+                (slugDraftNormalized.length > 0 && !slugDraftValid) ||
+                slugBlocked
               }
               className="bg-beige text-beige-foreground hover:bg-beige/90"
             >
@@ -791,6 +864,48 @@ function PublishDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+/**
+ * SlugStatus — line podpowiedzi pod inputem subdomeny.
+ * Pokazuje: checking spinner / available green / taken red / lokalny slugError.
+ */
+function SlugStatus({
+  check,
+  slugError,
+  isDirty,
+}: {
+  check:
+    | { status: "idle" }
+    | { status: "checking" }
+    | { status: "available" }
+    | { status: "taken"; reason: string };
+  slugError: string | null;
+  isDirty: boolean;
+}) {
+  if (slugError) {
+    return <p className="mt-2 text-xs text-rose-300">{slugError}</p>;
+  }
+  if (!isDirty) return null;
+  if (check.status === "checking") {
+    return (
+      <p className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
+        <Loader2 className="h-3 w-3 animate-spin" />
+        Sprawdzam dostępność…
+      </p>
+    );
+  }
+  if (check.status === "available") {
+    return (
+      <p className="mt-2 text-xs text-emerald-300">
+        Subdomena dostępna — możesz publikować.
+      </p>
+    );
+  }
+  if (check.status === "taken") {
+    return <p className="mt-2 text-xs text-rose-300">{check.reason}</p>;
+  }
+  return null;
 }
 
 function ShareDialog({

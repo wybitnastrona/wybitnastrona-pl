@@ -110,7 +110,7 @@ export function ensureTailwindInProjectFiles(files: ProjectFiles): ProjectFiles 
   const entry = files["/index.html"];
   if (!entry || typeof entry.code !== "string") return files;
 
-  let code = entry.code;
+  const code = entry.code;
   if (isViteProjectFiles(files)) {
     const stripped = stripTailwindCdnFromIndexHtml(code);
     if (stripped === code) return files;

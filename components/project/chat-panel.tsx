@@ -734,7 +734,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
           </div>
         )}
 
-        <div className="rounded-xl border border-beige/20 bg-card transition focus-within:border-beige/50">
+        <div className="rounded-xl border border-beige/10 bg-card/30 transition focus-within:border-beige/40">
           <textarea
             value={input}
             onChange={(event) => setInput(event.target.value)}
@@ -756,31 +756,23 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
             disabled={isStreaming}
           />
 
-          <div className="flex flex-wrap items-center gap-1 px-2 pb-2">
-            {/* Przycisk załącznika — zdjecia, PDF, kod, CSV, itp. */}
+          <div className="flex flex-wrap items-center gap-1 bg-card/30 px-2 pb-2">
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               aria-label="Załącz plik (zdjęcia, PDF, kod, CSV — max 5 MB)"
               title="Załącz plik — zdjęcia, PDF, pliki kodu, CSV (max 5 MB)"
-              className="flex h-7 cursor-pointer items-center gap-1 rounded-md border border-beige/15 bg-background/40 px-1.5 text-muted-foreground transition hover:border-beige/30 hover:bg-white/5 hover:text-beige"
+              className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition hover:bg-white/5 hover:text-beige"
             >
               <Paperclip className="h-3.5 w-3.5" />
-              {attachments.length === 0 && (
-                <span className="hidden text-[10px] sm:inline">Załącz</span>
-              )}
             </button>
 
-            <VoiceButton
-              onTranscript={(text) => {
-                setInput((prev) => (prev ? `${prev} ${text}` : text));
-              }}
-            />
+            <ModeButton mode={mode} onChange={setModeSync} />
 
             <ModelSelector
               value={model}
               onChange={handleModelChange}
-              currentLabel={modelDef.labelShort}
+              currentLabel={modelDef.displayName ?? modelDef.labelShort}
             />
 
             <SelectModeButton
@@ -788,9 +780,12 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
               onToggle={() => onSelectModeChange(!selectMode)}
             />
 
-            <ModeButton mode={mode} onChange={setModeSync} />
-
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center gap-1">
+              <VoiceButton
+                onTranscript={(text) => {
+                  setInput((prev) => (prev ? `${prev} ${text}` : text));
+                }}
+              />
               {isStreaming ? (
                 <Button
                   type="button"
@@ -838,7 +833,7 @@ function ModelSelector({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className="flex h-7 max-w-[180px] cursor-pointer items-center gap-1 rounded-md border border-beige/15 bg-background/40 px-2 text-[11px] text-foreground/85 transition hover:border-beige/30 hover:bg-white/5"
+        className="flex h-7 max-w-[180px] cursor-pointer items-center gap-1 rounded-md px-2 text-[11px] text-foreground/85 transition hover:bg-white/5"
         aria-label="Wybierz model"
       >
         <Sparkles className="h-3 w-3 text-beige/70" />
@@ -894,14 +889,14 @@ function SelectModeButton({
       type="button"
       onClick={onToggle}
       aria-pressed={active}
-      className={`flex h-7 cursor-pointer items-center gap-1 rounded-md border px-2 text-[11px] transition ${
+      className={`flex h-6 cursor-pointer items-center gap-1 rounded px-1.5 text-[10px] transition ${
         active
-          ? "border-beige/40 bg-beige/10 text-beige"
-          : "border-beige/15 bg-background/40 text-muted-foreground hover:border-beige/30 hover:text-foreground"
+          ? "bg-beige/15 text-beige"
+          : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
       }`}
       title="Tryb wyboru elementu w podgladzie"
     >
-      <MousePointer2 className="h-3 w-3" />
+      <MousePointer2 className="h-2.5 w-2.5" />
       Wybierz
     </button>
   );
@@ -912,12 +907,12 @@ const MODE_META: Record<
   { label: string; icon: typeof Rocket; description: string }
 > = {
   build: {
-    label: "Agent",
+    label: "Budowa",
     icon: Rocket,
     description: "Generuj i edytuj kod od razu. AI pisze pliki bezpośrednio.",
   },
   plan: {
-    label: "Plan",
+    label: "Planuj",
     icon: ListTodo,
     description: "AI najpierw pokaże plan kroków. Zatwierdzasz zanim zacznie pisać kod.",
   },
@@ -939,15 +934,15 @@ function ModeButton({
   const isPlanActive = mode === "plan";
   const isChatActive = mode === "discuss";
   const activeStyle = isPlanActive
-    ? "border-amber-400/50 bg-amber-400/10 text-amber-300"
+    ? "bg-amber-400/10 text-amber-300"
     : isChatActive
-      ? "border-blue-400/50 bg-blue-400/10 text-blue-300"
-      : "border-beige/25 bg-beige/10 text-beige";
+      ? "bg-blue-400/10 text-blue-300"
+      : "bg-beige/10 text-beige";
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className={`flex h-7 cursor-pointer items-center gap-1 rounded-md border px-2.5 text-[11px] font-medium transition ${activeStyle}`}
+        className={`flex h-7 cursor-pointer items-center gap-1 rounded-md px-2.5 text-[11px] font-medium transition ${activeStyle}`}
         title={MODE_META[mode].description}
         aria-label="Wybierz tryb"
       >

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { updateProjectFiles } from "@/lib/projects";
+import { persistPreviewSnapshot } from "@/lib/preview-snapshot";
 import type { ProjectFiles } from "@/lib/types/project";
 
 type Params = { params: Promise<{ id: string }> };
@@ -46,5 +47,7 @@ export async function PATCH(req: Request, { params }: Params) {
   }
 
   await updateProjectFiles(id, files);
+  // Fire-and-forget: generuj preview snapshot w tle (nie blokuj odpowiedzi).
+  void persistPreviewSnapshot(supabase, id, files);
   return NextResponse.json({ ok: true });
 }

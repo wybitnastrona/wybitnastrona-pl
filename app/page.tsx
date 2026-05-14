@@ -25,13 +25,10 @@ export default async function Home() {
       .select("tier")
       .eq("id", user.id)
       .maybeSingle();
-    const rawTier = ((profile?.tier as string | null) ?? "free") as
-      | "free"
-      | "pro"
-      | "wybitny";
-    const userTier = ["free", "pro", "wybitny"].includes(rawTier)
-      ? rawTier
-      : "free";
+    const rawTier = (profile?.tier as string | null) ?? "free";
+    // Legacy 'wybitny' tier rolled up into 'pro' after migration 0033.
+    const userTier: "free" | "pro" =
+      rawTier === "pro" || rawTier === "wybitny" ? "pro" : "free";
     return <AppShell projects={projects} userTier={userTier} />;
   }
 

@@ -15,6 +15,7 @@ import {
   ImageIcon,
   Loader2,
   Lock,
+  MoreHorizontal,
   Pencil,
   PictureInPicture2,
   RotateCw,
@@ -455,19 +456,24 @@ function BuildProgressOverlay({
   writtenFiles: string[];
 }) {
   return (
-    <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
-      <div className="flex w-full max-w-xs flex-col items-center gap-4 rounded-2xl border border-beige/20 bg-card/90 p-6 shadow-2xl">
+    <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm">
+      <div className="flex w-full max-w-xs flex-col items-center gap-4 rounded-2xl border-2 border-beige/40 bg-background/90 p-6 shadow-2xl shadow-black/40">
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-beige/10">
           <Loader2 className="h-5 w-5 animate-spin text-beige" />
         </div>
         <div className="w-full text-center">
-          <p className="mb-1 text-sm font-medium text-foreground">
+          <p className="mb-1.5 text-base font-medium text-white">
             Buduję Twoją stronę…
           </p>
-          <p className="flex items-center justify-center gap-1.5 truncate text-[11px] text-muted-foreground">
-            <FileCode2 className="h-3 w-3 shrink-0 text-beige/70" />
-            <span className="truncate font-mono">{currentFile}</span>
+          <p className="text-xs leading-relaxed text-white/70">
+            W niedalekiej przyszłości zobaczysz tutaj podgląd strony.
           </p>
+          {currentFile && (
+            <p className="mt-2 flex items-center justify-center gap-1.5 truncate text-[10px] text-beige/70">
+              <FileCode2 className="h-3 w-3 shrink-0 text-beige/70" />
+              <span className="truncate font-mono">{currentFile}</span>
+            </p>
+          )}
         </div>
         {writtenFiles.length > 1 && (
           <div className="w-full">
@@ -562,16 +568,17 @@ function CanvasTopbar({
 }) {
   return (
     <div className="flex h-10 shrink-0 items-center gap-2 border-b border-beige/10 bg-background/80 px-2">
+      {/* View toggles — same ikony z tooltipem */}
       <div className="flex items-center gap-0.5 rounded-md border border-beige/15 bg-card/40 p-0.5">
         {!isCodeOnly && (
-          <ToggleButton
+          <IconToggle
             icon={Eye}
             label="Podgląd"
             active={view === "preview"}
             onClick={() => onViewChange("preview")}
           />
         )}
-        <ToggleButton
+        <IconToggle
           icon={Code2}
           label="Kod"
           active={view === "code"}
@@ -579,37 +586,20 @@ function CanvasTopbar({
         />
       </div>
 
-      {/* Dodatkowe panele — Baza / Historia (baza ma sens tylko dla web) */}
+      {/* Baza + More menu (Stripe/Zasoby/Historia) */}
       <div className="flex items-center gap-0.5 rounded-md border border-beige/15 bg-card/40 p-0.5">
         {!isCodeOnly && (
-          <ToggleButton
+          <IconToggle
             icon={Database}
             label="Baza"
             active={view === "database"}
             onClick={() => onViewChange("database")}
           />
         )}
-        {!isCodeOnly && (
-          <ToggleButton
-            icon={CreditCard}
-            label="Stripe"
-            active={view === "stripe"}
-            onClick={() => onViewChange("stripe")}
-          />
-        )}
-        {!isCodeOnly && (
-          <ToggleButton
-            icon={ImageIcon}
-            label="Zasoby"
-            active={view === "assets"}
-            onClick={() => onViewChange("assets")}
-          />
-        )}
-        <ToggleButton
-          icon={History}
-          label="Historia"
-          active={view === "snapshots"}
-          onClick={() => onViewChange("snapshots")}
+        <MoreMenu
+          view={view}
+          onViewChange={onViewChange}
+          isCodeOnly={isCodeOnly}
         />
       </div>
 
@@ -628,86 +618,202 @@ function CanvasTopbar({
         </div>
       )}
 
-      {/* Edytuj tekst — tylko dla web */}
+      {/* Right toolbar — wszystkie akcje icon-only z tooltipem */}
       {!isCodeOnly && (
-        <button
-          type="button"
+        <IconButton
+          icon={Pencil}
+          label={editTextMode ? "Wyłącz edycję" : "Edytuj tekst"}
+          tooltip="Edytuj tekst bezpośrednio w podglądzie (klik → wpisz → Enter)"
+          active={editTextMode}
           onClick={onToggleEditTextMode}
-          className={`ml-auto flex h-7 cursor-pointer items-center gap-1.5 rounded-md border px-2 text-xs transition sm:ml-0 ${
-            editTextMode
-              ? "border-beige/40 bg-beige/15 text-beige"
-              : "border-beige/15 bg-card/40 text-foreground/80 hover:border-beige/30 hover:bg-white/5 hover:text-beige"
-          }`}
-          title="Edytuj tekst bezpośrednio w podglądzie (klik → wpisz → Enter)"
-          aria-pressed={editTextMode}
-        >
-          <Pencil className="h-3 w-3" />
-          <span className="hidden sm:inline">
-            {editTextMode ? "Wyłącz edycję" : "Edytuj tekst"}
-          </span>
-        </button>
+          className="ml-auto sm:ml-0"
+        />
       )}
 
-      {/* Floating preview toggle (nie dla code-only) */}
       {!isCodeOnly && onToggleFloating && (
-        <button
-          type="button"
+        <IconButton
+          icon={PictureInPicture2}
+          label="Float"
+          tooltip="Floating preview — draggable window"
+          active={!!floatingOpen}
           onClick={onToggleFloating}
-          className={`flex h-7 cursor-pointer items-center gap-1.5 rounded-md border px-2 text-xs transition ${
-            floatingOpen
-              ? "border-beige/40 bg-beige/15 text-beige"
-              : "border-beige/15 bg-card/40 text-foreground/80 hover:border-beige/30 hover:bg-white/5 hover:text-beige"
-          }`}
-          title="Floating preview — draggable window (jak Rork)"
-          aria-pressed={floatingOpen}
-        >
-          <PictureInPicture2 className="h-3 w-3" />
-          <span className="hidden sm:inline">Float</span>
-        </button>
+        />
       )}
 
-      <button
-        type="button"
+      <IconButton
+        icon={Lock}
+        label="Zablokuj pliki"
+        tooltip="Zablokuj pliki przed nadpisaniem przez AI"
         onClick={onOpenLockDialog}
-        className={`flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-beige/15 bg-card/40 px-2 text-xs text-foreground/80 transition hover:border-beige/30 hover:bg-white/5 hover:text-beige ${
-          isCodeOnly ? "ml-auto" : ""
-        }`}
-        title="Zablokuj pliki przed nadpisaniem przez AI"
-      >
-        <Lock className="h-3 w-3" />
-        <span className="hidden sm:inline">Zablokuj pliki</span>
-      </button>
+        className={isCodeOnly ? "ml-auto" : ""}
+      />
 
-      {/* Akcja koncowa: code-only → eksport ZIP, web → otworz w nowej karcie (wcUrl) */}
+      {/* Akcja koncowa: code-only → eksport ZIP, web → otworz w nowej karcie */}
       {isCodeOnly ? (
         <a
           href={`/api/export/zip?projectId=${encodeURIComponent(projectId)}`}
-          className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-beige/30 bg-beige/15 px-2 text-xs font-medium text-beige transition hover:bg-beige/25"
-          title={platform === "ios" ? "Eksport do Xcode 15+" : "Eksport do Android Studio"}
+          className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-beige/30 bg-beige/15 text-beige transition hover:bg-beige/25"
+          title={
+            platform === "ios"
+              ? "Eksport do Xcode 15+"
+              : "Eksport do Android Studio"
+          }
+          aria-label="Eksport ZIP"
         >
-          <Download className="h-3 w-3" />
-          <span className="hidden sm:inline">Eksport ZIP</span>
+          <Download className="h-3.5 w-3.5" />
         </a>
       ) : (
-        <button
-          type="button"
-          onClick={onOpenLive}
-          title={
+        <IconButton
+          icon={ExternalLink}
+          label="Otwórz w nowej karcie"
+          tooltip={
             isPublished
               ? "Otwiera opublikowana strone w nowej karcie"
               : "Najpierw opublikuj projekt — klikniecie otworzy dialog publikacji"
           }
-          className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-beige/15 bg-card/40 px-2 text-xs text-foreground/80 transition hover:border-beige/30 hover:bg-white/5 hover:text-beige"
-        >
-          <ExternalLink className="h-3 w-3" />
-          <span className="hidden sm:inline">Otwórz w nowej karcie</span>
-        </button>
+          onClick={onOpenLive}
+        />
       )}
     </div>
   );
 }
 
-function ToggleButton({
+/**
+ * IconButton — przycisk z sama ikona, etykieta widoczna tylko jako native
+ * tooltip (atrybut `title`). Subtelny border + tinted background na hover.
+ */
+function IconButton({
+  icon: Icon,
+  label,
+  tooltip,
+  active,
+  onClick,
+  className = "",
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  tooltip?: string;
+  active?: boolean;
+  onClick: () => void;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      aria-label={label}
+      title={tooltip ?? label}
+      className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border transition ${
+        active
+          ? "border-beige/40 bg-beige/15 text-beige"
+          : "border-beige/15 bg-card/40 text-foreground/80 hover:border-beige/30 hover:bg-white/5 hover:text-beige"
+      } ${className}`}
+    >
+      <Icon className="h-3.5 w-3.5" />
+    </button>
+  );
+}
+
+/**
+ * MoreMenu — animowany dropdown z dodatkowymi widokami (Stripe / Zasoby /
+ * Historia). Trigger = ikona MoreHorizontal, klik rozwija liste z gory na dol
+ * przez CSS transition + framer-style scale enter.
+ */
+function MoreMenu({
+  view,
+  onViewChange,
+  isCodeOnly,
+}: {
+  view: WorkspaceView;
+  onViewChange: (v: WorkspaceView) => void;
+  isCodeOnly: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  const items: { view: WorkspaceView; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+    ...(isCodeOnly
+      ? []
+      : ([
+          { view: "stripe" as const, label: "Stripe", icon: CreditCard },
+          { view: "assets" as const, label: "Zasoby", icon: ImageIcon },
+        ])),
+    { view: "snapshots" as const, label: "Historia", icon: History },
+  ];
+
+  const activeInMenu = items.some((it) => it.view === view);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        title="Więcej widoków (Stripe, Zasoby, Historia)"
+        aria-label="Więcej"
+        aria-expanded={open}
+        className={`flex h-6 cursor-pointer items-center justify-center rounded px-2 text-xs transition ${
+          activeInMenu || open
+            ? "bg-beige text-beige-foreground"
+            : "text-muted-foreground hover:bg-white/5 hover:text-beige"
+        }`}
+      >
+        <MoreHorizontal className="h-3 w-3" />
+      </button>
+      {/* Dropdown panel — CSS transition (scale + opacity od gory na dol) */}
+      <div
+        className={`absolute right-0 top-full z-30 mt-1 min-w-[150px] origin-top-right overflow-hidden rounded-lg border border-beige/15 bg-card shadow-2xl shadow-black/40 transition-all duration-150 ${
+          open
+            ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
+            : "pointer-events-none -translate-y-1 scale-95 opacity-0"
+        }`}
+      >
+        <ul className="py-1 text-xs">
+          {items.map((it, idx) => {
+            const Icon = it.icon;
+            const isActive = view === it.view;
+            return (
+              <li
+                key={it.view}
+                style={{ transitionDelay: open ? `${idx * 30}ms` : "0ms" }}
+                className={`transition-all duration-200 ${
+                  open ? "translate-y-0 opacity-100" : "-translate-y-1 opacity-0"
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    onViewChange(it.view);
+                    setOpen(false);
+                  }}
+                  className={`flex w-full cursor-pointer items-center gap-2 px-3 py-1.5 text-left transition ${
+                    isActive
+                      ? "bg-beige/15 text-beige"
+                      : "text-foreground/80 hover:bg-white/5 hover:text-beige"
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5 shrink-0" />
+                  {it.label}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+function IconToggle({
   icon: Icon,
   label,
   active,
@@ -723,15 +829,15 @@ function ToggleButton({
       type="button"
       onClick={onClick}
       aria-pressed={active}
+      aria-label={label}
       title={label}
-      className={`flex h-6 cursor-pointer items-center gap-1 rounded px-2 text-xs transition ${
+      className={`flex h-6 w-7 cursor-pointer items-center justify-center rounded transition ${
         active
           ? "bg-beige text-beige-foreground"
           : "text-muted-foreground hover:bg-white/5 hover:text-beige"
       }`}
     >
       <Icon className="h-3 w-3" />
-      <span className="hidden sm:inline">{label}</span>
     </button>
   );
 }

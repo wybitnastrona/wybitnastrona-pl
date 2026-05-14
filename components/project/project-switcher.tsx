@@ -150,35 +150,95 @@ function ProjectsList({
   currentProjectId: string;
   onSelect: () => void;
 }) {
-  const [projects, setProjects] = useState<ProjectListItem[] | null>(null);
+  type State =
+    | { kind: "loading" }
+    | { kind: "data"; projects: ProjectListItem[] }
+    | { kind: "error"; message: string }
+    | { kind: "unauthorized" };
+  const [state, setState] = useState<State>({ kind: "loading" });
 
   useEffect(() => {
     let cancelled = false;
     fetch("/api/projects/list")
-      .then((r) => r.json())
-      .then((data: ProjectListItem[]) => {
-        if (!cancelled) setProjects(data);
+      .then(async (r) => {
+        if (r.status === 401) {
+          if (!cancelled) setState({ kind: "unauthorized" });
+          return;
+        }
+        if (!r.ok) {
+          if (!cancelled)
+            setState({
+              kind: "error",
+              message: `HTTP ${r.status} — spróbuj odświeżyć stronę.`,
+            });
+          return;
+        }
+        const data = (await r.json()) as
+          | ProjectListItem[]
+          | { projects: ProjectListItem[] };
+        const projects = Array.isArray(data) ? data : (data.projects ?? []);
+        if (!cancelled) setState({ kind: "data", projects });
       })
-      .catch(() => {
-        if (!cancelled) setProjects([]);
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        const message =
+          err instanceof Error ? err.message : "Problem z połączeniem";
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[project-switcher] fetch failed:", err);
+        }
+        setState({ kind: "error", message });
       });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  if (projects === null) {
+  if (state.kind === "loading") {
     return (
       <div className="flex items-center justify-center py-8">
         <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
       </div>
     );
   }
+  if (state.kind === "unauthorized") {
+    return (
+      <div className="space-y-2 px-2 py-4 text-center">
+        <p className="text-xs text-muted-foreground">
+          Zaloguj się, aby zobaczyć swoje projekty.
+        </p>
+        <Link
+          href="/signin"
+          onClick={onSelect}
+          className="inline-flex items-center gap-1 text-xs text-beige underline-offset-4 hover:underline"
+        >
+          Przejdź do logowania →
+        </Link>
+      </div>
+    );
+  }
+  if (state.kind === "error") {
+    return (
+      <div className="space-y-2 px-2 py-4 text-center">
+        <p className="text-xs text-rose-300/80">
+          Nie udało się wczytać projektów.
+        </p>
+        <p className="text-[10px] text-muted-foreground">{state.message}</p>
+      </div>
+    );
+  }
+  const projects = state.projects;
   if (projects.length === 0) {
     return (
-      <p className="px-2 py-4 text-center text-xs text-muted-foreground">
-        Brak innych projektów
-      </p>
+      <div className="space-y-2 px-2 py-4 text-center">
+        <p className="text-xs text-muted-foreground">Brak innych projektów</p>
+        <Link
+          href="/"
+          onClick={onSelect}
+          className="inline-flex items-center gap-1 text-xs text-beige underline-offset-4 hover:underline"
+        >
+          Stwórz pierwszy projekt →
+        </Link>
+      </div>
     );
   }
   return (

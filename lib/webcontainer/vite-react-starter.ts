@@ -976,12 +976,18 @@ export { ScrollArea };
 
 const APP_TSX = `export default function App() {
   return (
-    <div className="min-h-screen bg-white text-neutral-900 flex items-center justify-center p-6">
-      <div className="max-w-md text-center space-y-4">
-        <div className="inline-block h-8 w-8 rounded-full border-2 border-amber-400/30 border-t-amber-500 animate-spin" />
-        <h1 className="text-2xl font-medium">Buduję Twoją stronę…</h1>
-        <p className="text-sm text-neutral-500">
-          AI generuje sekcje biznesowe. Za chwilę zobaczysz wynik tutaj na żywo.
+    <div
+      className="min-h-screen flex items-center justify-center p-6"
+      style={{ backgroundColor: "#0a0a0a", color: "#ffffff" }}
+    >
+      <div
+        className="max-w-md text-center space-y-4 rounded-2xl p-8"
+        style={{ border: "2px solid rgba(232,220,196,0.40)", backgroundColor: "rgba(0,0,0,0.40)" }}
+      >
+        <div className="inline-block h-10 w-10 rounded-full border-2 border-amber-400/30 border-t-amber-500 animate-spin" />
+        <h1 className="text-2xl font-medium text-white">Buduję Twoją stronę…</h1>
+        <p className="text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>
+          W niedalekiej przyszłości zobaczysz tutaj podgląd strony.
         </p>
       </div>
     </div>

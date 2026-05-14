@@ -36,19 +36,22 @@ export function ProjectWorkspace({
   initialModel,
   initialMode,
 }: Props) {
-  // Vite starter ma wiele plików (package.json, vite.config…). Liczymy tylko
-  // NIE-ukryte i pomijamy entry shell — jak dawniej przy Sandpacku: "ma pliki"
-  // = co najmniej 2 istotne pliki (np. App + komponent), żeby kreator pytań
-  // i auto-start czatu działały dla świeżego projektu.
-  const ENTRY_ONLY_PATHS = new Set([
-    "/index.html",
-    "/index.tsx",
-    "/src/main.tsx",
-  ]);
-  const visibleCount = Object.entries(project.files ?? {}).filter(
-    ([path, f]) => !f.hidden && !ENTRY_ONLY_PATHS.has(path),
+  // Starter vite-react ma teraz wiele widocznych plikow konfiguracji
+  // (Bolt-style: package.json, vite.config, tsconfig.*, tailwind.config,
+  // /.wybitna/*, /public/images/*). Te NIE liczą się jako "projekt ma pliki"
+  // — nas interesują tylko PLIKI WYGENEROWANE PRZEZ AI (sekcje, layout, pages).
+  // Bez tej heurystyki świeży projekt natychmiast widzi `hasFiles=true` i
+  // wizard z pytaniami nie wystartuje.
+  const AI_GENERATED_PATTERNS = [
+    /^\/src\/components\/sections\//,
+    /^\/src\/components\/layout\//,
+    /^\/src\/pages\//,
+    /^\/src\/data\//,
+  ];
+  const aiGeneratedCount = Object.keys(project.files ?? {}).filter((path) =>
+    AI_GENERATED_PATTERNS.some((re) => re.test(path)),
   ).length;
-  const hasFiles = visibleCount > 1;
+  const hasFiles = aiGeneratedCount >= 2;
 
   const hasStoredHistory = initialMessages.length > 0;
 

@@ -40,7 +40,7 @@ export function AdvancedControls({
         className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground transition hover:text-foreground/70"
       >
         <Settings2 className="h-3.5 w-3.5" />
-        Advanced Controls
+        Zaawansowane
         {open ? (
           <ChevronUp className="h-3 w-3" />
         ) : (

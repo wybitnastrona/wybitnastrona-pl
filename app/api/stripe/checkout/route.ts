@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getStripe, getOrCreateCustomer } from "@/lib/stripe";
-import { getProductById } from "@/lib/stripe-products";
+import {
+  getProductById,
+  getProTierByCredits,
+  getProTierById,
+} from "@/lib/stripe-products";
 
 export const runtime = "nodejs";
 
@@ -10,17 +14,29 @@ export async function POST(req: Request) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!user)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  let body: { productId?: string };
+  let body: { productId?: string; tierCredits?: number };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const product = body.productId ? getProductById(body.productId) : undefined;
-  if (!product) return NextResponse.json({ error: "Unknown product" }, { status: 400 });
+  // Akceptujemy zarowno productId (legacy) jak i tierCredits (slider Bolt-style).
+  let product = body.productId ? getProductById(body.productId) : undefined;
+  if (!product && body.tierCredits) {
+    const proTier = getProTierByCredits(Number(body.tierCredits));
+    if (proTier) product = getProductById(proTier.id);
+  }
+  if (!product && body.productId) {
+    // moze byc czystym ProTier id (pro_500)
+    const proTier = getProTierById(body.productId);
+    if (proTier) product = getProductById(proTier.id);
+  }
+  if (!product)
+    return NextResponse.json({ error: "Unknown product" }, { status: 400 });
 
   // Pobierz/utworz Stripe customer
   const { data: profile } = await supabase
@@ -46,11 +62,8 @@ export async function POST(req: Request) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
   const isSubscription = product.kind === "subscription";
-  // Subscriptions w Polsce nie wspieraja BLIK / p24 — sprawdz dostepne metody w Dashboard.
-  // Topupy: full menu z BLIKiem.
-  const paymentMethods: Array<"card" | "blik" | "p24"> = isSubscription
-    ? ["card"]
-    : ["card", "blik", "p24"];
+  // Subscriptions w Polsce nie wspieraja BLIK / p24 — tylko karta.
+  const paymentMethods: Array<"card" | "blik" | "p24"> = ["card"];
 
   const session = await stripe.checkout.sessions.create({
     mode: isSubscription ? "subscription" : "payment",

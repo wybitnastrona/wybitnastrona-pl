@@ -4,9 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   FileUp,
-  Globe,
   ImageIcon,
-  Lock,
   Loader2,
   Paperclip,
   Plus,
@@ -41,6 +39,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { PlatformSelector } from "@/components/app-shell/platform-selector";
 import { AdvancedControls } from "@/components/app-shell/advanced-controls";
+import { IntegrationsPanel } from "@/components/integrations/integrations-panel";
+import { Plug } from "lucide-react";
 import { getRandomShufflePrompt } from "@/lib/shuffle-prompts";
 import { navigateToProjectHref } from "@/lib/nav/full-document-navigation";
 
@@ -58,25 +58,22 @@ type CreationHeroProps = {
 
 export function CreationHero({ userTier = "free" }: CreationHeroProps) {
   const isFreeTier = userTier === "free";
-  const isWybitny = userTier === "wybitny";
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [prompt, setPrompt] = useState("");
   const [projectMode, setProjectMode] = useState<ProjectMode>(DEFAULT_MODE);
-  const [isPublic, setIsPublic] = useState(true);
-  // FREE musi byc publiczny. Inicjalnie zawsze public.
-  // Initial model: zwroci najnizszy dostepny dla danego tieru.
-  const initialModel: AiModelId =
-    availableModelsForTier(userTier)[0]?.id ?? DEFAULT_MODEL_ID;
+  // Wszystkie projekty domyslnie prywatne (gating w PublishDialog).
+  // FREE moze publikowac na auto-slug; custom slug tylko PRO.
+  // Initial model: dla FREE = Pan Programista (Sonnet), dla PRO = Sonnet default.
+  const initialModel: AiModelId = DEFAULT_MODEL_ID;
   const [model, setModel] = useState<AiModelId>(initialModel);
   const [template, setTemplate] = useState<TemplateId>(DEFAULT_TEMPLATE);
   const [customContext, setCustomContext] = useState("");
   const [isPlanMode, setIsPlanMode] = useState(false);
-  // WYBITNY toggle — odblokowuje MAX_APPLE_POWER + zloty glow.
-  const [wybitnyMode, setWybitnyMode] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
+  const [integrationsOpen, setIntegrationsOpen] = useState(false);
 
   const currentModeDef = getModeById(projectMode);
 
@@ -149,10 +146,7 @@ export function CreationHero({ userTier = "free" }: CreationHeroProps) {
     });
     if (template !== DEFAULT_TEMPLATE) params.set("template", template);
     params.set("model", model);
-    // FREE: zawsze publiczny (wymog planu). PRO/WYBITNY: zgodnie z toggle.
-    const effectivePublic = isFreeTier ? true : isPublic;
-    if (effectivePublic) params.set("public", "1");
-    if (wybitnyMode && isWybitny) params.set("wybitny", "1");
+    // Wszystkie projekty domyslnie prywatne — publikacja w PublishDialog.
     const trimmedCtx = customContext.trim();
     if (trimmedCtx) params.set("ctx", trimmedCtx.slice(0, 2000));
 
@@ -278,36 +272,17 @@ export function CreationHero({ userTier = "free" }: CreationHeroProps) {
               </span>
             )}
 
-            {/* Tryb WYBITNY toggle — widoczny tylko dla tieru wybitny */}
-            {isWybitny && (
-              <button
-                type="button"
-                onClick={() => setWybitnyMode((v) => !v)}
-                className={`inline-flex h-7 cursor-pointer items-center gap-1 rounded-md border px-2 text-[11px] font-medium transition ${
-                  wybitnyMode
-                    ? "border-amber-300/60 bg-gradient-to-r from-amber-200/30 via-beige/30 to-amber-200/30 text-amber-100"
-                    : "border-beige/20 bg-background/40 text-foreground/70 hover:border-amber-300/40 hover:text-amber-100"
-                }`}
-                title="Tryb WYBITNY: ARKit, HealthKit, Metal, Live Activities — max Apple power"
-              >
-                <Sparkles className="h-3 w-3" />
-                WYBITNY
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setIntegrationsOpen(true)}
+              title="Połącz Supabase / Notion / MCP"
+              className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-md border border-beige/15 bg-background/40 px-2 text-[11px] text-muted-foreground transition hover:border-beige/30 hover:text-beige"
+            >
+              <Plug className="h-3 w-3" />
+              Integracje
+            </button>
 
             <div className="ml-auto flex items-center gap-1.5">
-              {!isFreeTier && (
-                <VisibilityToggle isPublic={isPublic} onChange={setIsPublic} />
-              )}
-              {isFreeTier && (
-                <span
-                  className="inline-flex h-8 items-center gap-1 rounded-md border border-beige/15 bg-background/40 px-2 text-[11px] text-muted-foreground"
-                  title="Plan FREE — wszystkie projekty publiczne"
-                >
-                  Publiczny
-                </span>
-              )}
-
               <button
                 type="button"
                 onClick={handleShuffle}
@@ -317,17 +292,11 @@ export function CreationHero({ userTier = "free" }: CreationHeroProps) {
                 <Shuffle className="h-3.5 w-3.5" />
               </button>
 
-              {/* Zbuduj — gdy WYBITNY toggle aktywny, dostaje zloty glow.
-                  Inaczej standard bezowy. */}
               <Button
                 type="submit"
                 size="sm"
                 disabled={!prompt.trim() || submitting}
-                className={
-                  wybitnyMode && isWybitny
-                    ? "relative bg-gradient-to-r from-amber-200 via-beige to-amber-100 text-neutral-900 shadow-[0_0_30px_rgba(232,220,196,0.65)] animate-pulse hover:from-amber-100 hover:via-beige hover:to-amber-100 disabled:opacity-60"
-                    : "bg-beige text-beige-foreground hover:bg-beige/90 disabled:bg-beige/40 disabled:text-beige-foreground/60"
-                }
+                className="bg-beige text-beige-foreground hover:bg-beige/90 disabled:bg-beige/40 disabled:text-beige-foreground/60"
               >
                 {submitting ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -335,27 +304,25 @@ export function CreationHero({ userTier = "free" }: CreationHeroProps) {
                   <ArrowRight className="h-4 w-4" />
                 )}
                 Zbuduj
-              </Button>  {/* Polish: OK */}
+              </Button>
             </div>
           </div>
         </form>
 
         {/* Selected model hint */}
         <p className="mt-2 text-center text-[11px] text-muted-foreground">
-          Model: <span className="text-foreground/80">{selectedModel.labelShort}</span>
+          Model:{" "}
+          <span className="text-foreground/80">
+            {selectedModel.displayName ?? selectedModel.labelShort}
+          </span>
           {isFreeTier && (
             <>
               {" • "}
               <span className="text-muted-foreground">
-                FREE: 5 kredytow/mc, Web only — <a href="/pricing" className="underline hover:text-beige">odblokuj PRO</a>
-              </span>
-            </>
-          )}
-          {userTier === "pro" && (
-            <>
-              {" • "}
-              <span className="text-muted-foreground">
-                PRO — <a href="/pricing" className="underline hover:text-beige">upgrade do WYBITNY</a> dla Apple Max Power
+                FREE: 100 kr/mc, 30 kr/dzień —{" "}
+                <a href="/pricing" className="underline hover:text-beige">
+                  odblokuj PRO
+                </a>
               </span>
             </>
           )}
@@ -399,6 +366,11 @@ export function CreationHero({ userTier = "free" }: CreationHeroProps) {
           Eksploruj galerie
         </button>
       </div>
+
+      <IntegrationsPanel
+        open={integrationsOpen}
+        onClose={() => setIntegrationsOpen(false)}
+      />
     </section>
   );
 }
@@ -434,7 +406,7 @@ function PlusMenu({
       <DropdownMenuContent align="start" sideOffset={8} className="w-64">
         <DropdownMenuItem onClick={onAttachImage}>
           <FileUp className="h-3.5 w-3.5" />
-              Załącz zdjęcie
+          Załącz zdjęcie
         </DropdownMenuItem>
 
         <DropdownMenuSeparator />
@@ -455,72 +427,44 @@ function PlusMenu({
           </div>
         </DropdownMenuItem>
 
-        <DropdownMenuSeparator />
-
-        {/* Base UI wymaga DropdownMenuLabel wewnątrz DropdownMenuGroup */}
-        <DropdownMenuGroup>
-          <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
-            Agent AI
-          </DropdownMenuLabel>
-          {visibleModels.map((m) => (
-            <DropdownMenuItem
-              key={m.id}
-              onClick={() => onModelChange(m.id)}
-              className={m.id === model ? "bg-beige/10 text-beige" : ""}
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              <div className="flex flex-col">
-                <span>{m.labelShort}</span>
-                <span className="text-[10px] text-muted-foreground">
-                  {m.pointCost} kr / generacja
-                </span>
-              </div>
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuGroup>  {/* zamknięcie głównej grupy z modelem */}
+        {/* FREE: tylko default model (Pan Programista) — ukrywamy selektor.
+            PRO: dropdown z wszystkimi modelami. */}
+        {!isFreeTier && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                Agent AI
+              </DropdownMenuLabel>
+              {visibleModels.map((m) => (
+                <DropdownMenuItem
+                  key={m.id}
+                  onClick={() => onModelChange(m.id)}
+                  className={m.id === model ? "bg-beige/10 text-beige" : ""}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <div className="flex flex-col">
+                    <span>{m.displayName ?? m.labelShort}</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {m.pointCost} kr / generacja
+                    </span>
+                  </div>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
+          </>
+        )}
 
         {isFreeTier && (
           <>
             <DropdownMenuSeparator />
             <div className="px-2 py-1.5 text-[10px] text-muted-foreground">
-              Plan FREE — więcej modeli w Pro.
+              Domyślny model: Pan Programista (Sonnet 4.6).
+              <br />
+              Opus 4.6 / 4.7 odblokujesz w PRO.
             </div>
           </>
         )}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-function VisibilityToggle({
-  isPublic,
-  onChange,
-}: {
-  isPublic: boolean;
-  onChange: (v: boolean) => void;
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        className="flex h-8 cursor-pointer items-center gap-1 rounded-md border border-beige/15 bg-background/40 px-2 text-xs text-foreground/80 transition hover:border-beige/30 hover:text-foreground"
-        aria-label="Widocznosc projektu"
-      >
-        {isPublic ? (
-          <Globe className="h-3.5 w-3.5 text-beige/70" />
-        ) : (
-          <Lock className="h-3.5 w-3.5 text-beige/70" />
-        )}
-        {isPublic ? "Publiczny" : "Prywatny"}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" sideOffset={8} className="w-44">
-        <DropdownMenuItem onClick={() => onChange(true)}>
-          <Globe className="h-3.5 w-3.5" />
-          Publiczny
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => onChange(false)}>
-          <Lock className="h-3.5 w-3.5" />
-          Prywatny
-        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

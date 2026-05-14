@@ -1,6 +1,8 @@
 /**
  * Modele AI dostepne w kreatorze.
  * pointCost: koszt jednego zapytania do AI w kredytach uzytkownika.
+ *
+ * Tiers po refaktorze: tylko 'free' i 'pro'. Wybitny zostal zwiniety do PRO.
  */
 
 export type AiModelId =
@@ -15,6 +17,8 @@ export type AiModelDef = {
   label: string;
   /** Krotka etykieta w dropdownie / toolbarze. */
   labelShort: string;
+  /** Display name uzywany w chacie/kreatorze ("Pan Programista" dla Sonneta). */
+  displayName?: string;
   /** Rzeczywisty identyfikator modelu w API Anthropic. */
   anthropicModel: string;
   description: string;
@@ -22,8 +26,8 @@ export type AiModelDef = {
   /** Koszt jednego zapytania w kredytach uzytkownika. */
   pointCost: number;
   available: boolean;
-  /** Minimalny tier ktorego uzywa: free / pro / wybitny. */
-  requiresTier: "free" | "pro" | "wybitny";
+  /** Minimalny tier ktorego uzywa: free / pro. */
+  requiresTier: "free" | "pro";
   /** @deprecated zastapione przez requiresTier === 'free'. */
   isFree?: boolean;
 };
@@ -41,11 +45,22 @@ export type AiModelDef = {
  */
 export const CREDITS_PER_PLN = 50; // 1 PLN = 50 kredytów → 1 kredyt = 0.02 PLN
 
+/**
+ * Limity FREE tier — rate-limit zachecajacy do PRO.
+ * monthlyCredits=100 = max 1 generacja Sonnet/mc; dailyCredits=30 = max 1 Haiku/dzien.
+ * Reset realizowany przez RPC bump_usage_counters (atomicznie).
+ */
+export const FREE_TIER_LIMITS = {
+  monthlyCredits: 100,
+  dailyCredits: 30,
+} as const;
+
 export const AI_MODELS: AiModelDef[] = [
   {
     id: "claude-sonnet-4-6",
-    label: "Claude Sonnet 4.6 (zalecany)",
-    labelShort: "Sonnet 4.6",
+    label: "Pan Programista (Sonnet 4.6)",
+    labelShort: "Pan Programista",
+    displayName: "Pan Programista",
     anthropicModel: "claude-sonnet-4-5",
     description:
       "Domyślny — najlepszy stosunek jakości do kosztu. Najczęściej wystarcza jedna generacja. ≈ 240 kr / generacja (4.80 zł).",
@@ -74,7 +89,7 @@ export const AI_MODELS: AiModelDef[] = [
     labelShort: "Opus 4.6",
     anthropicModel: "claude-opus-4-5",
     description:
-      "Zaawansowane projekty, refaktoryzacja architektury, złożona logika. ≈ 600 kr / generacja (12.00 zł).",
+      "Zaawansowane projekty, refaktoryzacja architektury, złożona logika. ≈ 600 kr / generacja (12.00 zł). Wymaga PRO.",
     badge: "powerful",
     pointCost: 600,
     available: true,
@@ -86,22 +101,21 @@ export const AI_MODELS: AiModelDef[] = [
     labelShort: "Opus 4.7",
     anthropicModel: "claude-opus-4-5",
     description:
-      "Maksymalna jakość. Natywne aplikacje Apple (ARKit, HealthKit, Metal). ≈ 1200 kr / generacja (24.00 zł).",
+      "Maksymalna jakość. Natywne aplikacje Apple (ARKit, HealthKit, Metal). ≈ 1200 kr / generacja (24.00 zł). Wymaga PRO.",
     badge: "new",
     pointCost: 1200,
     available: true,
-    requiresTier: "wybitny",
+    requiresTier: "pro",
   },
 ];
 
 // ─── Tier helpers ─────────────────────────────────────────────────────────────
 
-export type UserTier = "free" | "pro" | "wybitny";
+export type UserTier = "free" | "pro";
 
 const TIER_RANK: Record<UserTier, number> = {
   free: 0,
   pro: 1,
-  wybitny: 2,
 };
 
 /** Czy `userTier` jest >= `minTier`? */
@@ -123,7 +137,7 @@ export function availableModelsForTier(
   );
 }
 
-/** Domyslny model — Sonnet 4.6 dostepny dla wszystkich (FREE tez). */
+/** Domyslny model — Sonnet 4.6 ("Pan Programista") dostepny dla wszystkich (FREE tez). */
 export const DEFAULT_MODEL_ID: AiModelId = "claude-sonnet-4-6";
 
 export function getModel(id: AiModelId | string | undefined): AiModelDef {

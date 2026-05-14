@@ -1,118 +1,142 @@
 /**
- * Stripe products — pakiety kredytow (one-time top-up) + subskrypcje PRO/WYBITNY.
+ * Stripe products — JEDNA subskrypcja PRO ze sliderem (Bolt-style).
+ *
+ * Konwencja:
+ *  - 8 poziomow miesiecznych kredytow → 8 stalych Stripe Price ID (kazdy jako
+ *    rekurencyjna subskrypcja miesieczna w PLN).
+ *  - Brak one-time topupow (decyzja produktowa: tylko subskrypcje, anty-abuse).
+ *  - Ceny PODANE BRUTTO. Stripe Tax (jezeli wlaczony) nalicza VAT z PLN; jezeli
+ *    sprzedawca nie jest VAT-owcem, podana cena to faktyczna kwota pobierana.
  *
  * UWAGA: stripePriceId musi byc zastapione realnym ID z Dashboard Stripe.
- * Po stworzeniu produktow w Dashboard, podstaw te ID albo przenies je do ENV.
  */
 
-export type StripeProductKind = "topup" | "subscription";
+export type StripeProductKind = "subscription";
 
 export type StripeProduct = {
   id: string;
   name: string;
   description: string;
-  /** Typ produktu: jednorazowy zakup kredytow vs miesieczna subskrypcja. */
   kind: StripeProductKind;
-  /** Liczba kredytow dodawana po platnosci (topup) lub odnawialna miesiecznie (subscription). */
+  /** Liczba kredytow dodawana miesiecznie po platnosci subskrypcji. */
   points: number;
-  /** Cena w groszach/centach. */
+  /** Cena w groszach (PLN). */
   amountCents: number;
   currency: "pln" | "eur" | "usd";
-  /** Stripe Price ID — wstaw realne ID z Dashboard Stripe. */
+  /** Stripe Price ID z Dashboard Stripe. */
   stripePriceId: string;
-  /** Dla subskrypcji: jakim tier robi ze uzytkownika ten produkt. */
-  tier?: "free" | "pro" | "wybitny";
-  /** Marketingowe highlights wyswietlane w pricing UI. */
+  /** Plan robi z usera tier='pro'. */
+  tier?: "free" | "pro";
   features?: string[];
-  /** Plan flagowy — wyrozniony wizualnie. */
   highlight?: boolean;
 };
 
-/** 1 PLN = ile kredytów */
+/** 1 PLN = ile kredytów (bazowa wycena dla wyswietlania w UI). */
 export const CREDITS_PER_PLN = 50;
 
-export const STRIPE_PRODUCTS: StripeProduct[] = [
-  // ─── Subscriptions ──────────────────────────────────────────────────────────
+/**
+ * 8 poziomow PRO. UWAGA: kazdy poziom = osobny Stripe Price ID, ale wszystkie
+ * sa tym samym produktem 'plan_pro' dla logiki tier-changeu w webhooku.
+ */
+export type ProTier = {
+  id: string;
+  credits: number;
+  pln: number;
+  stripePriceId: string;
+};
+
+export const PRO_TIERS: ProTier[] = [
   {
-    id: "plan_pro",
-    name: "PRO",
-    description: "Profesjonalne tworzenie aplikacji web, Android i iOS.",
-    kind: "subscription",
-    tier: "pro",
-    points: 500,
-    amountCents: 8000, // 20 USD = ~80 PLN (przyklad — dostosuj)
-    currency: "pln",
-    stripePriceId: process.env.STRIPE_PRICE_PLAN_PRO ?? "price_REPLACE_ME_PRO",
-    highlight: true,
-    features: [
-      "Wszystkie platformy: Web, Android (Kotlin), iOS (Swift)",
-      "500 kredytow / miesiac",
-      "Modele Claude Sonnet 4.6 i Opus 4.6",
-      "Projekty prywatne",
-      "Eksport ZIP do Xcode / Android Studio",
-      "Submission Wizard (TestFlight, Google Play)",
-    ],
+    id: "pro_500",
+    credits: 500,
+    pln: 39,
+    stripePriceId: process.env.STRIPE_PRICE_PRO_500 ?? "price_REPLACE_ME_PRO_500",
   },
   {
-    id: "plan_wybitny",
-    name: "WYBITNY",
-    description:
-      "Najbardziej zaawansowane AI do budowania aplikacji Apple. Watch, TV, Vision Pro, ARKit, HealthKit, Metal.",
-    kind: "subscription",
-    tier: "wybitny",
-    points: 5000,
-    amountCents: 79900, // ~799 PLN/mc
-    currency: "pln",
+    id: "pro_1500",
+    credits: 1500,
+    pln: 79,
+    stripePriceId: process.env.STRIPE_PRICE_PRO_1500 ?? "price_REPLACE_ME_PRO_1500",
+  },
+  {
+    id: "pro_3000",
+    credits: 3000,
+    pln: 139,
+    stripePriceId: process.env.STRIPE_PRICE_PRO_3000 ?? "price_REPLACE_ME_PRO_3000",
+  },
+  {
+    id: "pro_6000",
+    credits: 6000,
+    pln: 249,
+    stripePriceId: process.env.STRIPE_PRICE_PRO_6000 ?? "price_REPLACE_ME_PRO_6000",
+  },
+  {
+    id: "pro_12000",
+    credits: 12000,
+    pln: 449,
+    stripePriceId: process.env.STRIPE_PRICE_PRO_12000 ?? "price_REPLACE_ME_PRO_12000",
+  },
+  {
+    id: "pro_24000",
+    credits: 24000,
+    pln: 799,
+    stripePriceId: process.env.STRIPE_PRICE_PRO_24000 ?? "price_REPLACE_ME_PRO_24000",
+  },
+  {
+    id: "pro_48000",
+    credits: 48000,
+    pln: 1499,
+    stripePriceId: process.env.STRIPE_PRICE_PRO_48000 ?? "price_REPLACE_ME_PRO_48000",
+  },
+  {
+    id: "pro_96000",
+    credits: 96000,
+    pln: 2799,
     stripePriceId:
-      process.env.STRIPE_PRICE_PLAN_WYBITNY ?? "price_REPLACE_ME_WYBITNY",
-    features: [
-      "Wszystkie platformy Apple: iPhone, iPad, Watch, TV, Vision Pro",
-      "5 000 kredytow / miesiac",
-      "Model Claude Opus 4.7 (top-tier reasoning)",
-      "Tryb MAX APPLE POWER: ARKit, HealthKit, Metal, Live Activities, App Intents",
-      "Real-time TestFlight submission tracking",
-      "Custom System Context per projekt",
-      "Priorytetowe wsparcie",
-    ],
-  },
-  // ─── One-time top-up packs ─────────────────────────────────────────────────
-  // 1 kredyt = 0.02 PLN (1 PLN = 50 kredytów)
-  // Pakiety: lekka zniżka przy większych zakupach (bonus kredytów)
-  {
-    id: "pack_500",
-    name: "Starter — 500 kr",
-    description: "500 kredytów = 8 generacji Haiku. 1 generacja Sonnet.",
-    kind: "topup",
-    points: 500,
-    amountCents: 990,  // 9.90 PLN
-    currency: "pln",
-    stripePriceId: process.env.STRIPE_PRICE_PACK_500 ?? "price_REPLACE_ME_500",
-    features: ["500 kredytów", "≈ 8 generacji Auto", "Nie wygasają"],
-  },
-  {
-    id: "pack_2000",
-    name: "Basic — 2 000 kr",
-    description: "2 000 kredytów + 200 bonus = 2 200. Idealny start z Sonnetem.",
-    kind: "topup",
-    points: 2200,
-    amountCents: 3900,  // 39.00 PLN → oszczędzasz 5 PLN
-    currency: "pln",
-    stripePriceId: process.env.STRIPE_PRICE_PACK_2000 ?? "price_REPLACE_ME_2000",
-    features: ["2 200 kredytów (+200 bonus)", "≈ 9 generacji Sonnet", "Nie wygasają"],
-    highlight: true,
-  },
-  {
-    id: "pack_10000",
-    name: "Pro — 10 000 kr",
-    description: "10 000 kredytów + 2 000 bonus = 12 000. Dla intensywnych twórców.",
-    kind: "topup",
-    points: 12000,
-    amountCents: 17900,  // 179.00 PLN → oszczędzasz 21 PLN
-    currency: "pln",
-    stripePriceId: process.env.STRIPE_PRICE_PACK_10000 ?? "price_REPLACE_ME_10000",
-    features: ["12 000 kredytów (+2 000 bonus)", "≈ 10 generacji Opus 4.7", "Nie wygasają"],
+      process.env.STRIPE_PRICE_PRO_96000 ?? "price_REPLACE_ME_PRO_96000",
   },
 ];
+
+/** Default tier wyswietlany jako "polecany" w UI (psychologia: 2. od dolu). */
+export const RECOMMENDED_PRO_TIER_ID = "pro_1500";
+
+export function getProTierById(id: string): ProTier | undefined {
+  return PRO_TIERS.find((t) => t.id === id);
+}
+
+export function getProTierByCredits(credits: number): ProTier | undefined {
+  return PRO_TIERS.find((t) => t.credits === credits);
+}
+
+export function getProTierByPriceId(priceId: string): ProTier | undefined {
+  return PRO_TIERS.find((t) => t.stripePriceId === priceId);
+}
+
+/**
+ * Lista wszystkich produktow w katalogu — dla webhooka i checkoutu.
+ * Wszystkie sa subskrypcjami PRO; rozni je tylko liczba kredytow i cena.
+ */
+export const STRIPE_PRODUCTS: StripeProduct[] = PRO_TIERS.map((tier) => ({
+  id: tier.id,
+  name: `PRO — ${tier.credits.toLocaleString("pl-PL")} kr/mc`,
+  description: `${tier.credits.toLocaleString("pl-PL")} kredytów miesięcznie. Cena brutto za miesiąc.`,
+  kind: "subscription" as const,
+  tier: "pro" as const,
+  points: tier.credits,
+  amountCents: tier.pln * 100,
+  currency: "pln" as const,
+  stripePriceId: tier.stripePriceId,
+  highlight: tier.id === RECOMMENDED_PRO_TIER_ID,
+  features: [
+    `${tier.credits.toLocaleString("pl-PL")} kredytów miesięcznie`,
+    "Modele Sonnet 4.6, Opus 4.6 i Opus 4.7",
+    "Custom subdomena (slug.wybitny.website)",
+    "Projekty prywatne",
+    "Eksport ZIP i push do GitHub",
+    "Integracje Supabase/Notion/Stripe",
+    "Priorytetowy support",
+  ],
+}));
 
 export function getProductById(id: string): StripeProduct | undefined {
   return STRIPE_PRODUCTS.find((p) => p.id === id);
@@ -123,11 +147,12 @@ export function getProductByPriceId(priceId: string): StripeProduct | undefined 
 }
 
 export function getSubscriptions(): StripeProduct[] {
-  return STRIPE_PRODUCTS.filter((p) => p.kind === "subscription");
+  return STRIPE_PRODUCTS;
 }
 
+/** Legacy: zostawione jako pusta lista — kompatybilnosc z UI. Topupy usuniete. */
 export function getTopupPacks(): StripeProduct[] {
-  return STRIPE_PRODUCTS.filter((p) => p.kind === "topup");
+  return [];
 }
 
 export function formatAmount(amountCents: number, currency: string): string {

@@ -6,9 +6,8 @@
  * Pill w toolbarze pod textarea — pokazuje aktualnie wybrana platforme
  * i otwiera dropdown z dostepnymi platformami zgodnie z tierem uzytkownika.
  *
- * Free   -> Web
- * Pro    -> Web + Android + iOS
- * Wybitny -> wszystko + Apple Watch / TV / Vision Pro
+ * Free -> Web
+ * Pro  -> wszystko (Web + Android + iOS + Watch + TV + Vision Pro)
  */
 
 import { Globe, ChevronDown, Watch, Tv, Lock } from "lucide-react";
@@ -66,13 +65,12 @@ export function PlatformSelector({ value, onChange, userTier = "free" }: Props) 
         <ChevronDown className="h-3 w-3 text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" sideOffset={8} className="w-80">
-        {/* Base UI wymaga GroupLabel wewnątrz Group */}
         <DropdownMenuGroup>
           <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
-            Standard
+            Web i mobile
           </DropdownMenuLabel>
-          {PROJECT_MODES.filter((m) => m.requiresTier !== "wybitny").map((mode) =>
-            renderItem(mode, value, onChange, userTier),
+          {PROJECT_MODES.filter((m) => ["web", "android", "ios"].includes(m.id)).map(
+            (mode) => renderItem(mode, value, onChange, userTier),
           )}
         </DropdownMenuGroup>
 
@@ -80,11 +78,11 @@ export function PlatformSelector({ value, onChange, userTier = "free" }: Props) 
 
         <DropdownMenuGroup>
           <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-beige">
-            WYBITNY — Pełne Apple
+            PRO — Pełne Apple
           </DropdownMenuLabel>
-          {PROJECT_MODES.filter((m) => m.requiresTier === "wybitny").map((mode) =>
-            renderItem(mode, value, onChange, userTier),
-          )}
+          {PROJECT_MODES.filter((m) =>
+            ["watchos", "tvos", "visionos"].includes(m.id),
+          ).map((mode) => renderItem(mode, value, onChange, userTier))}
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -115,7 +113,7 @@ function renderItem(
           {!allowed && (
             <span className="inline-flex items-center gap-1 rounded bg-beige/10 px-1 py-0.5 text-[9px] uppercase tracking-wider text-beige/70">
               <Lock className="h-2.5 w-2.5" />
-              {mode.requiresTier === "wybitny" ? "Wybitny" : "Pro"}
+              Pro
             </span>
           )}
         </span>

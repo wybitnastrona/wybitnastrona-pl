@@ -192,3 +192,115 @@ nie chce dolaczac subdomeny do localhost, dodaj wpis w `C:\Windows\System32\driv
   tier lub zmien model na Haiku.
 - **Brak generowania plikow** - sprawdz logi serwera (`Failed to persist files`) -
   najczesciej brakuje migracji 0001.
+
+## 8. Stripe (subskrypcje PRO ze sliderem)
+
+Po refaktorze cennika model platnosci to JEDNA subskrypcja PRO z 8 poziomami
+kredytów. Brak topupów one-time. Slider w `/pricing` mapuje wybor uzytkownika
+na konkretny Stripe Price ID.
+
+### 8.1. Stworz produkty w Stripe Dashboard
+
+Dla **kazdego** poziomu utworz osobny Product → Recurring Price (monthly, PLN):
+
+| ENV variable | Kredyty / mc | Cena brutto |
+| --- | --- | --- |
+| `STRIPE_PRICE_PRO_500` | 500 | 39 zł |
+| `STRIPE_PRICE_PRO_1500` | 1500 | 79 zł |
+| `STRIPE_PRICE_PRO_3000` | 3000 | 139 zł |
+| `STRIPE_PRICE_PRO_6000` | 6000 | 249 zł |
+| `STRIPE_PRICE_PRO_12000` | 12000 | 449 zł |
+| `STRIPE_PRICE_PRO_24000` | 24000 | 799 zł |
+| `STRIPE_PRICE_PRO_48000` | 48000 | 1499 zł |
+| `STRIPE_PRICE_PRO_96000` | 96000 | 2799 zł |
+
+Po utworzeniu Price w Stripe Dashboard, dodaj `price_xxx` ID do Vercel env vars.
+
+### 8.2. Webhook Stripe
+
+1. Dashboard → Developers → Webhooks → **Add endpoint**
+2. URL: `https://wybitnastrona.pl/api/stripe/webhook`
+3. Eventy:
+   - `checkout.session.completed`
+   - `customer.subscription.created`
+   - `customer.subscription.updated`
+   - `customer.subscription.deleted`
+   - `invoice.paid`
+4. Skopiuj **Signing secret** do `STRIPE_WEBHOOK_SECRET`.
+
+### 8.3. ENV vars
+
+```env
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_PRICE_PRO_500=price_...
+STRIPE_PRICE_PRO_1500=price_...
+# ...wszystkie 8
+```
+
+### 8.4. Anty-abuse (revert custom slug)
+
+Webhook `customer.subscription.deleted` automatycznie wywołuje
+`revertCustomSlugsForUser` — wszystkie custom subdomeny usera (>2 znaki, nie
+auto-slug nanoid) są cofane do auto-generated, a poprzedni slug ląduje w
+kolumnie `projects.custom_slug_archived` (dla potencjalnej reaktywacji).
+
+## 9. MCP Integracje (Supabase / Notion / Memory / Stitch)
+
+Tabela `user_integrations` (migracja 0036) przechowuje konfiguracje per user.
+UI w **Integracje** dropdown w CreationHero ORAZ w workspace projektu.
+
+| Provider | Status | Pola wymagane | Auto-config |
+| --- | --- | --- | --- |
+| Supabase | gotowe | `url`, `anon_key`, opcjonalnie `service_role_key` | tak — gdy user wkleil keys, AI dostaje hint w system promptcie i moze generowac /src/lib/supabase.ts |
+| Notion | gotowe | `integration_token`, opcjonalnie `database_id` | tak — AI moze proponowac fetch z Notion API |
+| Memory MCP | UI gotowe, runtime stub | (placeholder) | nie |
+| Stitch MCP | UI gotowe, runtime stub | (placeholder) | nie |
+
+### Auto-config Supabase
+Jezeli user wkleil **service_role_key**, backend moze w przyszlosci (TODO v3)
+automatycznie tworzyc migracje per-project. MVP: AI dostaje sekrety w
+`buildIntegrationsPromptSection` i wpisuje je do `.env` wygenerowanej strony.
+
+### Stripe auto-config
+Stripe nie pozwala na full auto-config kont (kazdy musi sam zarejestrowac).
+MVP: w workspace projektu user wkleja `STRIPE_SECRET_KEY` jako env var dla
+wygenerowanej strony. AI generuje wtedy `/api/checkout/route.ts` z poprawnym
+template'em.
+
+## 10. Migracje wymagane dla refaktoru Bolt-style v2
+
+Uruchom kolejno (od ostatniej istniejacej w panelu Supabase):
+
+```sql
+-- 0032: live preview HTML snapshot column
+-- 0033: drop wybitny tier (constraint to free/pro)
+-- 0034: profiles.daily_credits_used + bump_usage_counters RPC
+-- 0035: projects.custom_slug_archived
+-- 0036: user_integrations table
+-- 0037: referrals table + profiles.referral_code + ensure_referral_code RPC
+```
+
+Wszystkie pliki w `supabase/migrations/` mozesz wkleic do SQL Editor w
+Supabase Dashboard.
+
+## 11. Limity FREE
+
+W kodzie (`lib/ai-models.ts`):
+- `monthlyCredits: 100` (max 1 generacja Sonnet 4.6 lub 3 Haiku/mc)
+- `dailyCredits: 30` (max 1 Haiku/dzien)
+
+Liczniki resetuja sie atomowo w RPC `bump_usage_counters` (24h dla daily, 30d
+dla monthly). Webhook `invoice.paid` resetuje liczniki na 0 przy odnowieniu
+subskrypcji PRO.
+
+## 12. Program polecen
+
+- Tabela `referrals` (migracja 0037).
+- `profiles.referral_code` (lazy generated przez RPC `ensure_referral_code`).
+- Link `/r/{code}` ustawia cookie `wybitna_ref` na 30 dni.
+- Przy rejestracji `attachReferralIfPresent` w `auth/callback/route.ts`
+  wpisuje referee do tabeli.
+- Po pierwszej platnosci referee, webhook `invoice.paid` →
+  `maybeAwardReferralReward` → `add_points(referrer, 300)`.
+- UI w **Settings → Kredyty** pokazuje link i historie polecen.

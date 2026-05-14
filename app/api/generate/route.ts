@@ -10,6 +10,7 @@ import { z } from "zod";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { updateProjectFiles, createSnapshot } from "@/lib/projects";
+import { persistPreviewSnapshot } from "@/lib/preview-snapshot";
 import type { ProjectFiles } from "@/lib/types/project";
 import {
   isViteProjectFiles,
@@ -286,7 +287,9 @@ export async function POST(req: Request) {
 
   const { data: profileRow, error: profileErr } = await supabase
     .from("profiles")
-    .select("points")
+    .select(
+      "points, tier, monthly_credits_used, monthly_credits_reset_at, daily_credits_used, daily_credits_reset_at",
+    )
     .eq("id", user.id)
     .maybeSingle();
 
@@ -295,6 +298,7 @@ export async function POST(req: Request) {
   }
 
   const currentPoints = (profileRow?.points as number | null) ?? 0;
+  const userTier = (profileRow?.tier as string | null) ?? "free";
   const effectiveModelId: AiModelId = modelId;
 
   if (currentPoints < pointsRequired) {
@@ -307,6 +311,51 @@ export async function POST(req: Request) {
       },
       { status: 402 },
     );
+  }
+
+  // FREE tier rate-limity: monthly 100, daily 30.
+  if (userTier === "free") {
+    const { FREE_TIER_LIMITS } = await import("@/lib/ai-models");
+    const now = Date.now();
+    const monthlyUsed = (profileRow?.monthly_credits_used as number | null) ?? 0;
+    const monthlyReset =
+      Date.parse(
+        (profileRow?.monthly_credits_reset_at as string | null) ?? "",
+      ) || 0;
+    const isMonthlyWindowActive = now - monthlyReset < 30 * 24 * 3600 * 1000;
+    const effectiveMonthly = isMonthlyWindowActive ? monthlyUsed : 0;
+
+    const dailyUsed = (profileRow?.daily_credits_used as number | null) ?? 0;
+    const dailyReset =
+      Date.parse((profileRow?.daily_credits_reset_at as string | null) ?? "") ||
+      0;
+    const isDailyWindowActive = now - dailyReset < 24 * 3600 * 1000;
+    const effectiveDaily = isDailyWindowActive ? dailyUsed : 0;
+
+    if (effectiveMonthly + pointsRequired > FREE_TIER_LIMITS.monthlyCredits) {
+      return NextResponse.json(
+        {
+          error: "free_monthly_limit",
+          message: `Przekroczyłeś limit ${FREE_TIER_LIMITS.monthlyCredits} kredytów/miesiąc w planie FREE.`,
+          monthlyUsed: effectiveMonthly,
+          monthlyLimit: FREE_TIER_LIMITS.monthlyCredits,
+          upgradeUrl: "/pricing",
+        },
+        { status: 402 },
+      );
+    }
+    if (effectiveDaily + pointsRequired > FREE_TIER_LIMITS.dailyCredits) {
+      return NextResponse.json(
+        {
+          error: "free_daily_limit",
+          message: `Przekroczyłeś limit ${FREE_TIER_LIMITS.dailyCredits} kredytów/dzień w planie FREE.`,
+          dailyUsed: effectiveDaily,
+          dailyLimit: FREE_TIER_LIMITS.dailyCredits,
+          upgradeUrl: "/pricing",
+        },
+        { status: 402 },
+      );
+    }
   }
 
   // ─── Pobierz projekt ────────────────────────────────────────────────────────
@@ -333,6 +382,25 @@ export async function POST(req: Request) {
   const customContextSuffix = customSystemContext
     ? `\n\nCUSTOM CONTEXT OD UZYTKOWNIKA (rygorystycznie przestrzegaj):\n${customSystemContext}`
     : "";
+
+  // Aktywne integracje usera (Supabase, Notion, MCP) — wstrzykiwane do system promptu.
+  let integrationsSuffix = "";
+  try {
+    const { data: integrationRows } = await supabase
+      .from("user_integrations")
+      .select("user_id, provider, config, created_at, updated_at")
+      .eq("user_id", user.id);
+    if (integrationRows && integrationRows.length > 0) {
+      const { buildIntegrationsPromptSection } = await import(
+        "@/lib/integrations"
+      );
+      integrationsSuffix = buildIntegrationsPromptSection(
+        integrationRows as unknown as import("@/lib/integrations").IntegrationRow[],
+      );
+    }
+  } catch (e) {
+    console.warn("[generate] Failed to fetch integrations:", e);
+  }
   // First trim duplicated file writes (heavy `content` payloads), then sanitize
   // partial tool inputs. Order matters: trimming reduces tokens; sanitizing
   // ensures Anthropic API doesn't reject the request.
@@ -616,7 +684,7 @@ export async function POST(req: Request) {
     buildSystemPrompt(mode, projectTemplate, projectMode, { isWybitny }) +
     `\n\n[PROJECT_CONTEXT] projectId="${projectId}" — uzyj tego ID w URL formularzy kontaktowych: /api/form-submit?projectId=${projectId}\n`;
   const semiStaticContext = fileListContext + lockedContext + preinstalledContext;
-  const dynamicContext = ragContext + customContextSuffix;
+  const dynamicContext = ragContext + customContextSuffix + integrationsSuffix;
 
   const systemMessages: Array<{
     role: "system";
@@ -825,6 +893,9 @@ export async function POST(req: Request) {
 
         await updateProjectFiles(projectId, files);
 
+        // Fire-and-forget: zaktualizuj snapshot HTML dla miniaturki w dashboardzie.
+        void persistPreviewSnapshot(supabase, projectId, files);
+
         // finish_job atomicznie odejmuje kredyty (p_points_consumed).
         void finishJob(supabase, jobId, "completed", undefined, {
           inputTokens,
@@ -833,6 +904,12 @@ export async function POST(req: Request) {
           pointsSpent: pointsRequired,
           pointsConsumed: pointsRequired,
           isContinue: markContinue,
+        });
+
+        // Inkrement licznikow uzycia (atomicznie, z resetem okna jezeli minelo).
+        void supabase.rpc("bump_usage_counters", {
+          p_user_id: user.id,
+          p_amount: pointsRequired,
         });
       } catch (err) {
         console.error("Failed to persist files:", err);

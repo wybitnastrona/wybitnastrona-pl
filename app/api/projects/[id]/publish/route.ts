@@ -51,9 +51,11 @@ export async function POST(req: Request, { params }: { params: Params }) {
           ? 409
           : err.code === "invalid_slug"
             ? 400
-            : err.code === "not_found"
-              ? 404
-              : 500;
+            : err.code === "requires_pro"
+              ? 402
+              : err.code === "not_found"
+                ? 404
+                : 500;
       return NextResponse.json(
         { error: err.message, code: err.code },
         { status },

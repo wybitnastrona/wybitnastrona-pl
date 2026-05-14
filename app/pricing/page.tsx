@@ -1,18 +1,14 @@
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { PricingClient } from "@/components/pricing/pricing-client";
-import { getSubscriptions, getTopupPacks } from "@/lib/stripe-products";
 
 export const metadata = {
   title: "Cennik - wybitnastrona.pl",
   description:
-    "Plany FREE / PRO / WYBITNY. Najbardziej zaawansowane AI do budowania aplikacji Apple — iPhone, iPad, Watch, TV, Vision Pro.",
+    "FREE i PRO — jedna subskrypcja, suwakiem dobierzesz idealną ilość kredytów. Bez ukrytych kosztów, ceny brutto.",
 };
 
 export default function PricingPage() {
-  const subscriptions = getSubscriptions();
-  const topups = getTopupPacks();
-
   return (
     <>
       <Navbar />
@@ -26,27 +22,29 @@ export default function PricingPage() {
               Buduj <span className="italic text-beige">wybitne</span> aplikacje
             </h1>
             <p className="mx-auto mt-4 max-w-2xl text-balance text-muted-foreground">
-              Od bezplatnego startu po najbardziej zaawansowane AI do aplikacji
-              Apple. Wybierz plan, zaczniesz w 30 sekund.
+              Jeden plan PRO. Suwakiem dobierzesz idealną ilość kredytów na
+              miesiąc — od 500 po 96&nbsp;000 kr/mc.
             </p>
           </div>
 
-          <PricingClient subscriptions={subscriptions} topups={topups} />
+          <PricingClient />
 
           <div className="mt-12 rounded-2xl border border-beige/10 bg-card/40 p-6 text-center">
-            <p className="text-sm font-medium text-foreground">Jak to dziala?</p>
+            <p className="text-sm font-medium text-foreground">Jak to działa?</p>
             <p className="mt-2 text-sm text-muted-foreground">
-              Kazda generacja AI kosztuje od{" "}
-              <strong className="text-foreground">10 kredytow</strong> (Haiku —
-              szybki) do <strong className="text-foreground">80 kredytow</strong>{" "}
-              (Opus 4.7 — maksymalna jakosc). Modele dostepne wedlug planu.
-              Kredyty z subskrypcji odswiezaja sie co miesiac, doladowania nie
-              wygasaja.
+              Każda generacja AI kosztuje od{" "}
+              <strong className="text-foreground">30 kredytów</strong> (Haiku 4.5
+              — szybki) do <strong className="text-foreground">1200 kredytów</strong>{" "}
+              (Opus 4.7 — najwyższa jakość). Kredyty z subskrypcji odświeżają
+              się co miesiąc. Bez doładowań jednorazowych — większe pakiety w
+              suwaku.
             </p>
           </div>
 
           <p className="mt-6 text-center text-xs text-muted-foreground">
-            Ceny brutto. Faktury VAT po podaniu NIP w panelu klienta. Anulowanie subskrypcji w kazdej chwili.
+            Ceny brutto. Faktury VAT po podaniu NIP w panelu klienta. Anulowanie
+            subskrypcji w każdej chwili. Po anulowaniu custom subdomena wraca do
+            auto-generowanej.
           </p>
         </section>
       </main>

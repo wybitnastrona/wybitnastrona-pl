@@ -75,12 +75,26 @@ export function RecentlyEdited({ projects }: RecentlyEditedProps) {
                 href={`/project/${project.id}`}
                 className="group flex flex-col gap-3 overflow-hidden rounded-2xl border border-beige/10 bg-card transition hover:border-beige/40 hover:bg-card/80"
               >
-                {/* Thumbnail strip — stylized "device" silhouette with platform accent */}
-                <div className="relative flex h-32 items-center justify-center overflow-hidden border-b border-beige/10 bg-gradient-to-br from-beige/5 via-background to-background">
-                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(232,220,196,0.08),transparent_60%)]" />
-                  <div className="relative flex h-20 w-12 items-center justify-center rounded-[10px] border-[2px] border-beige/30 bg-background/80 shadow-inner">
-                    <PlatformIcon className="h-6 w-6 text-beige/70" />
-                  </div>
+                {/* Thumbnail: srcDoc snapshot iframe (sandboxed, no JS, no nav) */}
+                <div className="relative h-32 overflow-hidden border-b border-beige/10 bg-gradient-to-br from-beige/5 via-background to-background">
+                  {project.preview_html ? (
+                    <iframe
+                      sandbox=""
+                      srcDoc={project.preview_html}
+                      title={`Podgląd: ${project.title}`}
+                      loading="lazy"
+                      className="pointer-events-none absolute inset-0 origin-top-left scale-[0.25]"
+                      style={{ width: "400%", height: "400%" }}
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center">
+                      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(232,220,196,0.08),transparent_60%)]" />
+                      <div className="relative flex h-20 w-12 items-center justify-center rounded-[10px] border-[2px] border-beige/30 bg-background/80 shadow-inner">
+                        <PlatformIcon className="h-6 w-6 text-beige/70" />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Body */}

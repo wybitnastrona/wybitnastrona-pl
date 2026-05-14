@@ -17,6 +17,20 @@ const slugAlphabet =
   "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const generateSlug = customAlphabet(slugAlphabet, 10);
 
+/**
+ * Eksport dla webhooka i klientow ktorzy potrzebuja swiezego auto-sluga
+ * (np. po cancel subskrypcji — wracamy z customowego do auto).
+ */
+export function generateProjectAutoSlug(): string {
+  return generateSlug();
+}
+
+/** Wykryj czy slug wyglada jak nasz auto-generated (10 znakow alfanum). */
+export const AUTO_SLUG_REGEX = /^[A-Za-z0-9]{10}$/;
+export function isAutoSlug(slug: string | null | undefined): boolean {
+  return !!slug && AUTO_SLUG_REGEX.test(slug);
+}
+
 function deriveTitle(prompt: string): string {
   const cleaned = prompt.trim().replace(/\s+/g, " ");
   if (cleaned.length === 0) return "Untitled project";
@@ -129,7 +143,7 @@ export async function listMyProjects(): Promise<ProjectListItem[]> {
   // .eq("user_id", ...). Bez filtra ponizej dashboard pokazywalby cudze projekty.
   const { data, error } = await supabase
     .from("projects")
-    .select("id, title, prompt, slug, is_public, mode, created_at, updated_at")
+    .select("id, title, prompt, slug, is_public, mode, preview_html, created_at, updated_at")
     .eq("user_id", user.id)
     .order("updated_at", { ascending: false });
 
@@ -182,7 +196,11 @@ const SLUG_REGEX = /^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])?$/;
 
 export class PublishError extends Error {
   constructor(
-    public readonly code: "invalid_slug" | "slug_taken" | "not_found",
+    public readonly code:
+      | "invalid_slug"
+      | "slug_taken"
+      | "not_found"
+      | "requires_pro",
     message: string,
   ) {
     super(message);
@@ -191,6 +209,28 @@ export class PublishError extends Error {
 
 export function isValidPublishSlug(value: string): boolean {
   return SLUG_REGEX.test(value);
+}
+
+/**
+ * Sprawdza dostepnosc subdomeny (dla live-checku w PublishDialog).
+ * Zwraca true jezeli slug nie istnieje albo istnieje tylko dla excludeProjectId.
+ */
+export async function isSlugAvailable(
+  slug: string,
+  excludeProjectId?: string,
+): Promise<boolean> {
+  if (!isValidPublishSlug(slug)) return false;
+  const supabase = await createClient();
+  let query = supabase
+    .from("projects")
+    .select("id", { count: "exact", head: true })
+    .eq("slug", slug);
+  if (excludeProjectId) {
+    query = query.neq("id", excludeProjectId);
+  }
+  const { count, error } = await query;
+  if (error) return false;
+  return (count ?? 0) === 0;
 }
 
 export async function publishProject(
@@ -204,7 +244,35 @@ export async function publishProject(
   let slug = existing.slug ?? generateSlug();
 
   const trimmed = customSlug?.trim().toLowerCase() ?? "";
-  if (trimmed && trimmed !== existing.slug) {
+  const isChangingToCustom = trimmed && trimmed !== existing.slug;
+
+  // PRO gating dla CUSTOM subdomen. Auto-slug dostepny dla wszystkich.
+  if (isChangingToCustom) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("tier, stripe_subscription_status")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      const tier = profile?.tier as string | null;
+      const status = profile?.stripe_subscription_status as string | null;
+      const isProActive =
+        tier === "pro" && (status === "active" || status === "trialing");
+
+      // Jezeli nie jest PRO ALE customSlug nie jest naszym auto-slugiem,
+      // zablokuj. (Auto-slug zawsze OK.)
+      if (!isProActive && !isAutoSlug(trimmed)) {
+        throw new PublishError(
+          "requires_pro",
+          "Niestandardowa subdomena wymaga aktywnej subskrypcji PRO.",
+        );
+      }
+    }
+
     if (!isValidPublishSlug(trimmed)) {
       throw new PublishError(
         "invalid_slug",

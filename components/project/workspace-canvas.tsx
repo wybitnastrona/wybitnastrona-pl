@@ -239,11 +239,15 @@ export function WorkspaceCanvas({
   // Po migracji WebContainer obsługuje wszystkie szablony web (z dev serverem).
   // Code-only (iOS / Android / watchOS / tvOS / visionOS) nie ma podglądu.
   const useWC = !isCodeOnly;
-  const wcFiles = useMemo(
-    () =>
-      useWC ? mergeWebContainerReactFiles(project.files) : project.files,
-    [useWC, project.files],
-  );
+  const wcFiles = useMemo(() => {
+    if (!useWC) return project.files;
+    // Merge React+Vite starter only for react-ts — other WC templates (Next/Astro/Vue/Svelte/Expo)
+    // have their own complete starters and don't need the React starter overlaid on top.
+    if (templateDef?.id === "react-ts" || !templateDef?.id) {
+      return mergeWebContainerReactFiles(project.files);
+    }
+    return project.files;
+  }, [useWC, project.files, templateDef?.id]);
   const [wcUrl, setWcUrl] = useState<string | null>(null);
 
   useEffect(() => {

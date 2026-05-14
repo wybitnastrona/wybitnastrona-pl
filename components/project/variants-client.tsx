@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SandpackRunner } from "@/components/sandpack/sandpack-runner";
 import type { ProjectFiles } from "@/lib/types/project";
+import { navigateToProjectHref } from "@/lib/nav/full-document-navigation";
 
 type Variant = {
   id: string;
@@ -20,7 +20,6 @@ type Props = {
 };
 
 export function VariantsClient({ projectId, prompt }: Props) {
-  const router = useRouter();
   const [editPrompt, setEditPrompt] = useState(prompt);
   const [variants, setVariants] = useState<Variant[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -60,7 +59,7 @@ export function VariantsClient({ projectId, prompt }: Props) {
         }),
       });
       if (res.ok) {
-        router.push(`/project/${projectId}`);
+        navigateToProjectHref(`/project/${projectId}`);
       } else {
         setError("Nie udało się zaakceptować");
       }
@@ -74,7 +73,7 @@ export function VariantsClient({ projectId, prompt }: Props) {
       <header className="flex h-14 items-center justify-between border-b border-beige/10 bg-background/80 px-4 backdrop-blur">
         <button
           type="button"
-          onClick={() => router.push(`/project/${projectId}`)}
+          onClick={() => navigateToProjectHref(`/project/${projectId}`)}
           className="flex items-center gap-2 rounded-md px-2 py-1 text-sm text-muted-foreground transition hover:bg-white/5 hover:text-beige"
         >
           <ArrowLeft className="h-4 w-4" />

@@ -64,7 +64,7 @@ export function DashboardGrid({ projects }: Props) {
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((project) => (
-            <Link
+            <a
               key={project.id}
               href={`/project/${project.id}`}
               className="group flex flex-col gap-3 rounded-xl border border-beige/10 bg-card p-4 transition hover:border-beige/40 hover:bg-card/80"
@@ -91,7 +91,7 @@ export function DashboardGrid({ projects }: Props) {
                   year: "numeric",
                 })}
               </p>
-            </Link>
+            </a>
           ))}
         </div>
       )}

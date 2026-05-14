@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   FileUp,
@@ -43,6 +42,7 @@ import {
 import { PlatformSelector } from "@/components/app-shell/platform-selector";
 import { AdvancedControls } from "@/components/app-shell/advanced-controls";
 import { getRandomShufflePrompt } from "@/lib/shuffle-prompts";
+import { navigateToProjectHref } from "@/lib/nav/full-document-navigation";
 
 type PendingFile = {
   name: string;
@@ -59,7 +59,6 @@ type CreationHeroProps = {
 export function CreationHero({ userTier = "free" }: CreationHeroProps) {
   const isFreeTier = userTier === "free";
   const isWybitny = userTier === "wybitny";
-  const router = useRouter();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -158,7 +157,7 @@ export function CreationHero({ userTier = "free" }: CreationHeroProps) {
     if (trimmedCtx) params.set("ctx", trimmedCtx.slice(0, 2000));
 
     setSubmitting(true);
-    router.push(`/project/new?${params.toString()}`);
+    navigateToProjectHref(`/project/new?${params.toString()}`);
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {

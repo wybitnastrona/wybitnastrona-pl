@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -33,13 +32,13 @@ export default async function ProjectAnalyticsPage({
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
-      <Link
+      <a
         href={`/project/${id}`}
         className="mb-6 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         Wróć do projektu
-      </Link>
+      </a>
       <h1 className="mb-2 text-2xl font-medium">{project.title}</h1>
       <p className="mb-8 text-sm text-muted-foreground">
         Analityka aktywności projektu — ostatnie 30 dni.

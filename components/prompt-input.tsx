@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 import { ArrowRight, Loader2, Paperclip, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useState } from "react";
+import { navigateToProjectHref } from "@/lib/nav/full-document-navigation";
 
 type PromptInputProps = {
   value: string;
@@ -13,7 +13,6 @@ type PromptInputProps = {
 };
 
 export function PromptInput({ value, onValueChange }: PromptInputProps) {
-  const router = useRouter();
   const { user, openAuth } = useAuth();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -40,13 +39,13 @@ export function PromptInput({ value, onValueChange }: PromptInputProps) {
     if (!user) {
       openAuth({
         mode: "signup",
-        onSuccess: () => router.push(target),
+        onSuccess: () => navigateToProjectHref(target),
       });
       return;
     }
 
     setSubmitting(true);
-    router.push(target);
+    navigateToProjectHref(target);
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {

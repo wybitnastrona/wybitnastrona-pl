@@ -26,7 +26,8 @@ const PACKAGE_JSON = `{
   },
   "dependencies": {
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "lucide-react": "^0.469.0"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",

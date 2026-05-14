@@ -13,7 +13,6 @@
  */
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { Smartphone, CheckCircle2, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -102,7 +101,7 @@ export function SidebarMobileApps() {
       <ul className="mt-1 space-y-0.5">
         {apps.map((app) => (
           <li key={app.project_id}>
-            <Link
+            <a
               href={`/project/${app.project_id}`}
               className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground/80 transition hover:bg-white/5 hover:text-beige"
             >
@@ -111,7 +110,7 @@ export function SidebarMobileApps() {
                 {app.project_title}
               </span>
               <StatusBadge status={app.status} />
-            </Link>
+            </a>
           </li>
         ))}
       </ul>

@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Loader2, GitFork } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
+import { navigateToProjectHref } from "@/lib/nav/full-document-navigation";
 
 export function RemixButton({ projectId }: { projectId: string }) {
-  const router = useRouter();
   const { user, openAuth } = useAuth();
   const [busy, setBusy] = useState(false);
 
@@ -23,7 +22,7 @@ export function RemixButton({ projectId }: { projectId: string }) {
         body: JSON.stringify({ projectId }),
       });
       const data = (await res.json()) as { id?: string; error?: string };
-      if (data.id) router.push(`/project/${data.id}`);
+      if (data.id) navigateToProjectHref(`/project/${data.id}`);
       else alert(data.error ?? "Błąd remixu");
     } catch {
       alert("Błąd sieci");

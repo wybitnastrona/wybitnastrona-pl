@@ -372,7 +372,7 @@ export async function POST(req: Request) {
             error: `File ${normalized} is LOCKED by the user — cannot overwrite. Inform the user that they need to unlock it first in the UI.`,
           };
         }
-        files[normalized] = { code: content };
+        files[normalized] = { ...files[normalized], code: content };
         void bumpJob(supabase, jobId, `writeFile: ${normalized}`, { path: normalized, kind: "write" });
         return { ok: true, path: normalized, bytes: content.length };
       },
@@ -452,7 +452,7 @@ export async function POST(req: Request) {
             newString +
             content.slice(idx + oldString.length);
         }
-        files[normalized] = { code: content };
+        files[normalized] = { ...files[normalized], code: content };
         void bumpJob(supabase, jobId, `patchFile: ${normalized}`, { path: normalized, kind: "patch" });
         return { ok: true, path: normalized, editsApplied: edits.length, content };
       },

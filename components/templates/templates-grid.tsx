@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import type { PromptDef, PromptCategory } from "@/lib/prompts-library";
 import { useAuth } from "@/components/auth/auth-provider";
+import { navigateToProjectHref } from "@/lib/nav/full-document-navigation";
 
 type Props = {
   prompts: PromptDef[];
@@ -12,7 +12,6 @@ type Props = {
 };
 
 export function TemplatesGrid({ prompts, categories }: Props) {
-  const router = useRouter();
   const { user, openAuth } = useAuth();
   const [filter, setFilter] = useState<PromptCategory | "all">("all");
   const [busy, setBusy] = useState<string | null>(null);
@@ -36,7 +35,7 @@ export function TemplatesGrid({ prompts, categories }: Props) {
         }),
       });
       const data = (await res.json()) as { id?: string };
-      if (data.id) router.push(`/project/${data.id}`);
+      if (data.id) navigateToProjectHref(`/project/${data.id}`);
     } finally {
       setBusy(null);
     }

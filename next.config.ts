@@ -1,10 +1,9 @@
 import type { NextConfig } from "next";
 
 /**
- * `Cross-Origin-Embedder-Policy: credentialless` + `COOP: same-origin` ustawia
- * `middleware.ts` (Edge) dla `/project/*`.
- * szansę na crossOriginIsolation dla WebContainer, bez wymogu CORP na
- * bundlerze Sandpack (codesandbox.io nie wysyła `Cross-Origin-Resource-Policy`).
+ * `Cross-Origin-Embedder-Policy: require-corp` + `Cross-Origin-Opener-Policy: same-origin`
+ * ustawia `middleware.ts` (Edge) dla `/project/*`.
+ * Wymagane przez WebContainer (SharedArrayBuffer + crossOriginIsolated).
  */
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["*.localhost"],

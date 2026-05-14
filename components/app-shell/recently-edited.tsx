@@ -70,7 +70,7 @@ export function RecentlyEdited({ projects }: RecentlyEditedProps) {
               project.mode,
             );
             return (
-              <Link
+              <a
                 key={project.id}
                 href={`/project/${project.id}`}
                 className="group flex flex-col gap-3 overflow-hidden rounded-2xl border border-beige/10 bg-card transition hover:border-beige/40 hover:bg-card/80"
@@ -114,7 +114,7 @@ export function RecentlyEdited({ projects }: RecentlyEditedProps) {
                     </span>
                   </div>
                 </div>
-              </Link>
+              </a>
             );
           })}
         </div>

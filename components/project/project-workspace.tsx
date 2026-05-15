@@ -63,6 +63,9 @@ export function ProjectWorkspace({
   const [selectMode, setSelectMode] = useState(false);
   const [chatWidth, setChatWidth] = useState(CHAT_DEFAULT);
   const [streaming, setStreaming] = useState(false);
+  const [chatMode, setChatMode] = useState<"build" | "plan" | "discuss">(
+    initialMode ?? "build",
+  );
   const chatRef = useRef<ChatPanelHandle>(null);
   const dragRef = useRef<{ startX: number; startW: number } | null>(null);
 
@@ -186,6 +189,7 @@ export function ProjectWorkspace({
             initialMode={initialMode}
             wizardBlocked={wizardActive}
             onStreamingChange={setStreaming}
+            onModeChange={setChatMode}
           />
         </div>
 
@@ -205,6 +209,8 @@ export function ProjectWorkspace({
             onElementPick={handleElementPick}
             onFixError={handleFixError}
             isStreaming={streaming}
+            chatMode={chatMode}
+            hasFiles={hasFiles}
             onActivatePreviewPickMode={() => setSelectMode(true)}
           />
         </div>

@@ -19,6 +19,12 @@ export type Project = {
   custom_domain_verified_at: string | null;
   database_url: string | null;
   database_anon_key: string | null;
+  /** Wybitna Baza Danych — auto-provisioned Supabase project. */
+  app_supabase_project_id?: string | null;
+  app_supabase_url?: string | null;
+  app_supabase_anon_key?: string | null;
+  app_supabase_status?: "none" | "provisioning" | "ready" | "error" | null;
+  app_supabase_provisioned_at?: string | null;
   template: string;
   /** Project mode: ios | android | web (platforma docelowa). */
   mode?: string | null;

@@ -94,6 +94,21 @@ const showPlanSchema = z.object({
     .describe("Lista krokow ktore wykonasz w tej iteracji."),
 });
 
+const showQuestionsSchema = z.object({
+  question: z
+    .string()
+    .min(3)
+    .max(220)
+    .describe("Zwiezle pytanie po polsku, 1-2 zdania."),
+  options: z
+    .array(z.string().min(1).max(80))
+    .min(2)
+    .max(6)
+    .describe(
+      "2-6 sugerowanych odpowiedzi, krotkich (do 4 slow), dopasowanych do kontekstu strony.",
+    ),
+});
+
 const patchFileSchema = z.object({
   path: z
     .string()
@@ -363,7 +378,9 @@ export async function POST(req: Request) {
   // ─── Pobierz projekt ────────────────────────────────────────────────────────
   const { data: project, error: projectError } = await supabase
     .from("projects")
-    .select("id, user_id, title, files, prompt, locked_files, template, mode, custom_system_context, is_wybitny")
+    .select(
+      "id, user_id, title, files, prompt, locked_files, template, mode, custom_system_context, is_wybitny, app_supabase_url, app_supabase_anon_key, app_supabase_status",
+    )
     .eq("id", projectId)
     .maybeSingle();
 
@@ -384,6 +401,39 @@ export async function POST(req: Request) {
   const customContextSuffix = customSystemContext
     ? `\n\nCUSTOM CONTEXT OD UZYTKOWNIKA (rygorystycznie przestrzegaj):\n${customSystemContext}`
     : "";
+
+  // Wybitna Baza Danych — auto-provisioned per-project Supabase.
+  // Gdy projekt ma `app_supabase_status === "ready"`, wstrzykujemy klucze do
+  // promptu, zeby AI mogla pisac kod uzywajacy ich w wygenerowanej aplikacji.
+  const appSupabaseStatus =
+    (project.app_supabase_status as string | null) ?? "none";
+  const appSupabaseUrl = (project.app_supabase_url as string | null) ?? null;
+  const appSupabaseAnon =
+    (project.app_supabase_anon_key as string | null) ?? null;
+  let wybitnaDbSuffix = "";
+  if (
+    appSupabaseStatus === "ready" &&
+    appSupabaseUrl &&
+    appSupabaseAnon
+  ) {
+    wybitnaDbSuffix =
+      `\n\nWYBITNA BAZA DANYCH (auto-provisioned per-projekt Supabase — GOTOWA do uzycia):\n` +
+      `URL: ${appSupabaseUrl}\n` +
+      `ANON KEY (publiczny, bezpieczny w kliencie): ${appSupabaseAnon}\n` +
+      `Tabele preinstalowane: categories (public read), products (public read), cart_items (anon CRUD).\n` +
+      `Wzor uzycia w generowanym kodzie (web/Vite + React):\n` +
+      `1) writeFile /src/lib/supabase.ts:\n` +
+      "```ts\n" +
+      `import { createClient } from "@supabase/supabase-js";\n` +
+      `export const supabase = createClient(\n` +
+      `  import.meta.env.VITE_SUPABASE_URL!,\n` +
+      `  import.meta.env.VITE_SUPABASE_ANON_KEY!,\n` +
+      `);\n` +
+      "```\n" +
+      `2) writeFile /.env (lub poinformuj uzytkownika o tych zmiennych): VITE_SUPABASE_URL=${appSupabaseUrl}, VITE_SUPABASE_ANON_KEY=${appSupabaseAnon}\n` +
+      `3) Koszyk: user_session = nanoid lub crypto.randomUUID() w localStorage; cart_items wstawiaj z polem user_session.\n` +
+      `4) NIE zakladaj tabel na newslettery / wiadomosci kontaktowe / zamowienia — te idą przez /api/form-submit (nasz panel admina).\n`;
+  }
 
   // Aktywne integracje usera (Supabase, Notion, MCP) — wstrzykiwane do system promptu.
   let integrationsSuffix = "";
@@ -487,6 +537,15 @@ export async function POST(req: Request) {
         return { ok: true, steps };
       },
     }),
+    showQuestions: tool({
+      description:
+        "Wyswietla uzytkownikowi interaktywna ankiete (pytanie + opcje + pole na wlasna odpowiedz). Uzyj gdy potrzebujesz preferencji projektowych (styl, branza, kolor, funkcje).",
+      inputSchema: showQuestionsSchema,
+      execute: async ({ question, options }) => {
+        void bumpJob(supabase, jobId, "showQuestions");
+        return { ok: true, question, options };
+      },
+    }),
   };
 
   const handoffAbort = new AbortController();
@@ -517,6 +576,15 @@ export async function POST(req: Request) {
       execute: async ({ steps }) => {
         void bumpJob(supabase, jobId, "showPlan");
         return { ok: true, steps };
+      },
+    }),
+    showQuestions: tool({
+      description:
+        "Wyswietla uzytkownikowi interaktywna ankiete (pytanie + 2-6 opcji + pole na wlasna odpowiedz). Uzyj DOKLADNIE raz, gdy potrzebujesz wyboru projektowego od uzytkownika i bez tego nie mozesz kontynuowac.",
+      inputSchema: showQuestionsSchema,
+      execute: async ({ question, options }) => {
+        void bumpJob(supabase, jobId, "showQuestions");
+        return { ok: true, question, options };
       },
     }),
     writeFile: tool({
@@ -686,7 +754,8 @@ export async function POST(req: Request) {
     buildSystemPrompt(mode, projectTemplate, projectMode, { isWybitny }) +
     `\n\n[PROJECT_CONTEXT] projectId="${projectId}" — uzyj tego ID w URL formularzy kontaktowych: /api/form-submit?projectId=${projectId}\n`;
   const semiStaticContext = fileListContext + lockedContext + preinstalledContext;
-  const dynamicContext = ragContext + customContextSuffix + integrationsSuffix;
+  const dynamicContext =
+    ragContext + customContextSuffix + integrationsSuffix + wybitnaDbSuffix;
 
   const systemMessages: Array<{
     role: "system";

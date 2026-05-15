@@ -12,16 +12,19 @@ import {
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import {
+  ArrowDown,
   ArrowUp,
   CheckCircle2,
+  ChevronDown,
   ChevronsUpDown,
+  HelpCircle,
   Lightbulb,
   ListTodo,
   Loader2,
   MessagesSquare,
   MousePointer2,
   Paperclip,
-  Plus,
+  Play,
   RotateCcw,
   Sparkles,
   Wrench,
@@ -44,7 +47,10 @@ import {
   getModel,
   type AiModelId,
 } from "@/lib/ai-models";
-import { VoiceButton } from "@/components/project/voice-button";
+import {
+  AttachmentMenu,
+  getToolIconByAttachmentType,
+} from "@/components/project/attachment-menu";
 import { PlanCard } from "@/components/project/plan-card";
 import { useGenerationProgress } from "@/components/project/use-generation-progress";
 import {
@@ -79,6 +85,8 @@ type ChatPanelProps = {
   wizardBlocked?: boolean;
   /** Notifies the parent whenever the streaming state changes. */
   onStreamingChange?: (streaming: boolean) => void;
+  /** Notifies the parent when the chat mode toggles (build / plan / discuss). */
+  onModeChange?: (mode: ChatMode) => void;
 };
 
 export type ChatPanelHandle = {
@@ -109,6 +117,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     initialMode,
     wizardBlocked,
     onStreamingChange,
+    onModeChange,
   },
   ref,
 ) {
@@ -137,7 +146,14 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
   function setModeSync(newMode: ChatMode) {
     modeRef.current = newMode;
     setMode(newMode);
+    onModeChange?.(newMode);
   }
+
+  // Notify parent of the initial mode on mount.
+  useEffect(() => {
+    onModeChange?.(modeRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Jednorazowe nadpisanie trybu na potrzeby konkretnego wyslanego komunikatu.
   // Uzywane przez "Kontynuuj generowanie" — chcemy wyslac jedna wiadomosc w
@@ -255,13 +271,16 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
   // nowych wiadomosci/streamingu — uzytkownik moze spokojnie czytac wczesniejsze
   // partie kodu bez "skakania" do dolu.
   const stickyBottomRef = useRef(true);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
 
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     const handleScroll = () => {
       const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
-      stickyBottomRef.current = distance < 80;
+      const sticky = distance < 80;
+      stickyBottomRef.current = sticky;
+      setShowScrollBtn(!sticky);
     };
     el.addEventListener("scroll", handleScroll, { passive: true });
     return () => el.removeEventListener("scroll", handleScroll);
@@ -274,6 +293,14 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
       behavior: "smooth",
     });
   }, [messages]);
+
+  const scrollToBottom = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    stickyBottomRef.current = true;
+    setShowScrollBtn(false);
+  }, []);
 
   // Streaming partial code to the editor preview.
   // For writeFile: stream the content char-by-char while input-streaming.
@@ -364,13 +391,22 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     const imageAttachments = attachments.filter((a) =>
       a.type.startsWith("image/"),
     );
-    const otherAttachments = attachments.filter(
-      (a) => !a.type.startsWith("image/"),
+    const toolAttachments = attachments.filter((a) =>
+      a.type.startsWith("wybitna/"),
+    );
+    const fileAttachments = attachments.filter(
+      (a) => !a.type.startsWith("image/") && !a.type.startsWith("wybitna/"),
     );
 
+    const toolText =
+      toolAttachments.length > 0
+        ? `\n\n[Narzędzia do uwzględnienia: ${toolAttachments
+            .map((a) => a.name)
+            .join(", ")}]`
+        : "";
     const attachmentText =
-      otherAttachments.length > 0
-        ? `\n\n[Zalaczniki: ${otherAttachments
+      fileAttachments.length > 0
+        ? `\n\n[Zalaczniki: ${fileAttachments
             .map((a) => `${a.name} (${humanSize(a.size)})`)
             .join(", ")}]`
         : "";
@@ -380,7 +416,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
       const parts: Array<
         | { type: "text"; text: string }
         | { type: "file"; mediaType: string; url: string }
-      > = [{ type: "text", text: `${trimmed}${attachmentText}` }];
+      > = [{ type: "text", text: `${trimmed}${toolText}${attachmentText}` }];
       for (const a of imageAttachments) {
         if (typeof a.dataUrl === "string") {
           parts.push({ type: "file", mediaType: a.type, url: a.dataUrl });
@@ -388,7 +424,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
       }
       sendMessage({ parts } as unknown as Parameters<typeof sendMessage>[0]);
     } else {
-      sendMessage({ text: `${trimmed}${attachmentText}` });
+      sendMessage({ text: `${trimmed}${toolText}${attachmentText}` });
     }
     setInput("");
     setAttachments([]);
@@ -518,10 +554,22 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
 
   return (
     <div className="flex h-full flex-col bg-background">
-      <div
-        ref={scrollRef}
-        className="flex-1 space-y-4 overflow-y-auto px-4 py-4"
-      >
+      <div className="relative min-h-0 flex-1">
+        {showScrollBtn && (
+          <button
+            type="button"
+            onClick={scrollToBottom}
+            aria-label="Przewiń na dół"
+            title="Przewiń na dół"
+            className="absolute bottom-3 right-4 z-20 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-beige/25 bg-card/95 text-foreground shadow-lg shadow-black/30 backdrop-blur transition hover:border-beige/50 hover:bg-card"
+          >
+            <ArrowDown className="h-4 w-4" />
+          </button>
+        )}
+        <div
+          ref={scrollRef}
+          className="h-full space-y-6 overflow-y-auto px-4 py-4"
+        >
         {messages.length === 0 && (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-sm text-muted-foreground">
             <Sparkles className="h-5 w-5 text-beige/70" />
@@ -554,6 +602,21 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
           const snapshotId = triggeringUserId
             ? messageSnapshots[triggeringUserId]
             : undefined;
+          const isLastAssistant =
+            message.role === "assistant" && message.id === lastAssistantId;
+          const showImplementButton =
+            isLastAssistant &&
+            !isStreaming &&
+            mode === "plan" &&
+            // Plan-mode reply must have at least one text part (the rationale).
+            message.parts.some((p) => p.type === "text") &&
+            // And no tool calls (plan mode disables writeFile etc.).
+            !message.parts.some(
+              (p) =>
+                typeof (p as { type?: string }).type === "string" &&
+                (p as { type: string }).type.startsWith("tool-") &&
+                (p as { type: string }).type !== "tool-showPlan",
+            );
           return (
           <Message
             key={message.id}
@@ -567,6 +630,14 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
             onRevert={() =>
               triggeringUserId && void handleRevertToMessage(triggeringUserId)
             }
+            showImplementButton={showImplementButton}
+            onImplementPlan={() => {
+              setModeSync("build");
+              sendMessage({ text: "Zaimplementuj plan." });
+            }}
+            onSubmitQuestionAnswer={(answer) => {
+              sendMessage({ text: answer });
+            }}
             onPlanAction={(partIdx, action, finalSteps) => {
               if (action === "approve") {
                 setConsumedPlans((prev) => new Set([...prev, partIdx]));
@@ -683,6 +754,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
           </div>
         )}
         <BuyCreditsDialog open={buyCreditsOpen} onClose={() => setBuyCreditsOpen(false)} />
+        </div>
       </div>
 
       <form
@@ -702,36 +774,43 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
 
         {attachments.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-1.5">
-            {attachments.map((att) => (
-              <span
-                key={att.id}
-                className="inline-flex items-center gap-1.5 rounded-md border border-beige/20 bg-background px-2 py-1 text-[11px] text-foreground"
-              >
-                {att.dataUrl?.startsWith("data:image/") ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={att.dataUrl}
-                    alt=""
-                    className="h-4 w-4 rounded-sm object-cover"
-                  />
-                ) : (
-                  <Paperclip className="h-3 w-3 text-beige/70" />
-                )}
-                <span className="max-w-[140px] truncate">{att.name}</span>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setAttachments((prev) =>
-                      prev.filter((item) => item.id !== att.id),
-                    )
-                  }
-                  className="cursor-pointer text-muted-foreground hover:text-beige"
-                  aria-label={`Usun ${att.name}`}
+            {attachments.map((att) => {
+              const Icon = att.type.startsWith("wybitna/")
+                ? getToolIconByAttachmentType(att.type)
+                : null;
+              return (
+                <span
+                  key={att.id}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-beige/20 bg-background px-2 py-1 text-[11px] text-foreground"
                 >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            ))}
+                  {att.dataUrl?.startsWith("data:image/") ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={att.dataUrl}
+                      alt=""
+                      className="h-4 w-4 rounded-sm object-cover"
+                    />
+                  ) : Icon ? (
+                    <Icon className="h-3.5 w-3.5 text-beige/80" />
+                  ) : (
+                    <Paperclip className="h-3 w-3 text-beige/70" />
+                  )}
+                  <span className="max-w-[140px] truncate">{att.name}</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setAttachments((prev) =>
+                        prev.filter((item) => item.id !== att.id),
+                      )
+                    }
+                    className="cursor-pointer text-muted-foreground hover:text-beige"
+                    aria-label={`Usun ${att.name}`}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              );
+            })}
           </div>
         )}
 
@@ -758,16 +837,27 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
           />
 
           <div className="flex items-center gap-1 bg-card/30 px-2 pb-2">
-            {/* + attach */}
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              aria-label="Załącz plik (zdjęcia, PDF, kod, CSV — max 5 MB)"
-              title="Załącz plik — zdjęcia, PDF, pliki kodu, CSV (max 5 MB)"
-              className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white/5 text-muted-foreground transition hover:bg-white/10 hover:text-beige"
-            >
-              <Plus className="h-4 w-4" />
-            </button>
+            <AttachmentMenu
+              onPickFile={() => fileInputRef.current?.click()}
+              onPickTool={(tool) => {
+                setAttachments((prev) => [
+                  ...prev,
+                  {
+                    id: crypto.randomUUID(),
+                    name: tool.label,
+                    type: `wybitna/${tool.category}:${tool.id}`,
+                    size: 0,
+                  },
+                ]);
+              }}
+              onOpenStripe={() => {
+                window.dispatchEvent(
+                  new CustomEvent("wybitna:open-canvas-view", {
+                    detail: { view: "stripe" },
+                  }),
+                );
+              }}
+            />
 
             <ModelSelector
               value={model}
@@ -783,12 +873,6 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
             />
 
             <PlanModeButton mode={mode} onChange={setModeSync} />
-
-            <VoiceButton
-              onTranscript={(text) => {
-                setInput((prev) => (prev ? `${prev} ${text}` : text));
-              }}
-            />
 
             {isStreaming ? (
               <Button
@@ -891,15 +975,15 @@ function SelectModeButton({
       type="button"
       onClick={onToggle}
       aria-pressed={active}
-      title="Tryb wyboru elementu w podglądzie"
-      className={`flex h-7 cursor-pointer items-center gap-1 rounded-md px-2 text-[11px] transition ${
+      title="Tryb wyboru elementu w podglądzie — kliknij dowolny element strony"
+      aria-label="Wybierz element w podglądzie"
+      className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition ${
         active
           ? "bg-beige/15 text-beige"
           : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
       }`}
     >
-      <MousePointer2 className="h-3 w-3" />
-      Wybierz
+      <MousePointer2 className="h-4 w-4" />
     </button>
   );
 }
@@ -958,10 +1042,14 @@ type ToolPart = {
   input?: {
     path?: string;
     steps?: string[];
+    question?: string;
+    options?: string[];
     edits?: Array<{ oldString: string; newString: string }>;
   };
   output?: {
     steps?: string[];
+    question?: string;
+    options?: string[];
     skipped?: boolean;
     ok?: boolean;
     path?: string;
@@ -979,6 +1067,9 @@ function Message({
   isReverting,
   onRevert,
   onPlanAction,
+  showImplementButton,
+  onImplementPlan,
+  onSubmitQuestionAnswer,
 }: {
   message: UIMessage;
   isStreaming: boolean;
@@ -987,51 +1078,87 @@ function Message({
   isReverting: boolean;
   onRevert: () => void;
   onPlanAction: (partIdx: number, action: "approve" | "skip", finalSteps?: string[]) => void;
+  showImplementButton: boolean;
+  onImplementPlan: () => void;
+  onSubmitQuestionAnswer: (answer: string) => void;
 }) {
   const isUser = message.role === "user";
 
-  return (
-    <div
-      className={`flex flex-col gap-1 ${isUser ? "items-end" : "items-start"}`}
-    >
-      <div className="flex w-full items-center gap-2 px-1">
-        <span className="text-xs uppercase tracking-wider text-muted-foreground/70">
-          {isUser ? "Ty" : "Asystent"}
-        </span>
-        {canRevert && !isStreaming && (
-          <button
-            type="button"
-            onClick={onRevert}
-            disabled={isReverting}
-            className="ml-auto inline-flex cursor-pointer items-center gap-1 rounded-md border border-beige/15 bg-card/40 px-1.5 py-0.5 text-[10px] text-muted-foreground transition hover:border-beige/30 hover:bg-card hover:text-beige disabled:opacity-60"
-            title="Cofnij projekt do stanu sprzed tej odpowiedzi"
-          >
-            {isReverting ? (
-              <Loader2 className="h-2.5 w-2.5 animate-spin" />
-            ) : (
-              <RotateCcw className="h-2.5 w-2.5" />
-            )}
-            Cofnij do tego momentu
-          </button>
-        )}
+  // Bolt-clean flat layout:
+  //   user  → small rounded chip aligned right
+  //   AI    → full-width, no bubble, just text + tool rows
+  if (isUser) {
+    return (
+      <div className="flex flex-col items-end gap-1">
+        <div className="ml-auto max-w-[80%] rounded-2xl bg-white/5 px-3.5 py-2 text-sm leading-relaxed text-foreground/95">
+          {message.parts.map((part, idx) => {
+            if (part.type === "text") {
+              return (
+                <p key={idx} className="whitespace-pre-wrap break-words">
+                  {part.text}
+                </p>
+              );
+            }
+            return null;
+          })}
+        </div>
       </div>
-      <div
-        className={`max-w-[92%] rounded-2xl text-sm leading-relaxed ${
-          isUser
-            ? "bg-beige px-3.5 py-2.5 text-beige-foreground"
-            : "border border-beige/15 bg-card px-3.5 py-2.5 text-foreground"
-        }`}
-      >
+    );
+  }
+
+  return (
+    <div className="group flex flex-col gap-2">
+      <div className="flex items-center gap-2 text-[11px] font-medium text-foreground/80">
+        <span className="inline-flex h-4 w-4 items-center justify-center">
+          <Sparkles className="h-3 w-3 text-beige/80" />
+        </span>
+        <span>bolt</span>
+        <div className="ml-auto flex items-center gap-1">
+          {canRevert && !isStreaming && (
+            <button
+              type="button"
+              onClick={onRevert}
+              disabled={isReverting}
+              className="inline-flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] text-muted-foreground opacity-0 transition hover:bg-white/5 hover:text-beige group-hover:opacity-100 disabled:opacity-60"
+              title="Cofnij projekt do stanu sprzed tej odpowiedzi"
+            >
+              {isReverting ? (
+                <Loader2 className="h-2.5 w-2.5 animate-spin" />
+              ) : (
+                <RotateCcw className="h-2.5 w-2.5" />
+              )}
+              Cofnij
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="w-full space-y-3 text-sm leading-relaxed text-foreground/95">
         {message.parts.map((part, idx) => {
           if (part.type === "text") {
             return (
-              <p key={idx} className="whitespace-pre-wrap break-words">
+              <div
+                key={idx}
+                className="whitespace-pre-wrap break-words text-foreground/90"
+              >
                 {part.text}
-              </p>
+              </div>
             );
           }
           if (part.type === "reasoning") {
             return null;
+          }
+          if (part.type === "tool-showQuestions") {
+            const tp = part as ToolPart;
+            const q = tp.output?.question ?? tp.input?.question ?? "";
+            const opts = tp.output?.options ?? tp.input?.options ?? [];
+            return (
+              <QuestionCard
+                key={idx}
+                question={q}
+                options={opts}
+                onSubmit={onSubmitQuestionAnswer}
+              />
+            );
           }
           if (part.type === "tool-showPlan") {
             const toolPart = part as ToolPart;
@@ -1056,56 +1183,61 @@ function Message({
               />
             );
           }
-          if (part.type.startsWith("tool-")) {
-            const toolPart = part as ToolPart;
-            // Hide skipped writes (plan-mode AI tried to write but was blocked)
-            if (toolPart.output?.skipped) return null;
-            // readFile is a technical detail — hide from chat UI
-            if (part.type === "tool-readFile") return null;
-
-            const filePath = toolPart.input?.path ?? toolPart.output?.path;
-            const isStreaming = toolPart.state === "input-streaming";
-
-            let verb = part.type.replace("tool-", "");
-            if (part.type === "tool-writeFile") verb = "wpisuje";
-            else if (part.type === "tool-deleteFile") verb = "usuwa";
-            else if (part.type === "tool-patchFile") verb = "edytuje";
-            else if (part.type === "tool-fetchImage") verb = "pobiera zdjęcie";
-
-            // For patchFile show how many edits were applied
-            const editsSuffix =
-              part.type === "tool-patchFile" && toolPart.output?.editsApplied != null
-                ? ` (${toolPart.output.editsApplied} ${toolPart.output.editsApplied === 1 ? "zmiana" : "zmian"})`
-                : "";
-
-            // Show patch errors inline
-            const patchError =
-              part.type === "tool-patchFile" && toolPart.output?.ok === false
-                ? toolPart.output.error
-                : null;
-
-            return (
-              <div
-                key={idx}
-                className="mt-1 flex flex-col gap-0.5 rounded-md bg-background/60 px-2 py-1.5 text-xs text-muted-foreground"
-              >
-                <div className="flex items-center gap-2">
-                  <Wrench className="h-3 w-3 shrink-0 text-beige/70" />
-                  <span className="font-mono">
-                    {verb}
-                    {filePath ? `: ${filePath}` : ""}
-                    {editsSuffix}
-                  </span>
-                  {isStreaming && <Loader2 className="h-3 w-3 animate-spin" />}
-                </div>
-                {patchError && (
-                  <p className="pl-5 text-[10px] text-amber-400/80">{patchError}</p>
-                )}
-              </div>
-            );
-          }
           return null;
         })}
+
+        {(() => {
+          // Collect tool actions (writeFile/patchFile/deleteFile/generateImage/fetchImage)
+          // into a single collapsible "actions taken" group — Bolt-style.
+          const actions: Array<{
+            verb: string;
+            path?: string;
+            editsApplied?: number;
+            error?: string | null;
+            isStreaming: boolean;
+          }> = [];
+          for (const part of message.parts) {
+            if (!part.type.startsWith("tool-")) continue;
+            if (part.type === "tool-readFile") continue;
+            if (part.type === "tool-showPlan") continue;
+            if (part.type === "tool-showQuestions") continue;
+            const tp = part as ToolPart;
+            if (tp.output?.skipped) continue;
+            let verb = part.type.replace("tool-", "");
+            if (part.type === "tool-writeFile") verb = "Utworzono";
+            else if (part.type === "tool-deleteFile") verb = "Usunięto";
+            else if (part.type === "tool-patchFile") verb = "Edytowano";
+            else if (part.type === "tool-fetchImage") verb = "Pobrano zdjęcie";
+            else if (part.type === "tool-generateImage") verb = "Wygenerowano obraz";
+            actions.push({
+              verb,
+              path: tp.input?.path ?? tp.output?.path,
+              editsApplied:
+                part.type === "tool-patchFile"
+                  ? (tp.output?.editsApplied as number | undefined)
+                  : undefined,
+              error:
+                part.type === "tool-patchFile" && tp.output?.ok === false
+                  ? tp.output.error ?? null
+                  : null,
+              isStreaming: tp.state === "input-streaming",
+            });
+          }
+          if (actions.length === 0) return null;
+          return <ActionsTaken key="actions" actions={actions} />;
+        })()}
+        {showImplementButton && (
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={onImplementPlan}
+              className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-beige/40 bg-beige px-4 text-sm font-medium text-beige-foreground transition hover:bg-beige/90"
+            >
+              <Play className="h-3.5 w-3.5" />
+              Zaimplementuj
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1148,6 +1280,148 @@ function PlanBlock({
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+function ActionsTaken({
+  actions,
+}: {
+  actions: Array<{
+    verb: string;
+    path?: string;
+    editsApplied?: number;
+    error?: string | null;
+    isStreaming: boolean;
+  }>;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const anyStreaming = actions.some((a) => a.isStreaming);
+  return (
+    <div className="rounded-lg border border-beige/15 bg-card/30">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-xs text-foreground/85 transition hover:bg-white/5"
+        aria-expanded={expanded}
+      >
+        {anyStreaming ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-beige/70" />
+        ) : (
+          <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full border border-beige/40">
+            <CheckCircle2 className="h-2.5 w-2.5 text-beige/80" />
+          </span>
+        )}
+        <span className="font-medium">
+          {actions.length} {actions.length === 1 ? "akcja" : "akcji"}
+        </span>
+        <ChevronDown
+          className={`ml-auto h-3.5 w-3.5 text-muted-foreground transition-transform ${expanded ? "" : "-rotate-90"}`}
+        />
+      </button>
+      {expanded && (
+        <div className="space-y-1 border-t border-beige/10 px-3 py-2">
+          {actions.map((a, idx) => (
+            <div
+              key={idx}
+              className="flex items-center gap-2 rounded-md px-2 py-1 text-[11px] text-muted-foreground"
+            >
+              {a.isStreaming ? (
+                <Loader2 className="h-3 w-3 shrink-0 animate-spin text-beige/60" />
+              ) : (
+                <Wrench className="h-3 w-3 shrink-0 text-beige/60" />
+              )}
+              <span className="text-foreground/85">{a.verb}</span>
+              {a.path && (
+                <span className="truncate font-mono text-muted-foreground/80">
+                  {a.path}
+                </span>
+              )}
+              {a.editsApplied != null && (
+                <span className="text-muted-foreground/70">
+                  · {a.editsApplied} {a.editsApplied === 1 ? "zmiana" : "zmian"}
+                </span>
+              )}
+              {a.error && (
+                <span className="ml-auto text-amber-400/80">{a.error}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function QuestionCard({
+  question,
+  options,
+  onSubmit,
+}: {
+  question: string;
+  options: string[];
+  onSubmit: (answer: string) => void;
+}) {
+  const [custom, setCustom] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+
+  function pick(value: string) {
+    if (submitted || !value.trim()) return;
+    setSubmitted(true);
+    onSubmit(value);
+  }
+
+  return (
+    <div className="rounded-xl border border-beige/15 bg-card/30 p-3">
+      <div className="mb-2 flex items-center gap-2 text-xs font-medium text-beige/85">
+        <HelpCircle className="h-3.5 w-3.5" />
+        Pytanie
+      </div>
+      <p className="mb-3 text-sm text-foreground/95">{question}</p>
+      {options.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {options.map((opt, idx) => (
+            <button
+              key={idx}
+              type="button"
+              disabled={submitted}
+              onClick={() => pick(opt)}
+              className="cursor-pointer rounded-lg border border-beige/20 bg-background/60 px-3 py-1.5 text-xs text-foreground/90 transition hover:border-beige/45 hover:bg-beige/10 hover:text-beige disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
+      )}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          pick(custom);
+        }}
+        className="mt-2 flex items-center gap-2"
+      >
+        <input
+          type="text"
+          value={custom}
+          onChange={(e) => setCustom(e.target.value)}
+          disabled={submitted}
+          placeholder="Wpisz własną odpowiedź..."
+          className="flex-1 rounded-md border border-beige/15 bg-background/40 px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:border-beige/40 focus:outline-none disabled:opacity-50"
+        />
+        <button
+          type="submit"
+          disabled={submitted || !custom.trim()}
+          className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md bg-beige text-beige-foreground transition hover:bg-beige/90 disabled:cursor-not-allowed disabled:opacity-40"
+          aria-label="Wyślij odpowiedź"
+        >
+          <ArrowUp className="h-3.5 w-3.5" />
+        </button>
+      </form>
+      {submitted && (
+        <p className="mt-2 text-[10px] text-muted-foreground">
+          Wysłano odpowiedź.
+        </p>
+      )}
     </div>
   );
 }

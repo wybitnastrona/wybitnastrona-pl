@@ -1,20 +1,17 @@
 "use client";
 
 /**
- * Rork-style thinking panel.
+ * Bolt-style thinking panel.
  *
- * Wyswietlany NA POCZATKU pierwszej generacji nowego projektu — pokazuje
- * uzytkownikowi tok rozumowania agenta (REASONING_PREAMBLE z lib/ai-prompts.ts)
- * zanim AI zacznie pisac pliki.
+ * Default: jeden klikany przycisk "Planuję..." / "Myślałem Xs" z ikoną żarówki.
+ * Expanded: lista zdań tokowych z REASONING_PREAMBLE jako ładne kroki.
  *
- * Logika widocznosci (sterowana przez `chat-panel.tsx`):
- *   - widoczny gdy: pierwsza generacja, status === "streaming",
- *                   pierwszy assistant message jeszcze nie ma tool-callu.
- *   - chowany po: pojawieniu sie pierwszego tool-writeFile / tool-showPlan.
+ * Pokazywany tylko zanim pojawi się pierwszy tool-call (writeFile / showPlan)
+ * — później chowamy, bo akcje wyświetla `ActionsTaken`.
  */
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Sparkles } from "lucide-react";
+import { ChevronDown, Lightbulb, Loader2 } from "lucide-react";
 import type { UIMessage } from "ai";
 
 type Props = {
@@ -35,17 +32,34 @@ function isTextPart(p: unknown): p is TextPart {
   );
 }
 
+/**
+ * Split a stream of reasoning text into discrete bullet-points.
+ *  - Numbered lists (1. … 2. …) preserved.
+ *  - Otherwise split on full-stop boundaries with min length 8 chars.
+ */
+function splitIntoSteps(text: string): string[] {
+  const trimmed = text.trim();
+  if (!trimmed) return [];
+  const numberedMatches = trimmed.match(/\d+[.)]\s+[^\n]+/g);
+  if (numberedMatches && numberedMatches.length >= 2) {
+    return numberedMatches.map((s) => s.replace(/^\d+[.)]\s+/, "").trim());
+  }
+  return trimmed
+    .split(/(?<=[.!?])\s+(?=[A-ZĄĆĘŁŃÓŚŻŹ])/g)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 8);
+}
+
 export function RorkThinkingPanel({ messages, isStreaming }: Props) {
-  // Pierwsza assistant-message — to ona zawiera reasoning.
   const firstAssistant = messages.find((m) => m.role === "assistant");
   const textParts = firstAssistant?.parts.filter(isTextPart) ?? [];
   const fullText = textParts.map((t) => t.text).join("\n").trim();
+  const steps = splitIntoSteps(fullText);
 
   const startedAtRef = useRef<number | null>(null);
   const [elapsedSec, setElapsedSec] = useState(0);
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
 
-  // Start timer when streaming begins.
   useEffect(() => {
     if (!isStreaming) return;
     if (startedAtRef.current === null) {
@@ -59,57 +73,50 @@ export function RorkThinkingPanel({ messages, isStreaming }: Props) {
     return () => clearInterval(interval);
   }, [isStreaming]);
 
-  // Auto-collapse after streaming ends (so it doesn't dominate the chat after).
-  useEffect(() => {
-    if (!isStreaming && startedAtRef.current !== null) {
-      const t = setTimeout(() => setExpanded(false), 800);
-      return () => clearTimeout(t);
-    }
-  }, [isStreaming]);
+  const headerLabel = isStreaming
+    ? steps.length === 0
+      ? "Planuję..."
+      : `Planuję... ${elapsedSec}s`
+    : `Myślałem ${elapsedSec}s`;
 
   return (
-    <div className="mb-3 rounded-2xl border border-beige/20 bg-card/60 p-4 backdrop-blur">
-      {/* Header */}
-      <div className="flex items-center gap-2">
-        <div className="relative flex h-6 w-6 items-center justify-center rounded-full bg-beige/15">
-          <Sparkles className="h-3 w-3 text-beige" />
-          {isStreaming && (
-            <span className="absolute inset-0 rounded-full border border-beige/40 animate-ping" />
-          )}
-        </div>
-        <span className="text-xs font-medium text-foreground">AI</span>
-        {isStreaming ? (
-          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-            <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-beige" />
-            Pracuje...
-          </span>
-        ) : (
-          <span className="text-[11px] text-muted-foreground">Tok rozumowania</span>
-        )}
-      </div>
-
-      {/* Thought-for-Xs expander */}
+    <div className="rounded-lg border border-beige/15 bg-card/30">
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="mt-2 inline-flex w-full cursor-pointer items-center justify-between rounded-md border border-beige/10 bg-background/30 px-2.5 py-1.5 text-[11px] text-muted-foreground transition hover:border-beige/25 hover:text-foreground"
+        className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-xs transition hover:bg-white/5"
+        aria-expanded={expanded}
       >
-        <span>
-          {isStreaming ? "Myslalem juz " : "Myslalem "}
-          <span className="text-foreground/90">{elapsedSec}s</span>
-        </span>
+        {isStreaming ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-beige/80" />
+        ) : (
+          <Lightbulb className="h-3.5 w-3.5 text-beige/80" />
+        )}
+        <span className="font-medium text-foreground/90">{headerLabel}</span>
         <ChevronDown
-          className={`h-3 w-3 transition-transform ${expanded ? "" : "-rotate-90"}`}
+          className={`ml-auto h-3.5 w-3.5 text-muted-foreground transition-transform ${
+            expanded ? "" : "-rotate-90"
+          }`}
         />
       </button>
-
       {expanded && (
-        <div className="mt-2 max-h-56 overflow-y-auto rounded-md border border-beige/10 bg-background/40 px-3 py-2 text-[12px] leading-relaxed text-foreground/85 whitespace-pre-wrap">
-          {fullText.length > 0 ? (
-            fullText
+        <div className="border-t border-beige/10 px-3 py-2 text-[12px] leading-relaxed text-foreground/80">
+          {steps.length > 0 ? (
+            <ol className="space-y-1.5">
+              {steps.map((s, idx) => (
+                <li key={idx} className="flex gap-2">
+                  <span className="text-muted-foreground/70">
+                    {String(idx + 1).padStart(2, "0")}
+                  </span>
+                  <span>{s}</span>
+                </li>
+              ))}
+            </ol>
+          ) : fullText.length > 0 ? (
+            <p className="whitespace-pre-wrap">{fullText}</p>
           ) : (
             <span className="text-muted-foreground">
-              Analizuje prompt i planuje architekture...
+              Analizuję prompt i planuję architekturę...
             </span>
           )}
         </div>
@@ -119,18 +126,12 @@ export function RorkThinkingPanel({ messages, isStreaming }: Props) {
 }
 
 /**
- * Helper — sprawdza czy nadal pokazywac thinking panel.
- *
- * Pokazujemy:
- *  - nie ma jeszcze zadnego tool-callu (writeFile / patchFile / showPlan)
- *    w pierwszej assistant message, ALBO
- *  - juz jest tool-call ale stream sie nie skonczyl jeszcze a panel zostal zainicjowany.
- *
- * Najprosciej: ukrywamy po pierwszym tool-callu w pierwszym assistant message.
+ * Pokazujemy thinking panel tylko gdy pierwszy assistant message
+ * jeszcze nie ma zadnego tool-callu.
  */
 export function shouldShowThinkingPanel(messages: UIMessage[]): boolean {
   const firstAssistant = messages.find((m) => m.role === "assistant");
-  if (!firstAssistant) return true; // user wyslal, asystent jeszcze nie odpowiedzial
+  if (!firstAssistant) return true;
   const hasToolCall = firstAssistant.parts.some((p) => {
     const t = (p as { type?: string }).type;
     return typeof t === "string" && t.startsWith("tool-");

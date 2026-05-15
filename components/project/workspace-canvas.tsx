@@ -83,6 +83,10 @@ type Props = {
   onFixError?: (hint: string, opts: { auto: boolean }) => void;
   /** True jezeli AI obecnie generuje — auto-fix nie wystartuje wtedy. */
   isStreaming?: boolean;
+  /** Tryb chatu — w `plan` nie pokazujemy overlay (podgląd zostaje statyczny). */
+  chatMode?: "build" | "plan" | "discuss";
+  /** Czy projekt ma już wygenerowane pliki — gdy true to overlay degraduje do paska. */
+  hasFiles?: boolean;
   /** Z menu plików: włącza tryb „wskaż w podglądzie” (jak Target all). */
   onActivatePreviewPickMode?: () => void;
 };
@@ -94,6 +98,8 @@ export function WorkspaceCanvas({
   onElementPick,
   onFixError,
   isStreaming = false,
+  chatMode = "build",
+  hasFiles = false,
   onActivatePreviewPickMode,
 }: Props) {
   const router = useRouter();
@@ -399,7 +405,7 @@ export function WorkspaceCanvas({
                 projectId={project.id}
                 files={project.files}
                 lockedPaths={project.locked_files}
-                readOnly={buildFile !== null}
+                readOnly={buildFile !== null && chatMode !== "plan"}
                 showTerminal={useWC}
               />
             </div>
@@ -411,7 +417,7 @@ export function WorkspaceCanvas({
             projectId={project.id}
             files={project.files}
             lockedPaths={project.locked_files}
-            readOnly={buildFile !== null}
+            readOnly={buildFile !== null && chatMode !== "plan"}
           />
         )}
 
@@ -436,13 +442,38 @@ export function WorkspaceCanvas({
           <ErrorWatcher onFixRequest={onFixError} isStreaming={isStreaming} />
         )}
 
-        {/* Build progress overlay */}
-        {buildFile && view === "preview" && (
-          <BuildProgressOverlay
-            currentFile={buildFile}
-            writtenFiles={writtenFiles}
-          />
+        {/* Build progress feedback.
+            - Plan mode → totally hidden (preview stays static).
+            - Build/edit mode with existing files → slim top progress bar (hot refresh).
+            - Initial build (no files yet) → full-screen overlay. */}
+        {buildFile && view === "preview" && chatMode !== "plan" && (
+          hasFiles ? (
+            <BuildProgressBar currentFile={buildFile} />
+          ) : (
+            <BuildProgressOverlay
+              currentFile={buildFile}
+              writtenFiles={writtenFiles}
+            />
+          )
         )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Slim top progress bar — wyswietlana podczas edycji istniejacej strony (hasFiles).
+ * Nie blokuje podgladu: uzytkownik widzi zmiany "na zywo" w trakcie patchowania.
+ */
+function BuildProgressBar({ currentFile }: { currentFile: string }) {
+  return (
+    <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex flex-col">
+      <div className="h-0.5 w-full overflow-hidden bg-beige/20">
+        <div className="h-full w-1/3 animate-[pulse_1.4s_ease-in-out_infinite] bg-beige" />
+      </div>
+      <div className="self-center mt-1 inline-flex items-center gap-1.5 rounded-full border border-beige/20 bg-card/90 px-2.5 py-0.5 text-[10px] text-foreground/80 shadow-sm backdrop-blur">
+        <Loader2 className="h-2.5 w-2.5 animate-spin text-beige" />
+        <span className="truncate font-mono">{currentFile}</span>
       </div>
     </div>
   );

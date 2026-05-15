@@ -296,6 +296,36 @@ end;
 $$ language plpgsql;
 
 -- ============================================================
+-- 0042: monthly_credits_limit na profiles (pasek SideNav)
+-- ============================================================
+alter table public.profiles
+  add column if not exists monthly_credits_limit integer not null default 1500;
+
+comment on column public.profiles.monthly_credits_limit is
+  'Miesieczny limit kredytow uzytkownika widoczny w pasku SideNav. FREE=1500, PRO=product.points.';
+
+-- ============================================================
+-- 0043: kolumny Stripe na profiles (wymagane przez webhook + /api/me/points)
+-- ============================================================
+alter table public.profiles
+  add column if not exists stripe_customer_id text,
+  add column if not exists stripe_subscription_id text,
+  add column if not exists stripe_subscription_status text,
+  add column if not exists stripe_subscription_price_id text,
+  add column if not exists monthly_credit_quota integer;
+
+comment on column public.profiles.stripe_subscription_status is
+  'Status subskrypcji Stripe: active, trialing, canceled, incomplete, past_due.';
+comment on column public.profiles.stripe_subscription_id is
+  'ID subskrypcji Stripe (sub_xxx). Null = brak aktywnej subskrypcji.';
+comment on column public.profiles.stripe_subscription_price_id is
+  'Price ID aktywnego planu Stripe (price_xxx). Sluzy do atrybucji liczby kredytow.';
+
+create unique index if not exists profiles_stripe_customer_idx
+  on public.profiles(stripe_customer_id)
+  where stripe_customer_id is not null;
+
+-- ============================================================
 -- KONIEC MIGRACJI
 -- ============================================================
 -- Po uruchomieniu odswiezcie strone wybitnastrona.pl

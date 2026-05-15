@@ -12,6 +12,7 @@ import { getModeById, DEFAULT_MODE, type ProjectMode } from "@/lib/project-modes
 import {
   stripShadowPublicIndexFromProjectFiles,
   ensureTailwindInProjectFiles,
+  sanitizeProjectPackageJson,
 } from "@/lib/sandpack/merge-preview-files";
 
 const slugAlphabet =
@@ -139,20 +140,28 @@ export async function isProjectOwnerPro(userId: string): Promise<boolean> {
   if (!userId) return false;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  // Jezeli srodowisko nie jest skonfigurowane — nie blokuj renderowania
+  // opublikowanej strony. Zwracamy false (badge "Made with" bedzie widoczny).
   if (!url || !serviceKey) return false;
   const admin = createServiceClient(url, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
-  const { data } = await admin
-    .from("profiles")
-    .select("tier, stripe_subscription_status")
-    .eq("id", userId)
-    .maybeSingle();
-  if (!data) return false;
-  const tier = (data as { tier?: string }).tier;
-  const status = (data as { stripe_subscription_status?: string })
-    .stripe_subscription_status;
-  return tier === "pro" && (status === "active" || status === "trialing");
+  try {
+    const { data } = await admin
+      .from("profiles")
+      .select("tier, stripe_subscription_status")
+      .eq("id", userId)
+      .maybeSingle();
+    if (!data) return false;
+    const tier = (data as { tier?: string }).tier;
+    const status = (data as { stripe_subscription_status?: string })
+      .stripe_subscription_status;
+    return tier === "pro" && (status === "active" || status === "trialing");
+  } catch {
+    // Brak kolumny (migracja 0043 jeszcze nie uruchomiona) lub inny blad DB —
+    // nie blokujemy renderowania opublikowanej strony. Fallback = FREE (z badge).
+    return false;
+  }
 }
 
 export async function getProjectBySlug(slug: string): Promise<Project | null> {
@@ -229,9 +238,13 @@ export async function updateProjectFiles(
 ): Promise<void> {
   const supabase = await createClient();
   const cleaned = stripShadowPublicIndexFromProjectFiles(files);
+  const withTailwind = ensureTailwindInProjectFiles(cleaned);
+  // Napraw package.json jezeli AI wygenerowalo JSON z trailing commas lub
+  // komentarzami — bez tego Sandpack i npm crashuja przy parsowaniu.
+  const safe = sanitizeProjectPackageJson(withTailwind);
   const { error } = await supabase
     .from("projects")
-    .update({ files: ensureTailwindInProjectFiles(cleaned) })
+    .update({ files: safe })
     .eq("id", id);
   if (error) throw error;
 }

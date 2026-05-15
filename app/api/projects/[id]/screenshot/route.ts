@@ -32,8 +32,6 @@ import {
  */
 export const runtime = "nodejs";
 export const maxDuration = 60;
-// Wylacz default response size limit (PNG moze byc spory):
-export const config = { api: { responseLimit: false } };
 
 type Params = Promise<{ id: string }>;
 

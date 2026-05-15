@@ -1,6 +1,66 @@
 import type { ProjectFiles } from "@/lib/types/project";
 import { getStarterFiles } from "./starter";
 
+/**
+ * Naprawia `/package.json` wygenerowany przez AI — model czasem zwraca
+ * JSON z trailing commas lub komentarzami `//`, ktore sa zgodne z TS/JSON5
+ * ale nieprawidlowe w spec JSON. Sandpack i npm crashuja przy parsowaniu.
+ *
+ * Strategia:
+ *  1. Sprobuj JSON.parse — jezeli OK, nic nie rob (zero kosztu).
+ *  2. Usun komentarze jednolinijkowe i wielolinijkowe (regex).
+ *  3. Usun trailing commas przed `}` / `]` (regex).
+ *  4. Sprobuj JSON.parse ponownie — jezeli OK, zapisz naprawiony JSON.
+ *  5. Jezeli dalej niepoprawny — pozostaw oryginal (nie psuc bardziej).
+ *
+ * Uzywa wbudowanych regexow (bez dodatkowych paczek) zeby nie powiekszyc
+ * bundla i nie dodawac zaleznoci do server-only kodu.
+ */
+export function sanitizePackageJson(code: string): string {
+  try {
+    JSON.parse(code);
+    return code; // juz prawidlowy
+  } catch {
+    // pass
+  }
+
+  let fixed = code;
+
+  // 1. Usun komentarze wielolinijkowe /* ... */
+  fixed = fixed.replace(/\/\*[\s\S]*?\*\//g, "");
+
+  // 2. Usun komentarze jednolinijkowe // ... (ale nie URL "http://...")
+  //    Patrzym na "//" poprzedzone bialym znakiem lub poczatkiem lini
+  fixed = fixed.replace(/(?:^|[ \t])\/\/[^\n]*/gm, "");
+
+  // 3. Usun trailing commas: , przed } lub ] (z dowolna iloscia whitespace)
+  fixed = fixed.replace(/,(\s*[}\]])/g, "$1");
+
+  try {
+    const parsed = JSON.parse(fixed);
+    // Formatuj z 2-spacjami zeby byc "schludnym" dla uzytkownika.
+    return JSON.stringify(parsed, null, 2);
+  } catch {
+    // Nie udalo sie naprawic — zwroc oryginal zeby nie pogorszyc sytuacji.
+    return code;
+  }
+}
+
+/**
+ * Przetwarza wszystkie pliki projektu i naprawia `/package.json`
+ * jezeli zawiera nieprawidlowy JSON (trailing commas, komentarze).
+ * Bezpieczne do uzycia przed kazdym zapisem do bazy.
+ */
+export function sanitizeProjectPackageJson(files: ProjectFiles): ProjectFiles {
+  const pkg = files["/package.json"];
+  if (!pkg || typeof pkg.code !== "string") return files;
+
+  const fixed = sanitizePackageJson(pkg.code);
+  if (fixed === pkg.code) return files; // nic sie nie zmienilo
+
+  return { ...files, "/package.json": { ...pkg, code: fixed } };
+}
+
 const TAILWIND_CDN_SCRIPT =
   '<script src="https://cdn.tailwindcss.com"></script>';
 

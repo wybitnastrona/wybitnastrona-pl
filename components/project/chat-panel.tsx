@@ -94,6 +94,17 @@ export type ChatPanelHandle = {
   /** Sends the hint as a chat message immediately (used by auto-fix). */
   submitHint: (text: string) => void;
   /**
+   * Cursor-style: doczepia kontekst wybranego elementu DOM jako "chip" obok
+   * pola tekstowego. Tresc jest wstrzykiwana do wiadomosci dopiero w submit().
+   */
+  attachElement: (info: {
+    selector?: string;
+    html?: string;
+    tagName?: string;
+    x?: number;
+    y?: number;
+  }) => void;
+  /**
    * Called by WizardPanel after the user answers questions.
    * Forces PLAN mode so the AI presents the plan before writing any files.
    * The PlanCard "Approve" button then switches to BUILD mode.
@@ -101,6 +112,14 @@ export type ChatPanelHandle = {
   startWithPlanPrompt: (enrichedPrompt: string) => void;
   /** Start with the enriched prompt in the current mode (used when wizard is skipped). */
   startWithPrompt: (enrichedPrompt: string) => void;
+};
+
+type ElementAttachment = {
+  selector?: string;
+  html?: string;
+  tagName?: string;
+  x?: number;
+  y?: number;
 };
 
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024; // 5 MB
@@ -133,6 +152,8 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     setModel(id);
   }
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [elementAttachment, setElementAttachment] =
+    useState<ElementAttachment | null>(null);
   const [buyCreditsOpen, setBuyCreditsOpen] = useState(false);
   // Track which plan cards have been acted on (approved/skipped)
   const [consumedPlans, setConsumedPlans] = useState<Set<number>>(new Set());
@@ -356,6 +377,15 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
       appendHint: (text: string) => {
         setInput((prev) => (prev ? `${prev}\n${text}` : text));
       },
+      attachElement: (info) => {
+        setElementAttachment({
+          selector: info.selector,
+          html: info.html,
+          tagName: info.tagName,
+          x: info.x,
+          y: info.y,
+        });
+      },
       submitHint: (text: string) => {
         // Auto-fix path: send straight to the model in build mode so the AI
         // can patch the project without an extra plan round-trip.
@@ -385,7 +415,27 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
 
   function submit() {
     const trimmed = input.trim();
-    if (!trimmed && attachments.length === 0) return;
+    if (!trimmed && attachments.length === 0 && !elementAttachment) return;
+
+    // Cursor-style attachment: kontekst wybranego elementu dolaczamy do
+    // wiadomosci jako prefiks, a chip czyscimy po wyslaniu.
+    let elementPrefix = "";
+    if (elementAttachment) {
+      const tag = elementAttachment.tagName
+        ? `<${elementAttachment.tagName}>`
+        : "";
+      const sel = elementAttachment.selector
+        ? `\`${elementAttachment.selector}\``
+        : "";
+      const html = elementAttachment.html
+        ? `\n\nAktualny HTML:\n\`\`\`html\n${elementAttachment.html}\n\`\`\``
+        : "";
+      const coords =
+        !elementAttachment.selector && elementAttachment.x !== undefined
+          ? ` w okolicy (x:${elementAttachment.x}px, y:${elementAttachment.y ?? 0}px)`
+          : "";
+      elementPrefix = `[Wybrany element ${tag} ${sel}${coords}]${html}\n\n`;
+    }
 
     // Faza 3.2: image-to-code. Obrazki wysylamy jako oddzielne parts (Claude Vision).
     const imageAttachments = attachments.filter((a) =>
@@ -416,7 +466,12 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
       const parts: Array<
         | { type: "text"; text: string }
         | { type: "file"; mediaType: string; url: string }
-      > = [{ type: "text", text: `${trimmed}${toolText}${attachmentText}` }];
+      > = [
+        {
+          type: "text",
+          text: `${elementPrefix}${trimmed}${toolText}${attachmentText}`,
+        },
+      ];
       for (const a of imageAttachments) {
         if (typeof a.dataUrl === "string") {
           parts.push({ type: "file", mediaType: a.type, url: a.dataUrl });
@@ -424,10 +479,13 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
       }
       sendMessage({ parts } as unknown as Parameters<typeof sendMessage>[0]);
     } else {
-      sendMessage({ text: `${trimmed}${toolText}${attachmentText}` });
+      sendMessage({
+        text: `${elementPrefix}${trimmed}${toolText}${attachmentText}`,
+      });
     }
     setInput("");
     setAttachments([]);
+    setElementAttachment(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -771,6 +829,35 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
             void handleFiles(event.target.files);
           }}
         />
+
+        {elementAttachment && (
+          <div className="mb-2 flex flex-wrap gap-1.5">
+            <span
+              className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-violet-400/30 bg-violet-500/10 px-2 py-1 text-[11px] text-violet-100"
+              title={elementAttachment.selector ?? "Wybrany element"}
+            >
+              <MousePointer2 className="h-3 w-3 text-violet-300" />
+              <span className="font-mono">
+                {elementAttachment.tagName
+                  ? `<${elementAttachment.tagName}>`
+                  : "element"}
+              </span>
+              {elementAttachment.selector && (
+                <span className="max-w-[180px] truncate font-mono text-[10px] text-violet-200/80">
+                  {elementAttachment.selector}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => setElementAttachment(null)}
+                className="cursor-pointer text-violet-300/80 hover:text-violet-100"
+                aria-label="Odepnij element"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          </div>
+        )}
 
         {attachments.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-1.5">

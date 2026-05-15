@@ -123,19 +123,15 @@ export function ProjectWorkspace({
     tagName?: string;
   }) {
     setSelectMode(false);
-    let hint: string;
-    if (info.selector) {
-      hint =
-        `Zmien element CSS selector \`${info.selector}\`` +
-        (info.tagName ? ` (\`<${info.tagName}>\`)` : "") +
-        (info.html ? `\n\nAktualny HTML:\n\`\`\`html\n${info.html}\n\`\`\`` : "") +
-        "\n\nOpisz dokladnie, co chcesz tam zmienic.";
-    } else {
-      hint =
-        `Zmien element w obszarze podgladu w okolicy (x:${info.x}px, y:${info.y}px). ` +
-        "Opisz dokladnie, co chcesz tam dodac, zmienic lub usunac.";
-    }
-    chatRef.current?.appendHint(hint);
+    // Cursor-style: zamiast wpisywac tekst do textarea, doczepiamy element
+    // jako "chip" obok pola. Tresc wleci do wiadomosci dopiero przy submit.
+    chatRef.current?.attachElement({
+      selector: info.selector,
+      html: info.html,
+      tagName: info.tagName,
+      x: info.x,
+      y: info.y,
+    });
   }
 
   function handleWizardComplete(enrichedPrompt: string) {

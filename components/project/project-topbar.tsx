@@ -1,20 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   BarChart3,
   Check,
   Copy,
-  Download,
   ExternalLink,
   FileArchive,
   FileText,
   Globe,
   Loader2,
   MoreHorizontal,
+  RotateCcw,
+  Settings,
   Share2,
   Smartphone,
   Sparkles,
@@ -44,6 +45,10 @@ import type { Project } from "@/lib/types/project";
 import { MobileQrButton } from "@/components/project/mobile-qr";
 import { ProjectSwitcher } from "@/components/project/project-switcher";
 import { ProjectPublishView } from "@/components/project/publish/project-publish-view";
+import {
+  ProjectSettingsDialog,
+  type ProjectSettingsTabId,
+} from "@/components/project/project-settings-dialog";
 
 type Props = {
   project: Project;
@@ -58,6 +63,20 @@ function buildSubdomainUrl(slug: string, domain: string): string {
   return `${protocol}://${slug}.${domain}`;
 }
 
+/**
+ * Generuje nowy auto-slug po stronie klienta (10 znakow alfanum).
+ * Trzyma sie tego samego ksztaltu co server (lib/projects.ts → AUTO_SLUG_REGEX).
+ */
+function generateClientAutoSlug(): string {
+  const alphabet =
+    "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  let out = "";
+  for (let i = 0; i < 10; i++) {
+    out += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return out;
+}
+
 export function ProjectTopbar({
   project,
   rootDomain,
@@ -66,11 +85,21 @@ export function ProjectTopbar({
   domainPartnerUrl,
 }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [publishOpen, setPublishOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [domainsOpen, setDomainsOpen] = useState(false);
   const [githubOpen, setGithubOpen] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] =
+    useState<ProjectSettingsTabId>("general");
+  const [isPro, setIsPro] = useState<boolean | null>(null);
+
+  function openSettings(tab: ProjectSettingsTabId = "general") {
+    setSettingsTab(tab);
+    setSettingsOpen(true);
+  }
 
   const previewUrl =
     project.is_public && project.slug
@@ -87,6 +116,56 @@ export function ProjectTopbar({
     return () =>
       window.removeEventListener("wybitna:request-publish", openPublish);
   }, []);
+
+  // Auto-open settings z URL (?settings=analytics) — uzywane przez redirect
+  // ze starej strony /project/[id]/analytics.
+  useEffect(() => {
+    const tab = searchParams.get("settings");
+    if (
+      tab === "general" ||
+      tab === "domains" ||
+      tab === "analytics" ||
+      tab === "database" ||
+      tab === "authentication" ||
+      tab === "stripe" ||
+      tab === "secrets" ||
+      tab === "user-management" ||
+      tab === "file-storage" ||
+      tab === "knowledge" ||
+      tab === "backups"
+    ) {
+      setSettingsTab(tab);
+      setSettingsOpen(true);
+    }
+  }, [searchParams]);
+
+  // Status PRO sluzy do gatowania ZIP exportu (klient-side hint).
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/me/points")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { isPro?: boolean } | null) => {
+        if (!cancelled && data && typeof data.isPro === "boolean") {
+          setIsPro(data.isPro);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function handleZipDownload() {
+    if (isPro === false) {
+      // Gentle nudge — przekieruj na /pricing.
+      const ok = window.confirm(
+        "Pobieranie kodu jako ZIP jest dostepne w planie PRO. Przejsc do strony planow?",
+      );
+      if (ok) router.push("/pricing");
+      return;
+    }
+    window.open(`/api/export/zip?projectId=${project.id}`, "_blank");
+  }
 
   return (
     <header className="flex h-14 items-center justify-between gap-3 border-b border-beige/10 bg-background/80 px-4 backdrop-blur">
@@ -129,6 +208,18 @@ export function ProjectTopbar({
         <Button
           type="button"
           variant="ghost"
+          size="icon-sm"
+          onClick={() => openSettings("general")}
+          className="text-foreground/80 hover:bg-white/5"
+          aria-label="Ustawienia projektu"
+          title="Ustawienia projektu"
+        >
+          <Settings className="h-3.5 w-3.5" />
+        </Button>
+
+        <Button
+          type="button"
+          variant="ghost"
           size="sm"
           onClick={() => setShareOpen(true)}
           className="text-foreground/80 hover:bg-white/5"
@@ -147,11 +238,15 @@ export function ProjectTopbar({
           <DropdownMenuContent align="end" sideOffset={6} className="w-56">
             <DropdownMenuGroup>
               <DropdownMenuLabel className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-                Domeny i hosting
+                Ustawienia projektu
               </DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => setDomainsOpen(true)}>
+              <DropdownMenuItem onClick={() => openSettings("general")}>
+                <Settings className="h-3.5 w-3.5" />
+                Wszystkie ustawienia
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => openSettings("domains")}>
                 <Globe className="h-3.5 w-3.5" />
-                Domeny
+                Domeny i hosting
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setContextOpen(true)}>
                 <FileText className="h-3.5 w-3.5" />
@@ -163,32 +258,23 @@ export function ProjectTopbar({
               <DropdownMenuLabel className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">
                 Eksport
               </DropdownMenuLabel>
-              <DropdownMenuItem
-                onClick={() =>
-                  window.open(`/api/export/zip?projectId=${project.id}`, "_blank")
-                }
-              >
+              <DropdownMenuItem onClick={handleZipDownload}>
                 <FileArchive className="h-3.5 w-3.5" />
                 Pobierz ZIP
+                {isPro === false && (
+                  <span className="ml-auto rounded-full border border-amber-400/40 bg-amber-400/10 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-amber-200">
+                    PRO
+                  </span>
+                )}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setGithubOpen(true)}>
                 <GithubIcon className="h-3.5 w-3.5" />
                 Push do GitHub
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() =>
-                  window.open(`/api/projects/${project.id}/export`, "_blank")
-                }
-              >
-                <Download className="h-3.5 w-3.5" />
-                Wyeksportuj projekt
-              </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem
-                onClick={() => router.push(`/project/${project.id}/analytics`)}
-              >
+              <DropdownMenuItem onClick={() => openSettings("analytics")}>
                 <BarChart3 className="h-3.5 w-3.5" />
                 Analityka
               </DropdownMenuItem>
@@ -267,6 +353,17 @@ export function ProjectTopbar({
         open={contextOpen}
         onOpenChange={setContextOpen}
         project={project}
+      />
+
+      <ProjectSettingsDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        project={project}
+        initialTab={settingsTab}
+        onOpenDomains={() => {
+          setSettingsOpen(false);
+          setDomainsOpen(true);
+        }}
       />
     </header>
   );
@@ -721,7 +818,23 @@ function PublishDialog({
               </Button>
             </div>
             <div className="rounded-lg border border-beige/15 bg-background/60 p-3 text-sm">
-              <p className="mb-2 font-medium text-foreground">Zmien subdomene</p>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="font-medium text-foreground">Zmien subdomene</p>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setSlugDraft(generateClientAutoSlug());
+                    setSlugError(null);
+                  }}
+                  className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+                  title="Wygeneruj nowa losowa subdomene"
+                >
+                  <RotateCcw className="h-3 w-3" />
+                  Przywroc auto-slug
+                </Button>
+              </div>
               <div className="flex items-center gap-2">
                 <Input
                   value={slugDraft}

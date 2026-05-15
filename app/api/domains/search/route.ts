@@ -28,7 +28,11 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Brak parametru q" }, { status: 400 });
   }
 
-  const cleaned = query.replace(/^https?:\/\//, "").replace(/\/$/, "");
+  let cleaned = query.replace(/^https?:\/\//, "").replace(/\/$/, "");
+  // Auto-append .pl jesli user wpisal sama nazwe bez TLD (np. "trenerwarszawa").
+  if (!cleaned.includes(".")) {
+    cleaned = `${cleaned}.pl`;
+  }
   if (!DOMAIN_REGEX.test(cleaned)) {
     return NextResponse.json(
       { error: "Nieprawidlowy format domeny" },

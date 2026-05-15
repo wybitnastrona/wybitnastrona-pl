@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import {
   ChevronDown,
@@ -19,7 +20,13 @@ type Props = {
 
 export function ProjectSwitcher({ currentProject }: Props) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+
+  // Portal mount: react-dom wymaga document na clientcie. SSR-safe.
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Close on outside click.
   useEffect(() => {
@@ -43,28 +50,14 @@ export function ProjectSwitcher({ currentProject }: Props) {
     return () => document.removeEventListener("keydown", handleKey);
   }, [open]);
 
-  return (
+  // Drawer (backdrop + panel) renderujemy przez portal do <body>, zeby uciec
+  // ze stacking contextu nadrzednego <header backdrop-blur>. Inaczej z-[200]
+  // bylby wciaz pod glownym workspace gridem.
+  const drawer = (
     <>
-      {/* Trigger button */}
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="group flex min-w-0 max-w-[220px] cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 text-sm transition hover:bg-white/5"
-        title="Przełącz projekt"
-      >
-        <LayoutTemplate className="h-4 w-4 shrink-0 text-beige/70" />
-        <span className="min-w-0 truncate font-medium text-foreground">
-          {currentProject.title}
-        </span>
-        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60 transition group-hover:text-muted-foreground" />
-      </button>
-
-      {/* Backdrop */}
       {open && (
         <div className="fixed inset-0 z-[199] bg-black/30 backdrop-blur-[2px]" />
       )}
-
-      {/* Slide-in panel */}
       <div
         ref={panelRef}
         className={`fixed left-0 top-0 z-[200] flex h-screen w-[280px] flex-col border-r border-beige/10 bg-[#111110] shadow-2xl transition-transform duration-200 ${
@@ -139,6 +132,27 @@ export function ProjectSwitcher({ currentProject }: Props) {
           </Link>
         </div>
       </div>
+    </>
+  );
+
+  return (
+    <>
+      {/* Trigger button — zostaje w drzewie inline (w topbar) */}
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="group flex min-w-0 max-w-[220px] cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 text-sm transition hover:bg-white/5"
+        title="Przelacz projekt"
+      >
+        <LayoutTemplate className="h-4 w-4 shrink-0 text-beige/70" />
+        <span className="min-w-0 truncate font-medium text-foreground">
+          {currentProject.title}
+        </span>
+        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60 transition group-hover:text-muted-foreground" />
+      </button>
+
+      {/* Drawer w portalu — uciekamy ze stacking contextu header backdrop-blur */}
+      {mounted ? createPortal(drawer, document.body) : null}
     </>
   );
 }

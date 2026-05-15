@@ -15,7 +15,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("points")
+    .select("points, tier, stripe_subscription_status")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -23,5 +23,14 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ points: (data?.points as number | null) ?? 0 });
+  const tier = (data?.tier as string | null) ?? "free";
+  const status = data?.stripe_subscription_status as string | null;
+  const isPro =
+    tier === "pro" && (status === "active" || status === "trialing");
+
+  return NextResponse.json({
+    points: (data?.points as number | null) ?? 0,
+    tier,
+    isPro,
+  });
 }

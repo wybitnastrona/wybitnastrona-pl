@@ -155,30 +155,53 @@ export const ELEMENT_PICKER_SCRIPT = `
     }
   }
 
+  /**
+   * W trybie pick/edit blokujemy WSZYSTKIE interakcje strony (linki, buttony,
+   * forms, onClick handlery React) — zeby kliknieta kontrolka nie nawigowala /
+   * nie zmieniala stanu, a tylko "wybrala" element. Tak jak w Cursorze.
+   */
+  function blockAll(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (typeof e.stopImmediatePropagation === 'function') {
+      e.stopImmediatePropagation();
+    }
+  }
+
   function onClick(e) {
     if (mode === 'off') return;
     if (editingEl) return;
-    if (!highlighted) return;
-    e.preventDefault();
-    e.stopPropagation();
+    blockAll(e);
+
+    // Fallback: jesli mousemove nie zdazyl ustawic highlighted (np. user
+    // kliknal natychmiast po wejsciu w tryb), wez element pod kursorem.
+    var target = highlighted || e.target;
+    if (!target || target === overlay) return;
 
     if (mode === 'pick') {
-      const selector = getSelector(highlighted);
-      const html = (highlighted.outerHTML || '').slice(0, 800);
+      const selector = getSelector(target);
+      const html = (target.outerHTML || '').slice(0, 800);
       window.parent.postMessage({
         type: 'wybitna:pick',
         selector: selector,
         html: html,
-        tagName: highlighted.tagName.toLowerCase(),
+        tagName: target.tagName.toLowerCase(),
       }, '*');
-      pickedEl = highlighted;
+      pickedEl = target;
       mode = 'off';
       document.body.style.cursor = '';
       highlighted = null;
       syncOverlayRect(pickedEl);
     } else if (mode === 'edit-text') {
-      startEditingText(highlighted);
+      startEditingText(target);
     }
+  }
+
+  /** Pochlon wszystkie inne typy eventow zeby React/HTML nie reagowal. */
+  function suppressEvent(e) {
+    if (mode === 'off') return;
+    if (editingEl) return;
+    blockAll(e);
   }
 
   function onBlur(e) {
@@ -210,6 +233,17 @@ export const ELEMENT_PICKER_SCRIPT = `
 
   window.addEventListener('mousemove', onMove, true);
   window.addEventListener('click', onClick, true);
+  // Te eventy MUSZA byc pochlonione zeby przyciski/linki na stronie nie
+  // reagowaly w trybie pick (Cursor-style "select element").
+  window.addEventListener('mousedown', suppressEvent, true);
+  window.addEventListener('mouseup', suppressEvent, true);
+  window.addEventListener('pointerdown', suppressEvent, true);
+  window.addEventListener('pointerup', suppressEvent, true);
+  window.addEventListener('touchstart', suppressEvent, true);
+  window.addEventListener('touchend', suppressEvent, true);
+  window.addEventListener('submit', suppressEvent, true);
+  window.addEventListener('dblclick', suppressEvent, true);
+  window.addEventListener('contextmenu', suppressEvent, true);
   window.addEventListener('keydown', onKey, true);
   window.addEventListener('blur', onBlur, true);
   window.addEventListener('scroll', onScrollOrResize, true);

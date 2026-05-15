@@ -29,6 +29,27 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }
 
+  // ZIP export jest funkcja PRO. Free tier dostaje 402 z hintem upgrade.
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("tier, stripe_subscription_status")
+    .eq("id", user.id)
+    .maybeSingle();
+  const tier = profile?.tier as string | null;
+  const status = profile?.stripe_subscription_status as string | null;
+  const isPro =
+    tier === "pro" && (status === "active" || status === "trialing");
+  if (!isPro) {
+    return NextResponse.json(
+      {
+        error: "requires_pro",
+        message:
+          "Pobieranie kodu jako ZIP jest dostepne w planie PRO. Wejdz na /pricing aby aktywowac.",
+      },
+      { status: 402 },
+    );
+  }
+
   // Lazy import zeby nie ladowal jszip jezeli nie ma uzytkownikow ekspportu.
   const JSZip = (await import("jszip")).default;
   const zip = new JSZip();

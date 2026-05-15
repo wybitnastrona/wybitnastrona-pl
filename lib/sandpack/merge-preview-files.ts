@@ -193,5 +193,6 @@ export function mergeSandpackProjectFiles(files: ProjectFiles): ProjectFiles {
     ...starter,
     ...files,
   });
-  return ensureTailwindInProjectFiles(merged);
+  const withTailwind = ensureTailwindInProjectFiles(merged);
+  return sanitizeProjectPackageJson(withTailwind);
 }

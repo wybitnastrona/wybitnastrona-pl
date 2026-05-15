@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: { params: Params }) {
   }
   return {
     title: `${project.title} - wybitnastrona.pl`,
-    description: project.prompt.slice(0, 160),
+    description: (project.prompt ?? "").slice(0, 160),
   };
 }
 

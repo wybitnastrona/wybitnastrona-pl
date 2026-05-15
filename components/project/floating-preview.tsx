@@ -59,11 +59,32 @@ export function FloatingPreview({ previewUrl, onClose, iframeSrc }: Props) {
   const [fullscreen, setFullscreen] = useState(false);
   const [iframeKey, setIframeKey] = useState(0);
 
+  // Helper: blokuje pointer-events na iframe + ustawia globalny kursor zeby
+  // drag/resize nie zrywal sie nad WebContainer iframe / DevTools.
+  function lockIframesAndCursor(cursor: string) {
+    const prevCursor = document.body.style.cursor;
+    const prevSelect = document.body.style.userSelect;
+    document.body.style.cursor = cursor;
+    document.body.style.userSelect = "none";
+    const iframes = document.querySelectorAll("iframe");
+    iframes.forEach((f) => {
+      (f as HTMLElement).style.pointerEvents = "none";
+    });
+    return () => {
+      document.body.style.cursor = prevCursor;
+      document.body.style.userSelect = prevSelect;
+      iframes.forEach((f) => {
+        (f as HTMLElement).style.pointerEvents = "";
+      });
+    };
+  }
+
   // ─── Drag header ────────────────────────────────────────────────────────────
   function onDragStart(e: React.MouseEvent) {
     if (fullscreen) return;
     e.preventDefault();
     dragRef.current = { startX: e.clientX, startY: e.clientY, origX: pos.x, origY: pos.y };
+    const unlock = lockIframesAndCursor("grabbing");
 
     function onMove(ev: MouseEvent) {
       if (!dragRef.current) return;
@@ -76,6 +97,7 @@ export function FloatingPreview({ previewUrl, onClose, iframeSrc }: Props) {
     }
     function onUp() {
       dragRef.current = null;
+      unlock();
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     }
@@ -88,6 +110,7 @@ export function FloatingPreview({ previewUrl, onClose, iframeSrc }: Props) {
     e.preventDefault();
     e.stopPropagation();
     resizeRef.current = { startX: e.clientX, startY: e.clientY, origW: size.w, origH: size.h };
+    const unlock = lockIframesAndCursor("nwse-resize");
 
     function onMove(ev: MouseEvent) {
       if (!resizeRef.current) return;
@@ -100,6 +123,7 @@ export function FloatingPreview({ previewUrl, onClose, iframeSrc }: Props) {
     }
     function onUp() {
       resizeRef.current = null;
+      unlock();
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     }

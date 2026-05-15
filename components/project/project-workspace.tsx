@@ -84,6 +84,17 @@ export function ProjectWorkspace({
     e.preventDefault();
     dragRef.current = { startX: e.clientX, startW: chatWidth };
 
+    // Blokujemy iframe pointer-events + ustawiamy globalny kursor, zeby drag
+    // nie zrywal sie gdy mysz wjedzie na WebContainer iframe / DevTools.
+    const prevCursor = document.body.style.cursor;
+    const prevSelect = document.body.style.userSelect;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    const iframes = document.querySelectorAll("iframe");
+    iframes.forEach((f) => {
+      (f as HTMLElement).style.pointerEvents = "none";
+    });
+
     function onMove(mv: MouseEvent) {
       if (!dragRef.current) return;
       const delta = mv.clientX - dragRef.current.startX;
@@ -92,6 +103,11 @@ export function ProjectWorkspace({
     }
     function onUp() {
       dragRef.current = null;
+      document.body.style.cursor = prevCursor;
+      document.body.style.userSelect = prevSelect;
+      iframes.forEach((f) => {
+        (f as HTMLElement).style.pointerEvents = "";
+      });
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     }

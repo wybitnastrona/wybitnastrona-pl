@@ -1,5 +1,6 @@
 import "server-only";
 import { customAlphabet } from "nanoid";
+import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import type {
   Project,
@@ -118,7 +119,35 @@ export async function getProject(id: string): Promise<Project | null> {
   return data as Project | null;
 }
 
+/**
+ * Resolve projekt po sluga dla publicznego dostepu (subdomena {slug}.wybitny.website).
+ *
+ * Uzywa service role keya zeby ominac RLS — strony pod subdomenami sa
+ * obslugiwane przez anonimowe zadanie z proxy.ts i RLS-owy `auth.uid()` jest
+ * NULL. Bez service roli zwracaloby to 404 nawet dla `is_public=true`.
+ *
+ * Fallback: jesli service key nie jest skonfigurowany, uzywamy cookie clienta —
+ * wymaga to publicznej policy na `projects` (read where is_public).
+ */
 export async function getProjectBySlug(slug: string): Promise<Project | null> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (url && serviceKey) {
+    const admin = createServiceClient(url, serviceKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { data, error } = await admin
+      .from("projects")
+      .select("*")
+      .eq("slug", slug)
+      .eq("is_public", true)
+      .maybeSingle();
+    if (error) return null;
+    return data as Project | null;
+  }
+
+  // Fallback (dev) — wymaga publicznej policy RLS.
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("projects")
@@ -126,7 +155,6 @@ export async function getProjectBySlug(slug: string): Promise<Project | null> {
     .eq("slug", slug)
     .eq("is_public", true)
     .maybeSingle();
-
   if (error) return null;
   return data as Project | null;
 }

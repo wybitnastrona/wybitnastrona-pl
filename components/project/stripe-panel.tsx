@@ -12,18 +12,20 @@
  * Po zapisaniu AI bedzie mogl generowac kod z prawdziwymi kluczami Stripe.
  */
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   CheckCircle2,
   CreditCard,
   Eye,
   EyeOff,
   ExternalLink,
+  Link2,
   Loader2,
   Save,
   ShieldCheck,
   Sparkles,
+  Unplug,
   Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -35,8 +37,21 @@ type Props = {
   project: Project;
 };
 
+type StripeIntegration = {
+  provider: "stripe";
+  config?: {
+    access_token?: string;
+    stripe_user_id?: string;
+    livemode?: boolean;
+    scope?: string;
+  };
+  created_at?: string;
+  updated_at?: string;
+};
+
 export function StripePanel({ project }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [publishableKey, setPublishableKey] = useState(
     (project as Project & { stripe_publishable_key?: string }).stripe_publishable_key ?? "",
   );
@@ -47,10 +62,56 @@ export function StripePanel({ project }: Props) {
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [connectIntegration, setConnectIntegration] = useState<StripeIntegration | null>(null);
+  const [connectLoading, setConnectLoading] = useState(true);
+  const [disconnecting, setDisconnecting] = useState(false);
 
   const isConfigured = Boolean(
     (project as Project & { stripe_publishable_key?: string }).stripe_publishable_key,
   );
+  const isConnectActive = Boolean(connectIntegration?.config?.stripe_user_id);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadIntegration() {
+      try {
+        const res = await fetch("/api/integrations/stripe", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = (await res.json().catch(() => null)) as
+          | { integration: StripeIntegration | null }
+          | null;
+        if (!cancelled) setConnectIntegration(data?.integration ?? null);
+      } finally {
+        if (!cancelled) setConnectLoading(false);
+      }
+    }
+    loadIntegration();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Po powrocie z OAuth Stripe — odswiez status (callback dodaje ?stripe_connected=1).
+  useEffect(() => {
+    if (searchParams.get("stripe_connected") === "1") {
+      router.refresh();
+    }
+  }, [searchParams, router]);
+
+  function startConnectOAuth() {
+    window.location.href = `/api/integrations/stripe/connect?projectId=${encodeURIComponent(project.id)}`;
+  }
+
+  async function disconnectStripe() {
+    setDisconnecting(true);
+    try {
+      await fetch("/api/integrations/stripe", { method: "DELETE" });
+      setConnectIntegration(null);
+      router.refresh();
+    } finally {
+      setDisconnecting(false);
+    }
+  }
 
   async function handleSave() {
     setError(null);
@@ -110,6 +171,127 @@ export function StripePanel({ project }: Props) {
 
   return (
     <div className="flex flex-col gap-6 p-4">
+      {/* ────────────────────────────────────────────────────────────────────────
+          Stripe Connect (OAuth) — preferowana sciezka.
+          Pozwala AI automatycznie tworzyc produkty + ceny na koncie usera.
+         ──────────────────────────────────────────────────────────────────────── */}
+      <section
+        className={`rounded-xl border p-4 ${
+          isConnectActive
+            ? "border-violet-500/30 bg-violet-950/15"
+            : "border-beige/15 bg-beige/[0.04]"
+        }`}
+      >
+        <header className="flex items-start gap-3">
+          <span
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+              isConnectActive
+                ? "bg-violet-500/20 text-violet-300"
+                : "bg-beige/15 text-beige"
+            }`}
+          >
+            {isConnectActive ? (
+              <CheckCircle2 className="h-4 w-4" />
+            ) : (
+              <Link2 className="h-4 w-4" />
+            )}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-sm font-medium text-foreground">
+                Wybitne Płatności (Stripe Connect)
+              </h3>
+              {isConnectActive ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-violet-300">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Aktywne
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-full border border-beige/20 bg-beige/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Zalecane
+                </span>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {isConnectActive
+                ? "Twoje konto Stripe jest podpięte. AI może tworzyć produkty i ceny bezpośrednio na Twoim koncie."
+                : "Podepnij swoje konto Stripe jednym kliknięciem. AI samo utworzy produkty, ceny i Checkout dla generowanej strony."}
+            </p>
+            {isConnectActive && connectIntegration?.config?.stripe_user_id && (
+              <p className="mt-1 font-mono text-[10px] text-muted-foreground/70">
+                {connectIntegration.config.stripe_user_id}
+                {connectIntegration.config.livemode === false && " · test mode"}
+              </p>
+            )}
+          </div>
+        </header>
+
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {connectLoading ? (
+            <div className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Sprawdzam status integracji…
+            </div>
+          ) : isConnectActive ? (
+            <>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={startConnectOAuth}
+                className="border-beige/20 bg-beige/10 text-beige hover:bg-beige/15"
+              >
+                <Link2 className="h-3.5 w-3.5" />
+                Zmień konto Stripe
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={disconnectStripe}
+                disabled={disconnecting}
+                className="text-muted-foreground hover:text-rose-400"
+              >
+                {disconnecting ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Unplug className="h-3.5 w-3.5" />
+                )}
+                Odłącz
+              </Button>
+            </>
+          ) : (
+            <Button
+              type="button"
+              size="sm"
+              onClick={startConnectOAuth}
+              className="bg-[#635bff] text-white hover:bg-[#5851e6]"
+            >
+              <Link2 className="h-3.5 w-3.5" />
+              Połącz przez Stripe Connect
+            </Button>
+          )}
+          <a
+            href="https://stripe.com/connect"
+            target="_blank"
+            rel="noopener"
+            className="ml-auto inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+          >
+            Co to jest Connect?
+            <ExternalLink className="h-2.5 w-2.5" />
+          </a>
+        </div>
+      </section>
+
+      {/* Klucze ręczne — pozostają jako alternatywa */}
+      <div className="flex items-center gap-2">
+        <div className="h-px flex-1 bg-beige/10" />
+        <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60">
+          Lub: klucze ręczne (alternatywa)
+        </span>
+        <div className="h-px flex-1 bg-beige/10" />
+      </div>
+
       {/* Status banner */}
       <div
         className={`flex items-start gap-3 rounded-xl border p-3 ${

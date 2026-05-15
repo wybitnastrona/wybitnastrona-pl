@@ -1009,7 +1009,92 @@ function DomainsDialog({
     expectedAValues?: string[];
   } | null>(null);
 
+  // ─── Zakup domeny przez Vercel ─────────────────────────────────────────────
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [searchResult, setSearchResult] = useState<{
+    domain: string;
+    available: boolean;
+    price?: number;
+    period?: number;
+    currency?: string;
+  } | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [buying, setBuying] = useState(false);
+  const [buyError, setBuyError] = useState<string | null>(null);
+
   const verified = Boolean(project.custom_domain_verified_at);
+
+  async function handleSearch() {
+    setSearchError(null);
+    setSearchResult(null);
+    setBuyError(null);
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) {
+      setSearchError("Wpisz domenę do sprawdzenia.");
+      return;
+    }
+    setSearching(true);
+    try {
+      const res = await fetch(`/api/domains/search?q=${encodeURIComponent(q)}`);
+      const data = (await res.json().catch(() => ({}))) as {
+        domain?: string;
+        available?: boolean;
+        price?: number;
+        period?: number;
+        currency?: string;
+        error?: string;
+        message?: string;
+      };
+      if (!res.ok) {
+        setSearchError(data.message ?? data.error ?? "Nie udało się sprawdzić domeny.");
+        return;
+      }
+      setSearchResult({
+        domain: data.domain ?? q,
+        available: Boolean(data.available),
+        price: data.price,
+        period: data.period,
+        currency: data.currency,
+      });
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  async function handleBuy() {
+    if (!searchResult || !searchResult.available) return;
+    setBuyError(null);
+    setBuying(true);
+    try {
+      const res = await fetch("/api/domains/buy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          domain: searchResult.domain,
+          projectId: project.id,
+          expectedPrice: searchResult.price,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        domain?: string;
+        warning?: string;
+        error?: string;
+        message?: string;
+      };
+      if (!res.ok || !data.ok) {
+        setBuyError(data.message ?? data.error ?? "Zakup się nie udał.");
+        return;
+      }
+      setDomain(data.domain ?? searchResult.domain);
+      setSearchResult(null);
+      setSearchQuery("");
+      router.refresh();
+    } finally {
+      setBuying(false);
+    }
+  }
 
   async function handleVerify() {
     setError(null);
@@ -1274,12 +1359,123 @@ function DomainsDialog({
           </section>
 
           <section className="rounded-lg border border-beige/15 bg-background/60 p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  Kup domenę przez wybitnastrona.pl
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Zakup w jednym kroku — domena zostanie automatycznie
+                  podpięta do tego projektu, bez ręcznej konfiguracji DNS.
+                </p>
+              </div>
+              <span className="shrink-0 rounded-full border border-violet-400/30 bg-violet-400/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-violet-200">
+                Nowość
+              </span>
+            </div>
+
+            <div className="mt-3 flex items-end gap-2">
+              <div className="flex-1">
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleSearch();
+                    }
+                  }}
+                  placeholder="np. mojasklep.pl"
+                  className="font-mono text-xs"
+                />
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleSearch}
+                disabled={searching || !searchQuery.trim()}
+                className="border-beige/20 text-beige/90 hover:bg-white/5"
+              >
+                {searching ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Globe className="h-3.5 w-3.5" />
+                )}
+                Sprawdź
+              </Button>
+            </div>
+
+            {searchError && (
+              <p className="mt-2 text-xs text-red-300">{searchError}</p>
+            )}
+
+            {searchResult && (
+              <div
+                className={`mt-3 rounded-md border p-3 text-xs ${
+                  searchResult.available
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-100"
+                    : "border-amber-500/30 bg-amber-500/10 text-amber-100"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-mono text-[13px] font-medium">
+                      {searchResult.domain}
+                    </p>
+                    {searchResult.available ? (
+                      <p className="mt-0.5 text-[11px] opacity-80">
+                        Dostępna · {typeof searchResult.price === "number"
+                          ? `$${searchResult.price.toFixed(2)} ${searchResult.currency ?? "USD"}`
+                          : "cena nieznana"}
+                        {searchResult.period
+                          ? ` / ${searchResult.period} ${searchResult.period === 1 ? "rok" : "lata"}`
+                          : ""}
+                      </p>
+                    ) : (
+                      <p className="mt-0.5 text-[11px] opacity-80">
+                        Niedostępna — spróbuj innej nazwy.
+                      </p>
+                    )}
+                  </div>
+                  {searchResult.available && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleBuy}
+                      disabled={buying}
+                      className="bg-violet-500 text-white hover:bg-violet-500/90"
+                    >
+                      {buying ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Check className="h-3.5 w-3.5" />
+                      )}
+                      Kup i podepnij
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {buyError && (
+              <p className="mt-2 text-xs text-red-300">{buyError}</p>
+            )}
+
+            <p className="mt-3 text-[10px] text-muted-foreground/70">
+              Płatność jest realizowana przez Vercel Domains. Po zakupie
+              domena jest natychmiast aktywna i podpięta do tego projektu.
+            </p>
+          </section>
+
+          <section className="rounded-lg border border-dashed border-beige/15 bg-background/40 p-3">
             <p className="text-sm font-medium text-foreground">
-              Nie masz jeszcze domeny?
+              Mam już domenę u innego dostawcy
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Kup ja u naszego partnera, a potem skonfiguruj DNS jak
-              wyzej. Pelna automatyka zakupu w aplikacji wkrotce.
+              Jeśli kupiłeś domenę gdzie indziej (home.pl / OVH / Cloudflare),
+              wpisz ją w sekcji <span className="font-medium">"Własna domena"</span> powyżej
+              i skonfiguruj DNS zgodnie z instrukcją.
             </p>
             <a
               href={domainPartnerUrl}
@@ -1288,7 +1484,7 @@ function DomainsDialog({
               className="mt-3 inline-flex h-8 items-center gap-1.5 rounded-md border border-beige/20 px-3 text-xs font-medium text-beige/90 transition hover:border-beige/40 hover:bg-white/5"
             >
               <ExternalLink className="h-3.5 w-3.5" />
-              Kup domene
+              Partner — alternatywne miejsce zakupu
             </a>
           </section>
         </div>

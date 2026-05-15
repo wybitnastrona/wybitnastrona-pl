@@ -53,6 +53,17 @@ export function CodeWithTerminal({
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
 
+    // Blokujemy iframe pointer-events + globalny kursor zeby drag przezyl
+    // przejscie myszy nad iframe (WebContainer preview, DevTools).
+    const prevCursor = document.body.style.cursor;
+    const prevSelect = document.body.style.userSelect;
+    document.body.style.cursor = "row-resize";
+    document.body.style.userSelect = "none";
+    const iframes = document.querySelectorAll("iframe");
+    iframes.forEach((f) => {
+      (f as HTMLElement).style.pointerEvents = "none";
+    });
+
     function onMove(ev: MouseEvent) {
       if (!rect.height) return;
       // Convert mouse Y to terminal fraction (mouse from bottom = terminal height).
@@ -64,6 +75,11 @@ export function CodeWithTerminal({
       setTerminalFraction(next);
     }
     function onUp() {
+      document.body.style.cursor = prevCursor;
+      document.body.style.userSelect = prevSelect;
+      iframes.forEach((f) => {
+        (f as HTMLElement).style.pointerEvents = "";
+      });
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     }

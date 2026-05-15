@@ -90,3 +90,85 @@ export async function verifyDomain(
   const res = await fetch(url, { method: "POST", headers: getAuthHeaders() });
   return { verified: res.ok };
 }
+
+/**
+ * Sprawdz cene i dostepnosc rejestracji domeny.
+ * https://vercel.com/docs/rest-api/reference/endpoints/domains/check-the-price-for-a-domain
+ */
+export type DomainPriceResult = {
+  available: boolean;
+  price?: number;
+  period?: number;
+  currency?: string;
+  error?: string;
+};
+
+export async function getDomainPrice(
+  domain: string,
+): Promise<DomainPriceResult> {
+  const teamSuffix = getQueryString();
+  const sep = teamSuffix ? "&" : "?";
+  const url = `${VERCEL_API}/v4/domains/price${teamSuffix}${sep}name=${encodeURIComponent(domain)}&type=new`;
+  const res = await fetch(url, { headers: getAuthHeaders() });
+
+  if (res.status === 400) {
+    // Vercel zwraca 400 dla niedostepnej / juz zarejestrowanej domeny.
+    return { available: false };
+  }
+  const data = (await res.json()) as {
+    price?: number;
+    period?: number;
+    error?: { message?: string };
+  };
+  if (!res.ok) {
+    return { available: false, error: data?.error?.message ?? "Vercel API error" };
+  }
+  return {
+    available: true,
+    price: data.price,
+    period: data.period,
+    currency: "USD",
+  };
+}
+
+/**
+ * Sprawdz status dostepnosci domeny.
+ * https://vercel.com/docs/rest-api/reference/endpoints/domains/check-a-domain-availability
+ */
+export async function checkDomainAvailability(
+  domain: string,
+): Promise<{ available: boolean; error?: string }> {
+  const teamSuffix = getQueryString();
+  const sep = teamSuffix ? "&" : "?";
+  const url = `${VERCEL_API}/v4/domains/status${teamSuffix}${sep}name=${encodeURIComponent(domain)}`;
+  const res = await fetch(url, { headers: getAuthHeaders() });
+  const data = (await res.json()) as { available?: boolean; error?: { message?: string } };
+  if (!res.ok) return { available: false, error: data?.error?.message };
+  return { available: !!data.available };
+}
+
+/**
+ * Kup domene przez Vercel (Vercel jest registrarem).
+ * https://vercel.com/docs/rest-api/reference/endpoints/domains/purchase-a-domain
+ */
+export async function purchaseDomain(
+  domain: string,
+  expectedPrice?: number,
+): Promise<{ ok: boolean; error?: string; domain?: { name: string; expiresAt?: number } }> {
+  const url = `${VERCEL_API}/v5/domains/buy${getQueryString()}`;
+  const body: Record<string, unknown> = { name: domain, renew: true };
+  if (typeof expectedPrice === "number") body.expectedPrice = expectedPrice;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(body),
+  });
+  const data = (await res.json()) as {
+    domain?: { name: string; expiresAt?: number };
+    error?: { message?: string; code?: string };
+  };
+  if (!res.ok) {
+    return { ok: false, error: data?.error?.message ?? "Vercel purchase failed" };
+  }
+  return { ok: true, domain: data.domain };
+}

@@ -61,13 +61,13 @@ export function ProjectSwitcher({ currentProject }: Props) {
 
       {/* Backdrop */}
       {open && (
-        <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[2px]" />
+        <div className="fixed inset-0 z-[199] bg-black/30 backdrop-blur-[2px]" />
       )}
 
       {/* Slide-in panel */}
       <div
         ref={panelRef}
-        className={`fixed left-0 top-0 z-50 flex h-screen w-[280px] flex-col border-r border-beige/10 bg-[#111110] shadow-2xl transition-transform duration-200 ${
+        className={`fixed left-0 top-0 z-[200] flex h-screen w-[280px] flex-col border-r border-beige/10 bg-[#111110] shadow-2xl transition-transform duration-200 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >

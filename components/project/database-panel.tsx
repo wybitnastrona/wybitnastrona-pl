@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertCircle,
@@ -301,44 +301,33 @@ function Row({ text }: { text: string }) {
 }
 
 /**
- * Wybitna Baza Danych — auto-provisioned Supabase per project.
+ * Wybitna Baza Danych — shared Supabase instance, per-project opt-in.
  *
- * Status lifecycle: none → provisioning → ready (or error).
- * Polls every 5s while in "provisioning" to refresh server-side data.
+ * One Supabase project hosts tables for ALL generated apps. Each app is
+ * isolated by a `project_id` column + RLS policies that read the
+ * `x-project-id` request header injected by the Supabase JS client.
+ *
+ * Activating sets app_db_enabled=true so the AI starts injecting the
+ * shared DB credentials into generated code.
  */
 function WybitnaBazaDanychSection({ project }: { project: Project }) {
   const router = useRouter();
-  const status = project.app_supabase_status ?? "none";
-  const url = project.app_supabase_url ?? null;
-  const ref = project.app_supabase_project_id ?? null;
+  const enabled = project.app_db_enabled ?? false;
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Auto-refresh while provisioning.
-  useEffect(() => {
-    if (status !== "provisioning") return;
-    const interval = setInterval(() => {
-      router.refresh();
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [status, router]);
-
-  async function handleProvision() {
+  async function handleActivate() {
     setError(null);
     setBusy(true);
     try {
       const res = await fetch(
-        `/api/projects/${project.id}/provision-database`,
+        `/api/projects/${project.id}/activate-database`,
         { method: "POST" },
       );
-      const data = (await res.json()) as {
-        ok?: boolean;
-        message?: string;
-        error?: string;
-      };
+      const data = (await res.json()) as { ok?: boolean; message?: string; error?: string };
       if (!res.ok || !data.ok) {
-        setError(data.message ?? data.error ?? "Nie udało się utworzyć bazy.");
+        setError(data.message ?? data.error ?? "Nie udało się aktywować bazy.");
         return;
       }
       router.refresh();
@@ -349,23 +338,15 @@ function WybitnaBazaDanychSection({ project }: { project: Project }) {
     }
   }
 
-  const statusBadge =
-    status === "ready" ? (
-      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-emerald-300">
-        <CheckCircle2 className="h-3 w-3" />
-        Gotowa
-      </span>
-    ) : status === "provisioning" ? (
-      <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-amber-300">
-        <Loader2 className="h-3 w-3 animate-spin" />
-        Tworzę
-      </span>
-    ) : status === "error" ? (
-      <span className="inline-flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-red-300">
-        <AlertCircle className="h-3 w-3" />
-        Błąd
-      </span>
-    ) : null;
+  async function handleDeactivate() {
+    setBusy(true);
+    try {
+      await fetch(`/api/projects/${project.id}/activate-database`, { method: "DELETE" });
+      router.refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <section className="rounded-xl border border-beige/25 bg-gradient-to-br from-beige/10 to-beige/0 p-5">
@@ -379,49 +360,48 @@ function WybitnaBazaDanychSection({ project }: { project: Project }) {
               Wybitna Baza Danych
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Dedykowana baza PostgreSQL dla tego projektu — utworzymy ją
-              automatycznie. Tabele <code>categories</code>, <code>products</code>,{" "}
-              <code>cart_items</code> z RLS i indeksami będą gotowe od ręki.
+              Wspólna baza PostgreSQL dla wszystkich projektów — tabele{" "}
+              <code>categories</code>, <code>products</code>, <code>cart_items</code>.
+              Twoje dane są odizolowane przez kolumnę <code>project_id</code> i
+              polityki RLS — żaden inny projekt nie widzi Twoich rekordów.
             </p>
           </div>
         </div>
-        {statusBadge}
+        {enabled ? (
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-emerald-300">
+            <CheckCircle2 className="h-3 w-3" />
+            Aktywna
+          </span>
+        ) : null}
       </div>
 
-      {status === "ready" && url && (
-        <div className="mt-4 space-y-2 text-xs">
+      {enabled && (
+        <div className="mt-4 space-y-3 text-xs">
+          <p className="text-muted-foreground">
+            Asystent AI wie o tej bazie i automatycznie generuje kod Supabase
+            używający nagłówka <code className="text-foreground/80">x-project-id: {project.id}</code>{" "}
+            do izolacji danych.
+          </p>
           <div className="flex items-center gap-2">
-            <span className="text-muted-foreground">URL:</span>
-            <code className="truncate font-mono text-foreground/90">{url}</code>
-          </div>
-          <div className="flex flex-wrap gap-2 pt-1">
             <a
-              href={`https://supabase.com/dashboard/project/${ref}`}
+              href="https://supabase.com/dashboard"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-beige/25 bg-card/60 px-3 text-xs text-foreground transition hover:border-beige/45 hover:text-beige"
             >
               <ExternalLink className="h-3 w-3" />
-              Otwórz w Supabase
+              Panel Supabase
             </a>
-            <a
-              href={`https://supabase.com/dashboard/project/${ref}/editor`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-beige/15 bg-card/40 px-3 text-xs text-muted-foreground transition hover:border-beige/30 hover:text-foreground"
+            <button
+              type="button"
+              onClick={handleDeactivate}
+              disabled={busy}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-red-500/20 bg-card/40 px-3 text-xs text-red-300/70 transition hover:border-red-500/40 hover:text-red-300 disabled:opacity-50"
             >
-              <Database className="h-3 w-3" />
-              Tabele
-            </a>
+              Odłącz
+            </button>
           </div>
         </div>
-      )}
-
-      {status === "provisioning" && (
-        <p className="mt-3 text-xs text-amber-200/90">
-          Tworzę nową bazę PostgreSQL — to potrwa 60-120 sekund. Status
-          odświeży się automatycznie.
-        </p>
       )}
 
       {error && (
@@ -431,12 +411,12 @@ function WybitnaBazaDanychSection({ project }: { project: Project }) {
         </p>
       )}
 
-      {(status === "none" || status === "error") && (
+      {!enabled && (
         <div className="mt-4 flex items-center justify-end">
           <Button
             type="button"
             size="sm"
-            onClick={handleProvision}
+            onClick={handleActivate}
             disabled={busy}
             className="bg-beige text-beige-foreground hover:bg-beige/90"
           >
@@ -445,7 +425,7 @@ function WybitnaBazaDanychSection({ project }: { project: Project }) {
             ) : (
               <Plus className="h-3.5 w-3.5" />
             )}
-            {status === "error" ? "Spróbuj ponownie" : "Utwórz Wybitną Bazę Danych"}
+            Aktywuj Wybitną Bazę Danych
           </Button>
         </div>
       )}

@@ -347,31 +347,17 @@ export async function updateProjectDatabase(
 }
 
 /**
- * Wybitna Baza Danych — auto-provisioned Supabase per project.
- * Updates lifecycle columns on the projects row.
+ * Wybitna Baza Danych — shared instance, per-project opt-in.
+ * Toggles the app_db_enabled flag on the projects row.
  */
-export async function updateAppSupabase(
+export async function setProjectDbEnabled(
   id: string,
-  patch: {
-    project_id?: string | null;
-    url?: string | null;
-    anon_key?: string | null;
-    status?: "none" | "provisioning" | "ready" | "error";
-    provisioned_at?: string | null;
-  },
+  enabled: boolean,
 ): Promise<void> {
   const supabase = await createClient();
-  const dbPatch: Record<string, string | null> = {};
-  if (patch.project_id !== undefined)
-    dbPatch.app_supabase_project_id = patch.project_id;
-  if (patch.url !== undefined) dbPatch.app_supabase_url = patch.url;
-  if (patch.anon_key !== undefined) dbPatch.app_supabase_anon_key = patch.anon_key;
-  if (patch.status !== undefined) dbPatch.app_supabase_status = patch.status;
-  if (patch.provisioned_at !== undefined)
-    dbPatch.app_supabase_provisioned_at = patch.provisioned_at;
   const { error } = await supabase
     .from("projects")
-    .update(dbPatch)
+    .update({ app_db_enabled: enabled })
     .eq("id", id);
   if (error) throw error;
 }

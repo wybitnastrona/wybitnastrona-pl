@@ -379,7 +379,7 @@ export async function POST(req: Request) {
   const { data: project, error: projectError } = await supabase
     .from("projects")
     .select(
-      "id, user_id, title, files, prompt, locked_files, template, mode, custom_system_context, is_wybitny, app_supabase_url, app_supabase_anon_key, app_supabase_status",
+      "id, user_id, title, files, prompt, locked_files, template, mode, custom_system_context, is_wybitny, app_db_enabled",
     )
     .eq("id", projectId)
     .maybeSingle();
@@ -402,37 +402,46 @@ export async function POST(req: Request) {
     ? `\n\nCUSTOM CONTEXT OD UZYTKOWNIKA (rygorystycznie przestrzegaj):\n${customSystemContext}`
     : "";
 
-  // Wybitna Baza Danych — auto-provisioned per-project Supabase.
-  // Gdy projekt ma `app_supabase_status === "ready"`, wstrzykujemy klucze do
-  // promptu, zeby AI mogla pisac kod uzywajacy ich w wygenerowanej aplikacji.
-  const appSupabaseStatus =
-    (project.app_supabase_status as string | null) ?? "none";
-  const appSupabaseUrl = (project.app_supabase_url as string | null) ?? null;
-  const appSupabaseAnon =
-    (project.app_supabase_anon_key as string | null) ?? null;
+  // Wybitna Baza Danych — shared Supabase instance (one for all projects).
+  // When app_db_enabled === true we inject shared DB credentials and explain
+  // the x-project-id isolation pattern so the AI generates correct code.
+  const appDbEnabled = (project.app_db_enabled as boolean | null) === true;
+  const sharedDbUrl = process.env.NEXT_PUBLIC_APP_DB_URL ?? null;
+  const sharedDbAnon = process.env.NEXT_PUBLIC_APP_DB_ANON_KEY ?? null;
   let wybitnaDbSuffix = "";
-  if (
-    appSupabaseStatus === "ready" &&
-    appSupabaseUrl &&
-    appSupabaseAnon
-  ) {
+  if (appDbEnabled && sharedDbUrl && sharedDbAnon) {
     wybitnaDbSuffix =
-      `\n\nWYBITNA BAZA DANYCH (auto-provisioned per-projekt Supabase — GOTOWA do uzycia):\n` +
-      `URL: ${appSupabaseUrl}\n` +
-      `ANON KEY (publiczny, bezpieczny w kliencie): ${appSupabaseAnon}\n` +
-      `Tabele preinstalowane: categories (public read), products (public read), cart_items (anon CRUD).\n` +
-      `Wzor uzycia w generowanym kodzie (web/Vite + React):\n` +
-      `1) writeFile /src/lib/supabase.ts:\n` +
+      `\n\nWYBITNA BAZA DANYCH (wspolna Supabase — AKTYWNA dla tego projektu):\n` +
+      `URL: ${sharedDbUrl}\n` +
+      `ANON KEY (publiczny, bezpieczny w kliencie): ${sharedDbAnon}\n` +
+      `PROJECT ID tego projektu: ${projectId}\n` +
+      `\n` +
+      `ARCHITEKTURA IZOLACJI DANYCH:\n` +
+      `Jeden projekt Supabase obsluguje wszystkie aplikacje. Dane sa izolowane przez:\n` +
+      `  - kolumne project_id TEXT NOT NULL w kazdej tabeli\n` +
+      `  - polityki RLS czytajace naglowek x-project-id z requestu HTTP\n` +
+      `\n` +
+      `WZOR KLIENTA SUPABASE (OBOWIAZKOWY — zawsze uzyj tego kodu):\n` +
       "```ts\n" +
       `import { createClient } from "@supabase/supabase-js";\n` +
       `export const supabase = createClient(\n` +
-      `  import.meta.env.VITE_SUPABASE_URL!,\n` +
-      `  import.meta.env.VITE_SUPABASE_ANON_KEY!,\n` +
+      `  "${sharedDbUrl}",\n` +
+      `  "${sharedDbAnon}",\n` +
+      `  {\n` +
+      `    global: {\n` +
+      `      headers: { "x-project-id": "${projectId}" },\n` +
+      `    },\n` +
+      `  }\n` +
       `);\n` +
       "```\n" +
-      `2) writeFile /.env (lub poinformuj uzytkownika o tych zmiennych): VITE_SUPABASE_URL=${appSupabaseUrl}, VITE_SUPABASE_ANON_KEY=${appSupabaseAnon}\n` +
-      `3) Koszyk: user_session = nanoid lub crypto.randomUUID() w localStorage; cart_items wstawiaj z polem user_session.\n` +
-      `4) NIE zakladaj tabel na newslettery / wiadomosci kontaktowe / zamowienia — te idą przez /api/form-submit (nasz panel admina).\n`;
+      `\n` +
+      `Tabele preinstalowane (kazdy INSERT/SELECT wymaga project_id = "${projectId}"):\n` +
+      `  categories(id, project_id, name, slug, created_at)\n` +
+      `  products(id, project_id, category_id, name, description, price_cents, image_url, featured, created_at)\n` +
+      `  cart_items(id, project_id, user_session, product_id, qty, created_at)\n` +
+      `\n` +
+      `Koszyk: user_session = localStorage.getItem("session_id") ?? crypto.randomUUID() — zapisz w localStorage.\n` +
+      `UWAGA: NIE twórz osobnych projektów Supabase — uzywaj tylko powyzszych credentials z x-project-id.\n`;
   }
 
   // Aktywne integracje usera (Supabase, Notion, MCP) — wstrzykiwane do system promptu.

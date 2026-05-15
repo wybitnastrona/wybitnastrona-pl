@@ -39,6 +39,20 @@ export async function POST(req: Request, { params }: { params: Params }) {
       type: "publish",
       metadata: { slug, domain, custom: customSlug ?? undefined },
     });
+
+    // Fire-and-forget: zrob screenshot po publikacji. Sluzy do refresha
+    // miniaturek na dashboardzie. Bledy logujemy ale nie blokujemy publish-a.
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+    if (appUrl) {
+      const cookie = req.headers.get("cookie");
+      void fetch(`${appUrl}/api/projects/${id}/screenshot`, {
+        method: "POST",
+        headers: cookie ? { cookie } : undefined,
+      }).catch((e) => {
+        console.warn("[publish] screenshot fire-and-forget failed:", e);
+      });
+    }
+
     return NextResponse.json({
       slug,
       domain,

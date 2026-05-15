@@ -7,6 +7,7 @@ import {
   getProTierByPriceId,
 } from "@/lib/stripe-products";
 import { generateProjectAutoSlug } from "@/lib/projects";
+import { FREE_TIER_LIMITS } from "@/lib/ai-models";
 
 export const runtime = "nodejs";
 
@@ -158,6 +159,14 @@ async function handleSubscriptionUpsert(
   // Wyszukujemy aktualny price ID + matchujacy ProTier dla atrybucji kredytow.
   const priceId = sub.items?.data?.[0]?.price?.id;
   const proTier = priceId ? getProTierByPriceId(priceId) : undefined;
+  const product = priceId ? getProductByPriceId(priceId) : undefined;
+
+  // Limit kredytow dla paska postepu w UI:
+  //  - aktywny PRO → product.points (np. 500 / 1200 / 96000 kredytow)
+  //  - inaktywny (incomplete, past_due, canceled) → wracamy do limitu FREE
+  const monthlyLimit = isActive
+    ? (proTier?.credits ?? product?.points ?? FREE_TIER_LIMITS.monthlyCredits)
+    : FREE_TIER_LIMITS.monthlyCredits;
 
   await supabase
     .from("profiles")
@@ -167,6 +176,7 @@ async function handleSubscriptionUpsert(
       stripe_subscription_status: sub.status,
       stripe_subscription_price_id: priceId ?? null,
       monthly_credit_quota: proTier?.credits ?? null,
+      monthly_credits_limit: monthlyLimit,
     })
     .eq("id", userId);
 }
@@ -187,6 +197,8 @@ async function handleSubscriptionCanceled(
       tier: "free",
       stripe_subscription_status: "canceled",
       monthly_credit_quota: null,
+      // Pasek SideNav natychmiast pokazuje limit FREE (1500) zamiast pustego.
+      monthly_credits_limit: FREE_TIER_LIMITS.monthlyCredits,
     })
     .eq("id", userId);
 }

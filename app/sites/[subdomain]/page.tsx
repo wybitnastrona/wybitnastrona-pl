@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { SandpackRunner } from "@/components/sandpack/sandpack-runner";
-import { getProjectBySlug } from "@/lib/projects";
+import { getProjectBySlug, isProjectOwnerPro } from "@/lib/projects";
+import { MadeWithBadge } from "@/components/public-site/made-with-badge";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -27,6 +28,11 @@ export default async function SitePage({ params }: { params: Params }) {
     notFound();
   }
 
+  // Badge widoczny tylko dla FREE planu — PRO platnosci go zdejmuja.
+  // Sprawdzane po wlascicielu projektu (`user_id`), nie po sesji
+  // przegladajacego, bo to jego "marka".
+  const ownerIsPro = await isProjectOwnerPro(project.user_id);
+
   return (
     <div className="h-screen w-screen">
       <SandpackRunner
@@ -34,6 +40,7 @@ export default async function SitePage({ params }: { params: Params }) {
         viewMode="preview"
         hideInternalNavigator
       />
+      {!ownerIsPro && <MadeWithBadge />}
     </div>
   );
 }

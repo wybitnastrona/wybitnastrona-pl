@@ -129,6 +129,32 @@ export async function getProject(id: string): Promise<Project | null> {
  * Fallback: jesli service key nie jest skonfigurowany, uzywamy cookie clienta —
  * wymaga to publicznej policy na `projects` (read where is_public).
  */
+/**
+ * Sprawdza czy wlasciciel projektu (po `user_id`) ma aktywna subskrypcje PRO.
+ * Uzywane do gating-u badge'a "Stworzone na wybitnastrona.pl" na publikowanych
+ * stronach — FREE plan ma badge, PRO nie. Wykorzystuje service role zeby
+ * zapytanie dzialalo bez sesji.
+ */
+export async function isProjectOwnerPro(userId: string): Promise<boolean> {
+  if (!userId) return false;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) return false;
+  const admin = createServiceClient(url, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  const { data } = await admin
+    .from("profiles")
+    .select("tier, stripe_subscription_status")
+    .eq("id", userId)
+    .maybeSingle();
+  if (!data) return false;
+  const tier = (data as { tier?: string }).tier;
+  const status = (data as { stripe_subscription_status?: string })
+    .stripe_subscription_status;
+  return tier === "pro" && (status === "active" || status === "trialing");
+}
+
 export async function getProjectBySlug(slug: string): Promise<Project | null> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -172,7 +198,9 @@ export async function listMyProjects(): Promise<ProjectListItem[]> {
   // .eq("user_id", ...). Bez filtra ponizej dashboard pokazywalby cudze projekty.
   const { data, error } = await supabase
     .from("projects")
-    .select("id, title, prompt, slug, is_public, mode, preview_html, created_at, updated_at")
+    .select(
+      "id, title, prompt, slug, is_public, mode, preview_html, preview_image_url, created_at, updated_at",
+    )
     .eq("user_id", user.id)
     .order("updated_at", { ascending: false });
 

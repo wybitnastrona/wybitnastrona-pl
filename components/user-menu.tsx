@@ -13,6 +13,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useSettings } from "@/components/settings/settings-provider";
+import {
+  AVATAR_FOREGROUND,
+  emailToColor,
+  emailToInitial,
+} from "@/lib/avatar-color";
 
 type UserMenuProps = {
   variant?: "navbar" | "shell";
@@ -26,25 +31,32 @@ export function UserMenu({ variant = "navbar" }: UserMenuProps) {
   if (!user) return null;
 
   const email = user.email ?? "";
-  const initial = email[0]?.toUpperCase() ?? "U";
+  const initial = emailToInitial(email);
   const isShell = variant === "shell";
+  const avatarBg = emailToColor(email);
+  const avatarStyle = {
+    backgroundColor: avatarBg,
+    color: AVATAR_FOREGROUND,
+  };
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         className={
           isShell
-            ? "flex h-8 w-8 items-center justify-center rounded-full bg-beige text-xs font-medium text-beige-foreground transition hover:opacity-90"
+            ? "flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium transition hover:opacity-90"
             : "flex h-9 cursor-pointer items-center gap-2 rounded-full border border-beige/20 bg-card px-2 pr-3 text-sm text-foreground transition hover:border-beige/40"
         }
+        style={isShell ? avatarStyle : undefined}
         aria-label="Menu konta"
       >
         <span
           className={
             isShell
-              ? "flex h-7 w-7 items-center justify-center text-sm"
-              : "flex h-7 w-7 items-center justify-center rounded-full bg-beige text-xs font-medium text-beige-foreground"
+              ? "flex h-7 w-7 items-center justify-center text-sm font-medium"
+              : "flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium"
           }
+          style={isShell ? { color: AVATAR_FOREGROUND } : avatarStyle}
         >
           {initial}
         </span>

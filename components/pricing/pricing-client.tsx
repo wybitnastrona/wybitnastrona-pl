@@ -1,9 +1,22 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Check, Loader2, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Check, Info, Loader2, Sparkles } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { PRO_TIERS, RECOMMENDED_PRO_TIER_ID } from "@/lib/stripe-products";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+/**
+ * Tekst wyjasnienia proraty — uzywany w 2 miejscach (pricing-client + credits-tab),
+ * trzymamy w jednym miejscu zeby slowo "proporcjonalne rozliczenie Stripe" bylo
+ * zawsze identyczne (latwiej tlumaczyc / zmieniac copywriting).
+ */
+const PRORATION_HINT =
+  "Kwota zostanie pomniejszona o niewykorzystany czas obecnego planu (proporcjonalne rozliczenie Stripe).";
 
 const PRO_FEATURES = [
   "Wszystkie modele AI: Pan Programista (Sonnet 4.6), Opus 4.6, Opus 4.7",
@@ -19,6 +32,29 @@ const PRO_FEATURES = [
 export function PricingClient() {
   const { user, openAuth } = useAuth();
   const [busy, setBusy] = useState<string | null>(null);
+  // `isPro` decyduje czy pokazujemy tooltip o proracie — dla nowych klientow
+  // Stripe nie naliczy zwrotu za "niewykorzystany czas obecnego planu",
+  // wiec wyswietlanie tej informacji byloby mylace.
+  const [isPro, setIsPro] = useState(false);
+
+  useEffect(() => {
+    if (!user) {
+      setIsPro(false);
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/me/points", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("nope"))))
+      .then((data: { isPro?: boolean }) => {
+        if (!cancelled) setIsPro(Boolean(data.isPro));
+      })
+      .catch(() => {
+        if (!cancelled) setIsPro(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   // Default = recommended tier (drugi od najtanszego — psychologia anchoring).
   const defaultIndex = Math.max(
@@ -83,6 +119,7 @@ export function PricingClient() {
             busy={!!busy}
             onBuy={buy}
             perCredit={perCredit}
+            isPro={isPro}
           />
         </div>
 
@@ -132,12 +169,14 @@ function ProSliderCard({
   busy,
   onBuy,
   perCredit,
+  isPro,
 }: {
   tierIndex: number;
   onTierIndexChange: (i: number) => void;
   busy: boolean;
   onBuy: () => void;
   perCredit: number;
+  isPro: boolean;
 }) {
   const tier = PRO_TIERS[tierIndex] ?? PRO_TIERS[0];
   const isRecommended = tier.id === RECOMMENDED_PRO_TIER_ID;
@@ -158,9 +197,20 @@ function ProSliderCard({
       </div>
 
       <div className="flex flex-col gap-1">
-        <div className="flex items-baseline gap-1">
+        <div className="flex items-baseline gap-1.5">
           <span className="text-4xl font-medium tracking-tight">{tier.pln} zł</span>
           <span className="text-xs text-muted-foreground">/ mc brutto</span>
+          {isPro && (
+            <Tooltip>
+              <TooltipTrigger
+                aria-label="Informacja o proporcjonalnym rozliczeniu"
+                className="ml-1 inline-flex cursor-help items-center text-muted-foreground transition hover:text-beige"
+              >
+                <Info className="h-4 w-4" />
+              </TooltipTrigger>
+              <TooltipContent>{PRORATION_HINT}</TooltipContent>
+            </Tooltip>
+          )}
         </div>
         <div className="flex items-center justify-between text-[11px] text-muted-foreground">
           <span>{tier.credits.toLocaleString("pl-PL")} kredytów/mc</span>

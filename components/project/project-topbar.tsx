@@ -132,12 +132,42 @@ export function ProjectTopbar({
       tab === "user-management" ||
       tab === "file-storage" ||
       tab === "knowledge" ||
-      tab === "backups"
+      tab === "backups" ||
+      tab === "history"
     ) {
       setSettingsTab(tab);
       setSettingsOpen(true);
     }
   }, [searchParams]);
+
+  // Globalny event z WorkspaceCanvas — przyciski Baza/Stripe/Zasoby/Historia
+  // dispatchuja `wybitna:open-settings` z `detail.tab`. Otwieramy modal na
+  // odpowiedniej zakladce. Pozwala uniknac prop drillingu w gleboki canvas.
+  useEffect(() => {
+    function onOpen(event: Event) {
+      const detail = (event as CustomEvent<{ tab?: string }>).detail;
+      const tab = detail?.tab;
+      if (
+        tab === "general" ||
+        tab === "domains" ||
+        tab === "analytics" ||
+        tab === "database" ||
+        tab === "authentication" ||
+        tab === "stripe" ||
+        tab === "secrets" ||
+        tab === "user-management" ||
+        tab === "file-storage" ||
+        tab === "knowledge" ||
+        tab === "backups" ||
+        tab === "history"
+      ) {
+        openSettings(tab);
+      }
+    }
+    window.addEventListener("wybitna:open-settings", onOpen);
+    return () =>
+      window.removeEventListener("wybitna:open-settings", onOpen);
+  }, []);
 
   // Status PRO sluzy do gatowania ZIP exportu (klient-side hint).
   useEffect(() => {
@@ -338,7 +368,6 @@ export function ProjectTopbar({
         open={domainsOpen}
         onOpenChange={setDomainsOpen}
         project={project}
-        rootDomain={rootDomain}
         publishDomain={publishDomain}
         domainPartnerUrl={domainPartnerUrl}
       />
@@ -1098,14 +1127,14 @@ function DomainsDialog({
   open,
   onOpenChange,
   project,
-  rootDomain,
   publishDomain,
   domainPartnerUrl,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   project: Project;
-  rootDomain: string;
+  /** `rootDomain` (wybitnastrona.pl) celowo pominiety — nie wystawiamy
+   * subdomen pod tym hostem, tylko pod *.wybitny.website. */
   publishDomain: string;
   domainPartnerUrl: string;
 }) {
@@ -1122,15 +1151,19 @@ function DomainsDialog({
     expectedAValues?: string[];
   } | null>(null);
 
-  // ─── Zakup domeny przez Vercel ─────────────────────────────────────────────
+  // ─── Zakup domeny przez Porkbun + marza wybitnastrona.pl ──────────────────
   const [searchQuery, setSearchQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchResult, setSearchResult] = useState<{
     domain: string;
-    available: boolean;
-    price?: number;
-    period?: number;
+    available: boolean | null;
+    availabilityUnknown?: boolean;
+    basePrice?: number;
+    commission?: number;
+    total?: number;
     currency?: string;
+    registrar?: string | null;
+    message?: string;
   } | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [buying, setBuying] = useState(false);
@@ -1149,13 +1182,19 @@ function DomainsDialog({
     }
     setSearching(true);
     try {
-      const res = await fetch(`/api/domains/search?q=${encodeURIComponent(q)}`);
+      // Uzywamy nowego endpointa `check` (Porkbun + $5 marza). Stary
+      // `/api/domains/search` (Vercel Domains) jest zachowany dla kompatybilnosci
+      // ale UI domyslnie pyta o cene Porkbuna.
+      const res = await fetch(`/api/domains/check?q=${encodeURIComponent(q)}`);
       const data = (await res.json().catch(() => ({}))) as {
         domain?: string;
-        available?: boolean;
-        price?: number;
-        period?: number;
+        available?: boolean | null;
+        availabilityUnknown?: boolean;
+        basePrice?: number;
+        commission?: number;
+        total?: number;
         currency?: string;
+        registrar?: string | null;
         error?: string;
         message?: string;
       };
@@ -1165,10 +1204,14 @@ function DomainsDialog({
       }
       setSearchResult({
         domain: data.domain ?? q,
-        available: Boolean(data.available),
-        price: data.price,
-        period: data.period,
+        available: data.available ?? null,
+        availabilityUnknown: data.availabilityUnknown,
+        basePrice: data.basePrice,
+        commission: data.commission,
+        total: data.total,
         currency: data.currency,
+        registrar: data.registrar,
+        message: data.message,
       });
     } finally {
       setSearching(false);
@@ -1176,17 +1219,18 @@ function DomainsDialog({
   }
 
   async function handleBuy() {
-    if (!searchResult || !searchResult.available) return;
+    if (!searchResult || searchResult.available === false) return;
     setBuyError(null);
     setBuying(true);
     try {
-      const res = await fetch("/api/domains/buy", {
+      // Porkbun + Vercel attach + DB update — atomowy endpoint /register.
+      const res = await fetch("/api/domains/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           domain: searchResult.domain,
           projectId: project.id,
-          expectedPrice: searchResult.price,
+          expectedTotal: searchResult.total,
         }),
       });
       const data = (await res.json().catch(() => ({}))) as {
@@ -1457,15 +1501,11 @@ function DomainsDialog({
                   trwa do 30 minut.
                 </li>
                 <li>
-                  Aktualnie dostepne sa rowniez subdomeny{" "}
-                  <span className="font-mono text-beige/80">
-                    *.{rootDomain}
-                  </span>{" "}
-                  oraz{" "}
+                  Subdomeny darmowe sa dostepne pod{" "}
                   <span className="font-mono text-beige/80">
                     *.{publishDomain}
-                  </span>
-                  .
+                  </span>{" "}
+                  — np. <span className="font-mono text-beige/80">twoja-strona.{publishDomain}</span>.
                 </li>
               </ol>
             </div>
@@ -1526,32 +1566,72 @@ function DomainsDialog({
             {searchResult && (
               <div
                 className={`mt-3 rounded-md border p-3 text-xs ${
-                  searchResult.available
+                  searchResult.available === true
                     ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-100"
-                    : "border-amber-500/30 bg-amber-500/10 text-amber-100"
+                    : searchResult.available === false
+                      ? "border-amber-500/30 bg-amber-500/10 text-amber-100"
+                      : "border-beige/20 bg-card/40 text-foreground/90"
                 }`}
               >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
                     <p className="truncate font-mono text-[13px] font-medium">
                       {searchResult.domain}
                     </p>
-                    {searchResult.available ? (
+                    {searchResult.available === true && (
                       <p className="mt-0.5 text-[11px] opacity-80">
-                        Dostępna · {typeof searchResult.price === "number"
-                          ? `$${searchResult.price.toFixed(2)} ${searchResult.currency ?? "USD"}`
-                          : "cena nieznana"}
-                        {searchResult.period
-                          ? ` / ${searchResult.period} ${searchResult.period === 1 ? "rok" : "lata"}`
-                          : ""}
+                        Dostępna · rejestracja na 1 rok
                       </p>
-                    ) : (
+                    )}
+                    {searchResult.available === false && (
                       <p className="mt-0.5 text-[11px] opacity-80">
                         Niedostępna — spróbuj innej nazwy.
                       </p>
                     )}
+                    {searchResult.availabilityUnknown && (
+                      <p className="mt-0.5 text-[11px] opacity-80">
+                        {searchResult.message ??
+                          "Status dostępności niepotwierdzony."}
+                      </p>
+                    )}
+
+                    {/* Rozbicie ceny — pokazujemy bazowa cene rejestratora +
+                        marze wybitnastrona.pl, transparentnie. */}
+                    {typeof searchResult.basePrice === "number" && (
+                      <div className="mt-2 space-y-0.5 rounded border border-current/10 bg-current/5 p-2 font-mono text-[10px] opacity-90">
+                        <div className="flex justify-between gap-3">
+                          <span className="opacity-80">
+                            Cena u rejestratora{searchResult.registrar
+                              ? ` (${searchResult.registrar})`
+                              : ""}
+                          </span>
+                          <span>
+                            ${searchResult.basePrice.toFixed(2)}{" "}
+                            {searchResult.currency ?? "USD"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between gap-3">
+                          <span className="opacity-80">
+                            Opłata serwisowa wybitnastrona.pl
+                          </span>
+                          <span>
+                            ${(searchResult.commission ?? 0).toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="mt-1 flex justify-between gap-3 border-t border-current/20 pt-1 font-medium">
+                          <span>Razem</span>
+                          <span>
+                            $
+                            {(searchResult.total ?? searchResult.basePrice).toFixed(
+                              2,
+                            )}{" "}
+                            {searchResult.currency ?? "USD"}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  {searchResult.available && (
+                  {searchResult.available !== false && (
                     <Button
                       type="button"
                       size="sm"
@@ -1576,8 +1656,9 @@ function DomainsDialog({
             )}
 
             <p className="mt-3 text-[10px] text-muted-foreground/70">
-              Płatność jest realizowana przez Vercel Domains. Po zakupie
-              domena jest natychmiast aktywna i podpięta do tego projektu.
+              Rejestracja przez Porkbun. Opłata serwisowa $5 wybitnastrona.pl
+              pokrywa hosting, integrację i wsparcie. Po zakupie domena jest
+              automatycznie podpięta do projektu.
             </p>
           </section>
 

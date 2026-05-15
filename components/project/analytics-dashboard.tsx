@@ -16,12 +16,18 @@ import { Loader2 } from "lucide-react";
 
 type Event = { event_type: string; count: number; day: string };
 
-type Range = "day" | "week" | "month";
+// Granularnosc analytics — 3 presety pokrywaja typowe okna analizy
+// (krotkie = czesty bucket, dlugie = dzienny bucket). bucket=24h
+// dla 1d daje pojedynczy slupek czyli dziala jak agregat.
+type Range = "7d" | "14d" | "30d";
 
-const RANGE_TO_DAYS: Record<Range, number> = {
-  day: 1,
-  week: 7,
-  month: 30,
+const RANGE_PRESETS: Record<
+  Range,
+  { days: number; bucketHours: number; label: string }
+> = {
+  "7d": { days: 7, bucketHours: 6, label: "7 dni" },
+  "14d": { days: 14, bucketHours: 12, label: "14 dni" },
+  "30d": { days: 30, bucketHours: 24, label: "30 dni" },
 };
 
 const TYPE_LABELS: Record<string, string> = {
@@ -52,17 +58,18 @@ type Props = {
 };
 
 export function AnalyticsDashboard({ projectId, events }: Props) {
-  const [range, setRange] = useState<Range>("month");
+  const [range, setRange] = useState<Range>("30d");
   const [data, setData] = useState<Event[]>(events ?? []);
   const [loading, setLoading] = useState(false);
 
   const load = useCallback(
     async (r: Range) => {
       if (!projectId) return;
+      const preset = RANGE_PRESETS[r];
       setLoading(true);
       try {
         const res = await fetch(
-          `/api/projects/${projectId}/stats?days=${RANGE_TO_DAYS[r]}`,
+          `/api/projects/${projectId}/stats?days=${preset.days}&bucket_hours=${preset.bucketHours}`,
           { cache: "no-store" },
         );
         if (res.ok) {
@@ -126,7 +133,7 @@ export function AnalyticsDashboard({ projectId, events }: Props) {
           </p>
         </div>
         <div className="inline-flex items-center gap-0.5 rounded-md border border-beige/15 bg-background/40 p-0.5 text-[11px]">
-          {(["day", "week", "month"] as const).map((r) => (
+          {(["7d", "14d", "30d"] as const).map((r) => (
             <button
               key={r}
               type="button"
@@ -137,7 +144,7 @@ export function AnalyticsDashboard({ projectId, events }: Props) {
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {r === "day" ? "Day" : r === "week" ? "Week" : "Month"}
+              {RANGE_PRESETS[r].label}
             </button>
           ))}
         </div>

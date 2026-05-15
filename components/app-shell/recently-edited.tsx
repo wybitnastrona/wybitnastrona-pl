@@ -75,9 +75,17 @@ export function RecentlyEdited({ projects }: RecentlyEditedProps) {
                 href={`/project/${project.id}`}
                 className="group flex flex-col gap-3 overflow-hidden rounded-2xl border border-beige/10 bg-card transition hover:border-beige/40 hover:bg-card/80"
               >
-                {/* Thumbnail: srcDoc snapshot iframe (sandboxed, no JS, no nav) */}
+                {/* Thumbnail: 1. Puppeteer screenshot (preview_image_url),
+                    2. HTML snapshot fallback (preview_html), 3. ikona platformy. */}
                 <div className="relative h-32 overflow-hidden border-b border-beige/10 bg-gradient-to-br from-beige/5 via-background to-background">
-                  {project.preview_html ? (
+                  {project.preview_image_url ? (
+                    <img
+                      src={project.preview_image_url}
+                      alt={`Podgląd: ${project.title}`}
+                      loading="lazy"
+                      className="absolute inset-0 h-full w-full object-cover transition group-hover:scale-105"
+                    />
+                  ) : project.preview_html ? (
                     <iframe
                       sandbox=""
                       srcDoc={project.preview_html}

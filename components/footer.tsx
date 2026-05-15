@@ -37,7 +37,6 @@ const SECTIONS = [
       { label: "Generator", href: "/" },
       { label: "Dashboard", href: "/dashboard" },
       { label: "Pricing", href: "/pricing" },
-      { label: "Showcase", href: "/#showcase" },
     ],
   },
   {

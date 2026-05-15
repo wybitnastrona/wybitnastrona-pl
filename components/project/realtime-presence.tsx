@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { emailToColor, emailToInitial } from "@/lib/avatar-color";
 
 export type PresenceUser = {
   user_id: string;
@@ -9,8 +10,6 @@ export type PresenceUser = {
   cursor?: { x: number; y: number };
   color: string;
 };
-
-const COLORS = ["#e8dcc4", "#a78bfa", "#fb7185", "#34d399", "#60a5fa", "#fbbf24"];
 
 /**
  * Hook montujacy Supabase Realtime channel dla projektu.
@@ -27,7 +26,9 @@ export function useRealtimePresence(projectId: string, userId: string, email?: s
       config: { presence: { key: userId } },
     });
 
-    const myColor = COLORS[Math.floor(Math.random() * COLORS.length)];
+    // Deterministyczny kolor z emaila — ten sam user ma zawsze ten sam
+    // odcien u wszystkich peerow.
+    const myColor = emailToColor(email ?? userId);
 
     channel
       .on("presence", { event: "sync" }, () => {
@@ -66,16 +67,21 @@ export function PresenceAvatars({ peers }: { peers: PresenceUser[] }) {
   if (peers.length === 0) return null;
   return (
     <div className="flex -space-x-2">
-      {peers.slice(0, 4).map((p) => (
-        <div
-          key={p.user_id}
-          title={p.email ?? p.user_id}
-          className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-background text-xs font-medium uppercase"
-          style={{ backgroundColor: p.color, color: "#0a0a0a" }}
-        >
-          {(p.email ?? "?").charAt(0)}
-        </div>
-      ))}
+      {peers.slice(0, 4).map((p) => {
+        // Fallback do deterministic color jezeli peer nie wyslal koloru
+        // (np. po deploy zmianie schematu).
+        const bg = p.color || emailToColor(p.email ?? p.user_id);
+        return (
+          <div
+            key={p.user_id}
+            title={p.email ?? p.user_id}
+            className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-background text-xs font-medium uppercase text-white"
+            style={{ backgroundColor: bg }}
+          >
+            {emailToInitial(p.email ?? p.user_id)}
+          </div>
+        );
+      })}
       {peers.length > 4 && (
         <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-background bg-card text-[10px] text-muted-foreground">
           +{peers.length - 4}

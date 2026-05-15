@@ -11,7 +11,6 @@ import {
   Sparkles,
   Shuffle,
   X,
-  Check,
 } from "lucide-react";
 import { DEFAULT_TEMPLATE, type TemplateId } from "@/lib/templates";
 import {
@@ -70,7 +69,10 @@ export function CreationHero({ userTier = "free" }: CreationHeroProps) {
   const [model, setModel] = useState<AiModelId>(initialModel);
   const [template, setTemplate] = useState<TemplateId>(DEFAULT_TEMPLATE);
   const [customContext, setCustomContext] = useState("");
-  const [isPlanMode, setIsPlanMode] = useState(false);
+  // Plan-first mode jest wymuszony — AI zawsze najpierw pyta o detalle
+  // (showQuestions) i pokazuje plan przed generowaniem kodu. Stary toggle
+  // "Tworzenie" zostal usuniety zeby uniknac one-shot codingu.
+  const isPlanMode = true;
   const [submitting, setSubmitting] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
   const [integrationsOpen, setIntegrationsOpen] = useState(false);
@@ -244,8 +246,6 @@ export function CreationHero({ userTier = "free" }: CreationHeroProps) {
           <div className="flex flex-wrap items-center gap-1.5 px-3 pb-3 sm:px-4 sm:pb-4">
             <PlusMenu
               onAttachImage={() => fileInputRef.current?.click()}
-              isPlanMode={isPlanMode}
-              onTogglePlanMode={() => setIsPlanMode((v) => !v)}
               model={model}
               onModelChange={setModel}
               userTier={userTier}
@@ -379,15 +379,11 @@ export function CreationHero({ userTier = "free" }: CreationHeroProps) {
 
 function PlusMenu({
   onAttachImage,
-  isPlanMode,
-  onTogglePlanMode,
   model,
   onModelChange,
   userTier,
 }: {
   onAttachImage: () => void;
-  isPlanMode: boolean;
-  onTogglePlanMode: () => void;
   model: AiModelId;
   onModelChange: (id: AiModelId) => void;
   userTier: UserTier;
@@ -409,23 +405,9 @@ function PlusMenu({
           Załącz zdjęcie
         </DropdownMenuItem>
 
-        <DropdownMenuSeparator />
-
-        <DropdownMenuItem onClick={onTogglePlanMode}>
-          {isPlanMode ? (
-            <Check className="h-3.5 w-3.5 text-beige" />
-          ) : (
-            <span className="inline-block h-3.5 w-3.5" />
-          )}
-          <div className="flex flex-col">
-            <span>{isPlanMode ? "Planowanie" : "Tworzenie"}</span>
-            <span className="text-[10px] text-muted-foreground">
-              {isPlanMode
-                ? "AI najpierw pokaze plan przed kodem"
-                : "AI od razu pisze kod"}
-            </span>
-          </div>
-        </DropdownMenuItem>
+        {/* Toggle "Tworzenie / Planowanie" zostal usuniety — plan-first
+            mode jest wymuszony, AI zawsze najpierw pyta o detalle i
+            pokazuje plan zanim zacznie pisac kod. */}
 
         {/* FREE: tylko default model (Pan Programista) — ukrywamy selektor.
             PRO: dropdown z wszystkimi modelami. */}

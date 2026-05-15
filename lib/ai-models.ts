@@ -33,15 +33,25 @@ export type AiModelDef = {
 };
 
 /**
- * Przelicznik kredytów na PLN (model 2x markup):
+ * Przelicznik kredytów na PLN (target ~8x markup na planie 39 PLN):
  *
  * 1 kredyt = 0.02 PLN
  *
- * Koszt Anthropic API per generacja (~50K tokenów łącznie):
- *  Haiku 4.5:   ~$0.15 = ~0.60 PLN → markup 2x = 1.20 PLN → 60 kredytów
- *  Sonnet 4.6:  ~$0.60 = ~2.40 PLN → markup 2x = 4.80 PLN → 240 kredytów
- *  Opus 4.6:    ~$1.50 = ~6.00 PLN → markup 2x = 12.00 PLN → 600 kredytów
- *  Opus 4.7:    ~$3.00 = ~12.00 PLN → markup 2x = 24.00 PLN → 1200 kredytów
+ * Rzeczywisty koszt Anthropic API per generacja (estymata realnego ruchu —
+ * ~15K in / 4K out dla buildu, ~10K in / 2K out dla edycji):
+ *  Sonnet 4.6 build:  ~$0.105 = ~0.42 PLN → 8x = 3.36 PLN → 60 kredytów (~21 base)
+ *  Sonnet 4.6 edit:   ~$0.060 = ~0.24 PLN → 8x = 1.92 PLN → 30 kredytów
+ *  Haiku 4.5 edit:    ~$0.016 = ~0.064 PLN → 8x = 0.51 PLN → 8 kredytów
+ *  Opus 4.6 build:    ~$0.150 = ~0.60 PLN → 8x = 4.80 PLN → 150 kredytów
+ *  Opus 4.7 edit:     ~$0.300 = ~1.20 PLN → 8x = 9.60 PLN → 300 kredytów
+ *
+ * Po przeliczeniu:
+ *  - Plan 39 PLN / 500 kr   = ~8x markup (2-3 buildy + edycje miesiecznie).
+ *  - Plan 2799 PLN / 96000 kr = ~5x markup przy wysokim wolumenie.
+ *
+ * Wartosci `pointCost` ponizej to koszt jednej generacji modelu (build OR
+ * najczestsza edycja — UI najczesciej uzywa modelu w trybie edycji, dlatego
+ * koszt jest zblizony do edit-tier zeby user-experience byl tani).
  */
 export const CREDITS_PER_PLN = 50; // 1 PLN = 50 kredytów → 1 kredyt = 0.02 PLN
 
@@ -64,9 +74,11 @@ export const AI_MODELS: AiModelDef[] = [
     displayName: "Pan Programista",
     anthropicModel: "claude-sonnet-4-5",
     description:
-      "Domyślny — najlepszy stosunek jakości do kosztu. Najczęściej wystarcza jedna generacja. ≈ 240 kr / generacja (4.80 zł).",
+      "Domyślny — najlepszy stosunek jakości do kosztu. ≈ 60 kr / generacja (1.20 zł).",
     badge: "powerful",
-    pointCost: 240,
+    // Markup ~8x na koszt API (~0.42 PLN build, ~0.24 PLN edit). Stary pointCost
+    // 240 byl ~12x dla 39 PLN plan — obnizone do 60 zeby plan 39 zl mial sens.
+    pointCost: 60,
     available: true,
     requiresTier: "free",
     isFree: true,
@@ -77,9 +89,10 @@ export const AI_MODELS: AiModelDef[] = [
     labelShort: "Szybki",
     anthropicModel: "claude-haiku-4-5",
     description:
-      "Tryb budżetowy — szybki, do drobnych poprawek. UWAGA: częściej wymaga ponawiania. ≈ 30 kr / generacja (0.60 zł).",
+      "Tryb budżetowy — szybki, do drobnych poprawek. ≈ 8 kr / generacja (0.16 zł).",
     badge: "fast",
-    pointCost: 30,
+    // Haiku jest tanszy ~5x niz Sonnet w API; markup ~8x daje 8 kr.
+    pointCost: 8,
     available: true,
     requiresTier: "free",
     isFree: true,
@@ -90,9 +103,10 @@ export const AI_MODELS: AiModelDef[] = [
     labelShort: "Opus 4.6",
     anthropicModel: "claude-opus-4-5",
     description:
-      "Zaawansowane projekty, refaktoryzacja architektury, złożona logika. ≈ 600 kr / generacja (12.00 zł). Wymaga PRO.",
+      "Zaawansowane projekty, refaktoryzacja architektury, złożona logika. ≈ 150 kr / generacja (3.00 zł). Wymaga PRO.",
     badge: "powerful",
-    pointCost: 600,
+    // Opus 4.6 jest ~2.5x drozszy niz Sonnet; markup ~8x daje 150 kr.
+    pointCost: 150,
     available: true,
     requiresTier: "pro",
   },
@@ -102,9 +116,10 @@ export const AI_MODELS: AiModelDef[] = [
     labelShort: "Opus 4.7",
     anthropicModel: "claude-opus-4-5",
     description:
-      "Maksymalna jakość. Natywne aplikacje Apple (ARKit, HealthKit, Metal). ≈ 1200 kr / generacja (24.00 zł). Wymaga PRO.",
+      "Maksymalna jakość. Natywne aplikacje Apple (ARKit, HealthKit, Metal). ≈ 300 kr / generacja (6.00 zł). Wymaga PRO.",
     badge: "new",
-    pointCost: 1200,
+    // Opus 4.7 ~5x drozszy niz Sonnet; markup ~8x daje 300 kr.
+    pointCost: 300,
     available: true,
     requiresTier: "pro",
   },

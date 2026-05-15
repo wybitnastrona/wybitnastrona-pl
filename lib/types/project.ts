@@ -30,6 +30,8 @@ export type Project = {
   locked_files: string[];
   /** Static HTML snapshot for dashboard thumbnails (no JS, sandboxed iframe). */
   preview_html?: string | null;
+  /** Real Puppeteer screenshot URL (Supabase Storage). Preferred over preview_html. */
+  preview_image_url?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -46,4 +48,5 @@ export type ProjectListItem = Pick<
   | "updated_at"
 > & {
   preview_html?: string | null;
+  preview_image_url?: string | null;
 };

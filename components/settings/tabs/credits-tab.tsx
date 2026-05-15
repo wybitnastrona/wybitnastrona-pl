@@ -2,13 +2,23 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Check, Coins, Copy, ExternalLink, Gift } from "lucide-react";
+import { Check, Coins, Copy, ExternalLink, Gift, Info } from "lucide-react";
 import { STRIPE_PRODUCTS } from "@/lib/stripe-products";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
-type PointsResponse = { points: number };
+/** @see components/pricing/pricing-client.tsx */
+const PRORATION_HINT =
+  "Kwota zostanie pomniejszona o niewykorzystany czas obecnego planu (proporcjonalne rozliczenie Stripe).";
+
+type PointsResponse = { points: number; isPro?: boolean };
 
 export function CreditsTab() {
   const [points, setPoints] = useState<number | null>(null);
+  const [isPro, setIsPro] = useState(false);
   const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
 
@@ -17,7 +27,9 @@ export function CreditsTab() {
     fetch("/api/me/points", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("nope"))))
       .then((data: PointsResponse) => {
-        if (!cancelled) setPoints(data.points ?? 0);
+        if (cancelled) return;
+        setPoints(data.points ?? 0);
+        setIsPro(Boolean(data.isPro));
       })
       .catch(() => {
         if (!cancelled) setPoints(0);
@@ -95,9 +107,22 @@ export function CreditsTab() {
           >
             <header>
               <p className="text-sm font-medium text-foreground">{p.name}</p>
-              <p className="mt-1 text-2xl font-semibold tracking-tight text-foreground">
-                {(p.amountCents / 100).toFixed(0)} zl
-              </p>
+              <div className="mt-1 flex items-center gap-1.5">
+                <p className="text-2xl font-semibold tracking-tight text-foreground">
+                  {(p.amountCents / 100).toFixed(0)} zl
+                </p>
+                {isPro && (
+                  <Tooltip>
+                    <TooltipTrigger
+                      aria-label="Informacja o proporcjonalnym rozliczeniu"
+                      className="inline-flex cursor-help items-center text-muted-foreground transition hover:text-beige"
+                    >
+                      <Info className="h-3.5 w-3.5" />
+                    </TooltipTrigger>
+                    <TooltipContent>{PRORATION_HINT}</TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
               <p className="mt-1 text-xs text-muted-foreground">
                 {p.description}
               </p>

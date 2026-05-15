@@ -25,7 +25,16 @@ const ROUTE_COOKIE_MAX_AGE = 60 * 5;
 function getRootDomains(): string[] {
   const explicit = (process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "").trim();
   const publish = (process.env.NEXT_PUBLIC_PUBLISH_DOMAIN ?? "").trim();
-  const list = [explicit, publish, "wybitnastrona.pl", "localhost"]
+  // wybitny.website jest hardkodowany jako fallback zeby {slug}.wybitny.website
+  // dzialalo zawsze, bez koniecznosci ustawiania NEXT_PUBLIC_PUBLISH_DOMAIN
+  // w envie. wybitnastrona.pl jest dla strony glownej, localhost dla dev.
+  const list = [
+    explicit,
+    publish,
+    "wybitnastrona.pl",
+    "wybitny.website",
+    "localhost",
+  ]
     .filter(Boolean)
     .map((d) => d.toLowerCase());
   return Array.from(new Set(list));

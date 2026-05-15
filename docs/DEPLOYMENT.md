@@ -245,7 +245,60 @@ Webhook `customer.subscription.deleted` automatycznie wywołuje
 auto-slug nanoid) są cofane do auto-generated, a poprzedni slug ląduje w
 kolumnie `projects.custom_slug_archived` (dla potencjalnej reaktywacji).
 
-## 9. MCP Integracje (Supabase / Notion / Memory / Stitch)
+## 9. Cloudinary (screenshoty publikowanych stron + grafiki AI)
+
+Cloudinary jest naszym CDN-em do dwoch rodzajow obrazow:
+
+1. **AI-generated images** w wygenerowanych aplikacjach
+   (folder `wybitnastrona/projects/{projectId}`) — uzywane przez generator
+   gdy AI dolacza obrazy do strony.
+2. **Screenshoty opublikowanych projektow** dla podgladu w dashboardzie
+   (folder `wybitnastrona/screenshots`, `public_id = {projectId}`).
+   Screenshot jest generowany **tylko raz po publikacji**
+   (fire-and-forget `/api/projects/[id]/screenshot`) — `public_id` jest
+   stabilny, wiec ponowna publikacja **nadpisuje** poprzedni plik (nie ma
+   problemu z orphanami).
+
+### 9.1. Zaloz konto Cloudinary
+
+1. Zarejestruj sie na [cloudinary.com](https://cloudinary.com) (Free tier
+   daje 25 GB storage i 25 GB transferu / mc — wystarczy na start).
+2. Wejdz w **Dashboard → Settings → Account** i skopiuj **Cloud name**.
+3. **Dashboard → API Keys** → wygeneruj nowy klucz, skopiuj `API Key`
+   i `API Secret`.
+
+### 9.2. ENV vars
+
+```env
+# Cloudinary (wymagane do publikacji + obrazow AI)
+CLOUDINARY_CLOUD_NAME=     # Dashboard → Settings → Account → Cloud name
+CLOUDINARY_API_KEY=        # Dashboard → API Keys
+CLOUDINARY_API_SECRET=     # Dashboard → API Keys
+
+# Alternatywa (1 zmienna zamiast 3, format z dashboard "API Environment variable"):
+# CLOUDINARY_URL=cloudinary://API_KEY:API_SECRET@CLOUD_NAME
+```
+
+W panelu Vercel ustaw te zmienne w **Project Settings → Environment Variables**
+dla wszystkich environments (Production / Preview / Development). Po
+dodaniu wystartuj nowy deployment.
+
+> **Bez tych zmiennych**: endpoint `/api/projects/[id]/screenshot` zwroci
+> 503, a screenshot po publikacji nie zostanie wygenerowany (dashboard
+> pokaze fallback iframe / pusta karta). Aplikacja jako calosc bedzie
+> nadal dzialala — to nie blokujaca zaleznosc.
+
+### 9.3. Powiazane pliki w kodzie
+
+- `lib/cloudinary.ts` — `uploadImageToCloudinary(url, projectId)` oraz
+  `uploadBufferToCloudinary(buffer, projectId)` (PNG z Puppeteera).
+- `app/api/projects/[id]/screenshot/route.ts` — Puppeteer + upload.
+- `app/api/projects/[id]/publish/route.ts` — fire-and-forget wywoluje
+  screenshot po udanej publikacji.
+- `projects.preview_image_url` (migracja 0041) — przechowuje wynikowy URL
+  Cloudinary; dashboard czyta to pole bez ponownego generowania.
+
+## 10. MCP Integracje (Supabase / Notion / Memory / Stitch)
 
 Tabela `user_integrations` (migracja 0036) przechowuje konfiguracje per user.
 UI w **Integracje** dropdown w CreationHero ORAZ w workspace projektu.
@@ -268,7 +321,7 @@ MVP: w workspace projektu user wkleja `STRIPE_SECRET_KEY` jako env var dla
 wygenerowanej strony. AI generuje wtedy `/api/checkout/route.ts` z poprawnym
 template'em.
 
-## 10. Migracje wymagane dla refaktoru Bolt-style v2
+## 11. Migracje wymagane dla refaktoru Bolt-style v2
 
 Uruchom kolejno (od ostatniej istniejacej w panelu Supabase):
 
@@ -279,22 +332,29 @@ Uruchom kolejno (od ostatniej istniejacej w panelu Supabase):
 -- 0035: projects.custom_slug_archived
 -- 0036: user_integrations table
 -- 0037: referrals table + profiles.referral_code + ensure_referral_code RPC
+-- 0038: projects.app_db_enabled (per-projekt baza wspoldzielona)
+-- 0039: user_integrations OAuth tokens
+-- 0040: get_project_stats_v2 (analityka z konfigurowalnym bucketem)
+-- 0041: projects.preview_image_url (Cloudinary URL screenshotu)
+-- 0042: profiles.monthly_credits_limit (pasek postepu w SideNav)
 ```
 
 Wszystkie pliki w `supabase/migrations/` mozesz wkleic do SQL Editor w
 Supabase Dashboard.
 
-## 11. Limity FREE
+## 12. Limity FREE
 
 W kodzie (`lib/ai-models.ts`):
-- `monthlyCredits: 100` (max 1 generacja Sonnet 4.6 lub 3 Haiku/mc)
-- `dailyCredits: 30` (max 1 Haiku/dzien)
+- `monthlyCredits: 1500`
+- `dailyCredits: 800`
 
 Liczniki resetuja sie atomowo w RPC `bump_usage_counters` (24h dla daily, 30d
 dla monthly). Webhook `invoice.paid` resetuje liczniki na 0 przy odnowieniu
-subskrypcji PRO.
+subskrypcji PRO. Pasek postepu w SideNav (`/api/me/points` → `monthlyLimit`)
+zwraca `profiles.monthly_credits_limit` (PRO: ustawiane przez webhook
+`subscription.created|updated` na `product.points`; FREE: stale 1500).
 
-## 12. Program polecen
+## 13. Program polecen
 
 - Tabela `referrals` (migracja 0037).
 - `profiles.referral_code` (lazy generated przez RPC `ensure_referral_code`).

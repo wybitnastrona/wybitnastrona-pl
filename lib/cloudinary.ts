@@ -104,3 +104,45 @@ export async function uploadImageToCloudinary(
 
   return result.secure_url;
 }
+
+/**
+ * Wgrywa surowy `Buffer` (np. PNG screenshot z Puppeteera) do Cloudinary.
+ *
+ * Uzywa stabilnego `public_id = projectId` — kazda kolejna publikacja
+ * NADPISUJE poprzedni screenshot (overwrite: true). Dzieki temu:
+ *   1. nie zaśmiecamy konta Cloudinary
+ *   2. URL pozostaje stabilny (mozemy cachowac w DB bez timestampow)
+ *
+ * @throws gdy Cloudinary nie jest skonfigurowany lub upload sie nie powiedzie
+ */
+export async function uploadBufferToCloudinary(
+  buffer: Buffer,
+  projectId: string,
+): Promise<string> {
+  if (!isCloudinaryConfigured()) {
+    throw new Error("Cloudinary is not configured (missing env vars)");
+  }
+  ensureConfigured();
+
+  return new Promise<string>((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder: `wybitnastrona/screenshots`,
+        public_id: projectId,
+        resource_type: "image",
+        overwrite: true,
+        timeout: 25_000,
+        // Cache-buster nie potrzebny — Cloudinary updateuje version w URL po
+        // overwrite, wiec wystarczy ze zapiszemy nowy `secure_url`.
+      },
+      (err, result) => {
+        if (err || !result) {
+          reject(err ?? new Error("Cloudinary upload returned no result"));
+          return;
+        }
+        resolve(result.secure_url);
+      },
+    );
+    stream.end(buffer);
+  });
+}

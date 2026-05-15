@@ -617,21 +617,25 @@ function CanvasTopbar({
         />
       </div>
 
-      {/* Baza + More menu (Stripe/Zasoby/Historia) */}
+      {/* Baza + More menu (Stripe/Zasoby/Historia) — kliknięcie otwiera
+          ProjectSettingsDialog na właściwej zakładce (event delegowany do
+          ProjectTopbar przez `wybitna:open-settings`). */}
       <div className="flex items-center gap-0.5 rounded-md border border-beige/15 bg-card/40 p-0.5">
         {!isCodeOnly && (
           <IconToggle
             icon={Database}
             label="Baza"
-            active={view === "database"}
-            onClick={() => onViewChange("database")}
+            active={false}
+            onClick={() =>
+              window.dispatchEvent(
+                new CustomEvent("wybitna:open-settings", {
+                  detail: { tab: "database" },
+                }),
+              )
+            }
           />
         )}
-        <MoreMenu
-          view={view}
-          onViewChange={onViewChange}
-          isCodeOnly={isCodeOnly}
-        />
+        <MoreMenu isCodeOnly={isCodeOnly} />
       </div>
 
       {/* URL bar — tylko dla web */}
@@ -751,15 +755,7 @@ function IconButton({
  * Historia). Trigger = ikona MoreHorizontal, klik rozwija liste z gory na dol
  * przez CSS transition + framer-style scale enter.
  */
-function MoreMenu({
-  view,
-  onViewChange,
-  isCodeOnly,
-}: {
-  view: WorkspaceView;
-  onViewChange: (v: WorkspaceView) => void;
-  isCodeOnly: boolean;
-}) {
+function MoreMenu({ isCodeOnly }: { isCodeOnly: boolean }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -772,17 +768,22 @@ function MoreMenu({
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open]);
 
-  const items: { view: WorkspaceView; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  // Mapowanie pozycji menu → tab w ProjectSettingsDialog. Kazda pozycja
+  // dispatchuje globalny event do ProjectTopbar, ktory otwiera ustawienia
+  // na wybranej zakladce (zamiast switchowac canvas view).
+  const items: { tab: string; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     ...(isCodeOnly
       ? []
       : ([
-          { view: "stripe" as const, label: "Stripe", icon: CreditCard },
-          { view: "assets" as const, label: "Zasoby", icon: ImageIcon },
+          { tab: "stripe" as const, label: "Stripe", icon: CreditCard },
+          { tab: "file-storage" as const, label: "Zasoby", icon: ImageIcon },
         ])),
-    { view: "snapshots" as const, label: "Historia", icon: History },
+    { tab: "history" as const, label: "Historia", icon: History },
   ];
 
-  const activeInMenu = items.some((it) => it.view === view);
+  // Po przeniesieniu sekcji do Settings dialog menu nie ma juz "aktywnego"
+  // stanu zaleznego od canvas view — zostawiamy zwykly hover.
+  const activeInMenu = false;
 
   return (
     <div className="relative" ref={ref}>
@@ -811,10 +812,9 @@ function MoreMenu({
         <ul className="py-1 text-xs">
           {items.map((it, idx) => {
             const Icon = it.icon;
-            const isActive = view === it.view;
             return (
               <li
-                key={it.view}
+                key={it.tab}
                 style={{ transitionDelay: open ? `${idx * 30}ms` : "0ms" }}
                 className={`transition-all duration-200 ${
                   open ? "translate-y-0 opacity-100" : "-translate-y-1 opacity-0"
@@ -823,14 +823,14 @@ function MoreMenu({
                 <button
                   type="button"
                   onClick={() => {
-                    onViewChange(it.view);
+                    window.dispatchEvent(
+                      new CustomEvent("wybitna:open-settings", {
+                        detail: { tab: it.tab },
+                      }),
+                    );
                     setOpen(false);
                   }}
-                  className={`flex w-full cursor-pointer items-center gap-2 px-3 py-1.5 text-left transition ${
-                    isActive
-                      ? "bg-beige/15 text-beige"
-                      : "text-foreground/80 hover:bg-white/5 hover:text-beige"
-                  }`}
+                  className="flex w-full cursor-pointer items-center gap-2 px-3 py-1.5 text-left text-foreground/80 transition hover:bg-white/5 hover:text-beige"
                 >
                   <Icon className="h-3.5 w-3.5 shrink-0" />
                   {it.label}

@@ -8,9 +8,11 @@ type Params = { params: Promise<{ provider: string }> };
 
 const VALID_PROVIDERS: IntegrationProvider[] = [
   "supabase",
+  "supabase_oauth",
   "notion",
   "memory",
   "stitch",
+  "stripe",
 ];
 
 function isValidProvider(p: string): p is IntegrationProvider {

@@ -109,6 +109,33 @@ const showQuestionsSchema = z.object({
     ),
 });
 
+const syncStripeProductsSchema = z.object({
+  products: z
+    .array(
+      z.object({
+        name: z.string().min(1).max(200),
+        description: z.string().max(2000).optional(),
+        price_cents: z
+          .number()
+          .int()
+          .nonnegative()
+          .describe("Cena w groszach (np. 4999 = 49.99 PLN)."),
+        currency: z
+          .string()
+          .min(3)
+          .max(3)
+          .default("pln")
+          .describe("Kod waluty 3-literowy ISO (np. pln, eur, usd)."),
+        image_url: z.string().url().optional(),
+      }),
+    )
+    .min(1)
+    .max(50)
+    .describe(
+      "Lista produktow do utworzenia w Stripe (zsynchronizowana z /src/data/products.ts lub odpowiednikiem).",
+    ),
+});
+
 const patchFileSchema = z.object({
   path: z
     .string()
@@ -444,8 +471,9 @@ export async function POST(req: Request) {
       `UWAGA: NIE twórz osobnych projektów Supabase — uzywaj tylko powyzszych credentials z x-project-id.\n`;
   }
 
-  // Aktywne integracje usera (Supabase, Notion, MCP) — wstrzykiwane do system promptu.
+  // Aktywne integracje usera (Supabase, Notion, MCP, Stripe) — wstrzykiwane do system promptu.
   let integrationsSuffix = "";
+  let stripeAccountId: string | null = null;
   try {
     const { data: integrationRows } = await supabase
       .from("user_integrations")
@@ -458,6 +486,13 @@ export async function POST(req: Request) {
       integrationsSuffix = buildIntegrationsPromptSection(
         integrationRows as unknown as import("@/lib/integrations").IntegrationRow[],
       );
+      // Wyciagnij Stripe acct_xxx do uzytku w syncStripeProducts tool execute().
+      const stripeRow = integrationRows.find((r) => r.provider === "stripe");
+      if (stripeRow?.config) {
+        stripeAccountId =
+          ((stripeRow.config as Record<string, unknown>)
+            .stripe_user_id as string | undefined) ?? null;
+      }
     }
   } catch (e) {
     console.warn("[generate] Failed to fetch integrations:", e);
@@ -711,16 +746,28 @@ export async function POST(req: Request) {
           const { oldString, newString } = edits[i];
           const idx = content.indexOf(oldString);
           if (idx === -1) {
+            // Error-aware patching: zamiast kazac AI wywolac osobny readFile,
+            // zwracamy aktualna zawartosc pliku (currentContent) bezposrednio
+            // w polu wyniku — AI moze natychmiast retry'owac patchFile z poprawnym
+            // oldString. Oszczedza 1 turę i przyspiesza recovery.
             return {
               ok: false,
-              error: `Edit ${i}: oldString not found. Call readFile(${normalized}) to see the current content, then retry with the exact string.`,
+              error: "match_failed",
+              editIndex: i,
+              path: normalized,
+              message: `Edit ${i}: oldString not found in ${normalized}. Currentcontent of the file is included below — adjust oldString to match exactly and retry patchFile in the same turn.`,
+              currentContent: content,
             };
           }
           const secondIdx = content.indexOf(oldString, idx + oldString.length);
           if (secondIdx !== -1) {
             return {
               ok: false,
-              error: `Edit ${i}: oldString matches multiple locations — include more surrounding lines to make it unique.`,
+              error: "match_ambiguous",
+              editIndex: i,
+              path: normalized,
+              message: `Edit ${i}: oldString matches multiple locations in ${normalized}. Include more surrounding lines (>=3 above and below) to make it unique, then retry.`,
+              currentContent: content,
             };
           }
           content =
@@ -752,6 +799,105 @@ export async function POST(req: Request) {
           : { ok: false, error: `File ${normalized} not found.` };
       },
     }),
+    syncStripeProducts: tool({
+      description:
+        "Synchronizuje liste produktow z generowanej strony do konta Stripe usera (Stripe Connect). Tworzy Product + Price w jego Stripe Account z metadata.project_id (porzadek per-strona w panelu Stripe). Wywoluj raz, na koncu, dla projektow ze sklepem.",
+      inputSchema: syncStripeProductsSchema,
+      execute: async ({ products }) => {
+        if (!stripeAccountId) {
+          return {
+            ok: false,
+            error:
+              "Stripe nie jest podpiety dla tego uzytkownika. Powiedz uzytkownikowi zeby polaczyl Stripe w panelu integracji.",
+          };
+        }
+        const secretKey = process.env.STRIPE_SECRET_KEY;
+        if (!secretKey) {
+          return { ok: false, error: "Stripe secret key not configured." };
+        }
+        const results: Array<{
+          name: string;
+          product_id?: string;
+          price_id?: string;
+          error?: string;
+        }> = [];
+        for (const p of products) {
+          try {
+            const productBody = new URLSearchParams();
+            productBody.set("name", p.name);
+            if (p.description) productBody.set("description", p.description);
+            if (p.image_url) productBody.set("images[0]", p.image_url);
+            productBody.set("metadata[project_id]", projectId);
+            productBody.set("metadata[source]", "wybitnastrona");
+            const prodRes = await fetch("https://api.stripe.com/v1/products", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${secretKey}`,
+                "Stripe-Account": stripeAccountId,
+                "Content-Type": "application/x-www-form-urlencoded",
+              },
+              body: productBody.toString(),
+            });
+            if (!prodRes.ok) {
+              const txt = await prodRes.text();
+              results.push({
+                name: p.name,
+                error: `Product create failed: ${prodRes.status} ${txt.slice(0, 150)}`,
+              });
+              continue;
+            }
+            const prod = (await prodRes.json()) as { id: string };
+            const priceBody = new URLSearchParams();
+            priceBody.set("product", prod.id);
+            priceBody.set("unit_amount", String(p.price_cents));
+            priceBody.set("currency", (p.currency ?? "pln").toLowerCase());
+            priceBody.set("metadata[project_id]", projectId);
+            const priceRes = await fetch("https://api.stripe.com/v1/prices", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${secretKey}`,
+                "Stripe-Account": stripeAccountId,
+                "Content-Type": "application/x-www-form-urlencoded",
+              },
+              body: priceBody.toString(),
+            });
+            if (!priceRes.ok) {
+              const txt = await priceRes.text();
+              results.push({
+                name: p.name,
+                product_id: prod.id,
+                error: `Price create failed: ${priceRes.status} ${txt.slice(0, 150)}`,
+              });
+              continue;
+            }
+            const price = (await priceRes.json()) as { id: string };
+            results.push({
+              name: p.name,
+              product_id: prod.id,
+              price_id: price.id,
+            });
+          } catch (err) {
+            results.push({
+              name: p.name,
+              error: err instanceof Error ? err.message : "Unknown error",
+            });
+          }
+        }
+        // Zapisz mapowanie do /src/data/stripe-products.json zeby kod strony
+        // mogl odwolac sie do price_id przy checkout.
+        const mappingPath = "/src/data/stripe-products.json";
+        files[mappingPath] = {
+          ...(files[mappingPath] ?? {}),
+          code: JSON.stringify(
+            { account: stripeAccountId, products: results },
+            null,
+            2,
+          ),
+        };
+        void bumpJob(supabase, jobId, `syncStripeProducts: ${results.length}`);
+        return { ok: true, account: stripeAccountId, products: results };
+      },
+    }),
   };
 
   // Anthropic prompt caching: dzielimy system na 3 bloki — statyczny prompt
@@ -762,9 +908,18 @@ export async function POST(req: Request) {
   const staticSystemPrompt =
     buildSystemPrompt(mode, projectTemplate, projectMode, { isWybitny }) +
     `\n\n[PROJECT_CONTEXT] projectId="${projectId}" — uzyj tego ID w URL formularzy kontaktowych: /api/form-submit?projectId=${projectId}\n`;
+  const stripeSuffix = stripeAccountId
+    ? `\n\nSTRIPE CONNECT (acct ${stripeAccountId}) — AKTYWNY dla tego usera.\n` +
+      `Gdy generujesz sklep / katalog produktow:\n` +
+      `1) Stworz /src/data/products.ts (lub odpowiednik) z listą produktów {name, description, price_cents, currency, image_url}.\n` +
+      `2) Na samym koncu generacji wywolaj narzedzie syncStripeProducts({products: [...]}) — utworzy Product+Price w Stripe konta usera z metadata.project_id=${projectId}.\n` +
+      `3) Wynik (mapping price_id) trafi automatycznie do /src/data/stripe-products.json — uzyj go w kodzie checkout (Stripe Checkout Session lub Payment Link).\n` +
+      `4) NIE proponuj uzytkownikowi recznego dodawania produktow w panelu Stripe — sync robi to za niego.\n`
+    : "";
+
   const semiStaticContext = fileListContext + lockedContext + preinstalledContext;
   const dynamicContext =
-    ragContext + customContextSuffix + integrationsSuffix + wybitnaDbSuffix;
+    ragContext + customContextSuffix + integrationsSuffix + wybitnaDbSuffix + stripeSuffix;
 
   const systemMessages: Array<{
     role: "system";

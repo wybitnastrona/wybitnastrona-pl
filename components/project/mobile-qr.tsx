@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { Smartphone, Wifi, X } from "lucide-react";
 
@@ -80,19 +81,25 @@ function QrModal({
     return () => window.removeEventListener("keydown", handleKey);
   }, [onClose]);
 
-  return (
+  // Portal do body — wyrwie modal ze stacking context preview/webcontainera
+  // (inaczej iframe podgladu moze go przykryc) i sprawi ze fixed/inset-0 dziala
+  // wzgledem viewportu, nie wzgledem rodzica z transformem.
+  if (typeof window === "undefined") return null;
+
+  const modalContent = (
     <div
-      className={`fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md transition-opacity duration-200 ${
+      className={`fixed inset-0 z-[10000] overflow-y-auto bg-black/60 backdrop-blur-md transition-opacity duration-200 ${
         mounted ? "opacity-100" : "opacity-0"
       }`}
       onClick={onClose}
       role="presentation"
     >
+      <div className="flex min-h-full items-center justify-center p-4">
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="qr-modal-title"
-        className={`relative w-full max-w-md rounded-3xl border border-beige/15 bg-card p-8 shadow-[0_20px_70px_rgba(0,0,0,0.4)] transition-all duration-200 ${
+        className={`relative my-auto w-full max-w-md rounded-3xl border border-beige/15 bg-card p-8 shadow-[0_20px_70px_rgba(0,0,0,0.4)] transition-all duration-200 ${
           mounted
             ? "translate-y-0 scale-100 opacity-100"
             : "translate-y-2 scale-[0.97] opacity-0"
@@ -158,6 +165,9 @@ function QrModal({
           </div>
         )}
       </div>
+      </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }

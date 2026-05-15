@@ -6,12 +6,24 @@
  * "Aktywne integracje" — AI moze ich uzyc (np. wygenerowac `/src/lib/supabase.ts`).
  */
 
-export type IntegrationProvider = "supabase" | "notion" | "memory" | "stitch";
+export type IntegrationProvider =
+  | "supabase"
+  | "supabase_oauth"
+  | "notion"
+  | "memory"
+  | "stitch"
+  | "stripe";
 
 export type SupabaseConfig = {
   url: string;
   anon_key: string;
   service_role_key?: string;
+};
+
+export type SupabaseOAuthConfig = {
+  access_token: string;
+  refresh_token?: string | null;
+  expires_at?: string | null;
 };
 
 export type NotionConfig = {
@@ -29,11 +41,21 @@ export type StitchConfig = {
   api_key?: string;
 };
 
+export type StripeConfig = {
+  stripe_user_id: string;
+  access_token: string;
+  refresh_token?: string | null;
+  publishable_key?: string | null;
+  livemode?: boolean;
+};
+
 export type IntegrationConfig =
   | { provider: "supabase"; config: SupabaseConfig }
+  | { provider: "supabase_oauth"; config: SupabaseOAuthConfig }
   | { provider: "notion"; config: NotionConfig }
   | { provider: "memory"; config: MemoryConfig }
-  | { provider: "stitch"; config: StitchConfig };
+  | { provider: "stitch"; config: StitchConfig }
+  | { provider: "stripe"; config: StripeConfig };
 
 export type IntegrationRow = {
   user_id: string;
@@ -77,6 +99,13 @@ export const INTEGRATION_PROVIDERS: {
       "Lacznik z dowolnym REST API. (W przygotowaniu — UI gotowe.)",
     ready: false,
   },
+  {
+    id: "stripe",
+    name: "Stripe",
+    description:
+      "Stripe Connect OAuth. AI moze automatycznie tworzyc produkty (z metadata.project_id) w Twoim koncie Stripe, gdy projekt to sklep.",
+    ready: true,
+  },
 ];
 
 /**
@@ -115,6 +144,17 @@ export function buildIntegrationsPromptSection(
       case "stitch":
         lines.push("- Stitch MCP: stub (UI gotowe, integracja runtime w przygotowaniu).");
         break;
+      case "supabase_oauth":
+        // Sluzy tylko do Management API (tworzenie projektow). Nie podaj w prompcie.
+        break;
+      case "stripe": {
+        const acct = (cfg as StripeConfig).stripe_user_id;
+        if (!acct) continue;
+        lines.push(
+          `- Stripe (Connect): konto ${acct} podpięte. Gdy projekt to sklep / ma produkty — wywolaj narzedzie syncStripeProducts z lista produktow {name, description, price_cents, image_url?}. Sync utworzy Product + Price w Stripe z metadata.project_id (porzadek per-strona w panelu Stripe usera).`,
+        );
+        break;
+      }
     }
   }
 

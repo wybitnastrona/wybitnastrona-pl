@@ -73,6 +73,7 @@ export async function createProject(
       mode: resolvedMode,
       custom_system_context: customSystemContext ?? null,
       slug,
+      app_db_enabled: true,
     })
     .select("*")
     .single();

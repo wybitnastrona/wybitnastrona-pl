@@ -9,6 +9,7 @@
 import { useEffect, useState } from "react";
 import {
   Check,
+  CreditCard,
   Database,
   ExternalLink,
   FileText,
@@ -39,9 +40,11 @@ const PROVIDER_ICON: Record<
   (props: { className?: string }) => React.ReactElement
 > = {
   supabase: (p) => <Database {...p} />,
+  supabase_oauth: (p) => <Database {...p} />,
   notion: (p) => <FileText {...p} />,
   memory: (p) => <Plug {...p} />,
   stitch: (p) => <Plug {...p} />,
+  stripe: (p) => <CreditCard {...p} />,
 };
 
 export function IntegrationsPanel({ open, onClose }: Props) {
@@ -50,9 +53,11 @@ export function IntegrationsPanel({ open, onClose }: Props) {
     Record<IntegrationProvider, IntegrationStatus | null>
   >({
     supabase: null,
+    supabase_oauth: null,
     notion: null,
     memory: null,
     stitch: null,
+    stripe: null,
   });
 
   useEffect(() => {
@@ -79,9 +84,11 @@ export function IntegrationsPanel({ open, onClose }: Props) {
       if (cancelled) return;
       const next: Record<IntegrationProvider, IntegrationStatus | null> = {
         supabase: null,
+        supabase_oauth: null,
         notion: null,
         memory: null,
         stitch: null,
+        stripe: null,
       };
       for (const row of rows) if (row) next[row.provider] = row;
       setStatuses(next);
@@ -399,5 +406,29 @@ const FIELDS_PER_PROVIDER: Record<IntegrationProvider, Field[]> = {
   stitch: [
     { key: "endpoint", label: "Endpoint URL (placeholder)", placeholder: "https://…" },
     { key: "api_key", label: "API key (placeholder)", placeholder: "klucz", secret: true },
+  ],
+  supabase_oauth: [
+    // OAuth — pola wypelniane automatycznie po callback. Manualne wpisywanie nie jest
+    // wspierane, ale typ wymaga tablicy.
+    {
+      key: "access_token",
+      label: "Access token (auto)",
+      placeholder: "wypelnione przez OAuth",
+      secret: true,
+    },
+  ],
+  stripe: [
+    // Stripe Connect — wypelniane przez OAuth callback. Manual fallback dla power-userow.
+    {
+      key: "stripe_user_id",
+      label: "Stripe account ID (acct_…) — automat z OAuth",
+      placeholder: "acct_1Nxxxxx",
+    },
+    {
+      key: "access_token",
+      label: "Access token (rk_… lub sk_… przy manualnym wpisie)",
+      placeholder: "rk_live_…",
+      secret: true,
+    },
   ],
 };

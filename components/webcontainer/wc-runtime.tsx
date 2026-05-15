@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { wcManager } from "./wc-manager";
 import type { ProjectFiles } from "@/lib/types/project";
+import { sanitizeProjectPackageJson } from "@/lib/sandpack/merge-preview-files";
 
 type Props = {
   projectId: string;
@@ -62,8 +63,12 @@ export function WCRuntime({
 
     (async () => {
       try {
-        await wcManager.loadProject(projectId, files, runCommand);
-        prevFilesRef.current = files;
+        // Napraw package.json przed mounted do WC — stare projekty moga miec
+        // JSON z trailing commas wygenerowanymi przez AI. npm install pada z
+        // EJSONPARSE bez tej sanitizacji.
+        const safeFiles = sanitizeProjectPackageJson(files);
+        await wcManager.loadProject(projectId, safeFiles, runCommand);
+        prevFilesRef.current = safeFiles;
       } catch (err) {
         console.error("WC load error", err);
         setStatus("error");

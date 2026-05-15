@@ -88,11 +88,17 @@ export function WCRuntime({
     );
     if (changed.length === 0) return;
 
+    // Aktualizuj ref SYNCHRONICZNIE przed petla async — dziala jako "lock"
+    // zapobiegajacy ponownemu wejsciu do efektu gdy React StrictMode lub
+    // szybkie re-rendery wywolaja go ponownie zanim pierwsza petla skonczy
+    // pisac pliki. Bez tego `package.json` (i inne pliki) sa wgrywane
+    // wielokrotnie, co powoduje kaskadowe reloady w Vite.
+    prevFilesRef.current = files;
+
     (async () => {
       for (const [path, f] of changed) {
         await wcManager.writeFile(path, f.code);
       }
-      prevFilesRef.current = files;
     })().catch((err) => console.error("WC hot-reload error", err));
   }, [files]);
 

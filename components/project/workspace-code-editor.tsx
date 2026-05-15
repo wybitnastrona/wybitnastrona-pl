@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import type { editor } from "monaco-editor";
 import type { Monaco } from "@monaco-editor/react";
-import { Check, Copy, Loader2 } from "lucide-react";
+import { Check, Copy, Loader2, Save } from "lucide-react";
 import { WorkspaceFileTree } from "./workspace-file-tree";
 import { wcManager } from "@/components/webcontainer/wc-manager";
 import type { ProjectFiles } from "@/lib/types/project";
@@ -82,6 +82,9 @@ export function WorkspaceCodeEditor({
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [copied, setCopied] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Ref do aktualnej funkcji recznego zapisu — uzywany przez handleEditorDidMount
+  // (useCallback bez deps) zeby Ctrl+S zawsze widzial aktualny `overrides` state.
+  const manualSaveRef = useRef<() => void>(() => {});
 
   // Monaco editor reference (live ref do executeEdits typing-anim).
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
@@ -116,6 +119,11 @@ export function WorkspaceCodeEditor({
     function handleStreamEnd() {
       setStreamingPath(null);
       setStreamingContent("");
+      // Bezpieczne miejsce na wyczyszczenie overrides — w tym momencie
+      // chat-panel.tsx juz wywolal router.refresh(), wiec swiezepropsy
+      // `files` zaraz przyjda z serwera (lub sa juz w locie). Dzieki temu
+      // edytor nie "cofa sie" do stałych propsow sprzed edycji.
+      setOverrides({});
     }
     window.addEventListener("wybitna:partial-write", handlePartialWrite);
     window.addEventListener("wybitna:partial-write-end", handleStreamEnd);
@@ -165,9 +173,10 @@ export function WorkspaceCodeEditor({
     });
   }, []);
 
-  // Mount handler — zapisuje editorRef, podpina onDidScrollChange dla scroll-lock.
+  // Mount handler — zapisuje editorRef, podpina onDidScrollChange dla scroll-lock
+  // i rejestruje skrot Ctrl+S.
   const handleEditorDidMount = useCallback(
-    (instance: editor.IStandaloneCodeEditor) => {
+    (instance: editor.IStandaloneCodeEditor, monacoInstance: Monaco) => {
       editorRef.current = instance;
 
       // Scroll-lock: jezeli uzytkownik scrolluje wyzej niz dol minus 80px,
@@ -179,6 +188,14 @@ export function WorkspaceCodeEditor({
         const maxTop = Math.max(0, height - layout.height);
         userScrolledRef.current = top < maxTop - 80;
       });
+
+      // Ctrl+S (lub Cmd+S na Mac) — reczny zapis bez czekania na debounce.
+      // Uzywa manualSaveRef zamiast bezposrednio handleManualSave, zeby
+      // useCallback nie musialo sie rebindowac przy kazdej zmianie overrides.
+      instance.addCommand(
+        monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.KeyS,
+        () => manualSaveRef.current(),
+      );
     },
     [],
   );
@@ -272,7 +289,12 @@ export function WorkspaceCodeEditor({
       });
       if (!res.ok) throw new Error("save failed");
       setSaveStatus("saved");
-      setOverrides({});
+      // NIE czyscimy tutaj setOverrides({}) — `files` props sa nadal stale
+      // (router.refresh() nie jest wywolywany po recznym zapisie). Gdybysmy
+      // wyczyscili overrides, currentCode cofnelby sie do starego files[path].code
+      // i edycja "zniknelaby" wizualnie (bug: edyty znikaja po zapisie).
+      // Overrides sa czyszczone w handleStreamEnd po zakonczeniu generacji AI
+      // (wtedy router.refresh() juz zaktualizowal propsy).
       setTimeout(() => setSaveStatus("idle"), 1200);
     } catch (err) {
       console.error("Save failed", err);
@@ -288,6 +310,21 @@ export function WorkspaceCodeEditor({
     wcManager.writeFile(activePath, value).catch(() => {});
     scheduleSave(next);
   }
+
+  /**
+   * Reczny zapis — uzywany przez przycisk "Zapisz" i skrot Ctrl+S.
+   * Anuluje oczekujacy debounce i od razu wywoluje persist.
+   */
+  function handleManualSave() {
+    if (readOnly) return;
+    if (Object.keys(overrides).length === 0) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    void persist(overrides);
+  }
+  // Synchronizuj ref z aktualnym handleManualSave przy kazdym renderze.
+  // useCallback w handleEditorDidMount uzywa tego refa zeby Ctrl+S
+  // zawsze widzial swiezy `overrides` i `readOnly` bez re-bindowania komendy.
+  manualSaveRef.current = handleManualSave;
 
   // Wartosc dla edytora — priorytet:
   //  1. streaming (gdy AI aktualnie pisze ten plik) — tresc steruje useEffect
@@ -355,6 +392,19 @@ export function WorkspaceCodeEditor({
                 </>
               )}
             </button>
+            {/* Przycisk "Zapisz" — widoczny gdy sa niezapisane zmiany. */}
+            {!readOnly && !isLocked && Object.keys(overrides).length > 0 && (
+              <button
+                type="button"
+                onClick={handleManualSave}
+                disabled={saveStatus === "saving"}
+                className="inline-flex h-5 items-center gap-1 rounded border border-beige/40 bg-beige/10 px-1.5 text-[10px] uppercase tracking-wider text-beige transition hover:bg-beige/20 disabled:opacity-50"
+                title="Zapisz (Ctrl+S)"
+              >
+                <Save className="h-2.5 w-2.5" />
+                Zapisz
+              </button>
+            )}
             <SaveBadge
               status={saveStatus}
               locked={isLocked}

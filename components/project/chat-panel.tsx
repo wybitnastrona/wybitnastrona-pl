@@ -152,9 +152,12 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     setModel(id);
   }
   const [attachments, setAttachments] = useState<Attachment[]>([]);
-  const [elementAttachment, setElementAttachment] =
-    useState<ElementAttachment | null>(null);
   const [buyCreditsOpen, setBuyCreditsOpen] = useState(false);
+  // Inline element-attachments (Cursor-style): badge'e wstrzykiwane bezpośrednio
+  // do contenteditable. Stan trzymany w DOM; ref do edytora służy do (a) zapisu
+  // pozycji karetki przed wstrzyknięciem (b) odczytu treści przy submit.
+  const editableRef = useRef<HTMLDivElement>(null);
+  const caretRangeRef = useRef<Range | null>(null);
   // Track which plan cards have been acted on (approved/skipped)
   const [consumedPlans, setConsumedPlans] = useState<Set<number>>(new Set());
   // Pending approval: index of the plan part awaiting AI response.
@@ -392,14 +395,146 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     }
   }, [messages]);
 
+  // Wysłanie postMessage do iframe z preview (bezpieczne — działa również gdy
+  // iframe nie istnieje, np. w trybie code-only).
+  function sendIframeMessage(payload: unknown) {
+    const iframe = document.querySelector(
+      "iframe[title='Preview']",
+    ) as HTMLIFrameElement | null;
+    iframe?.contentWindow?.postMessage(payload, "*");
+  }
+
+  // Zapamiętaj pozycję karetki w contenteditable — dzięki temu badge wstrzykiwany
+  // przez attachElement trafi w miejsce, gdzie user ostatnio pisał.
+  function saveCaret() {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    if (editableRef.current?.contains(range.commonAncestorContainer)) {
+      caretRangeRef.current = range.cloneRange();
+    }
+  }
+
+  function syncInputFromEditable() {
+    const el = editableRef.current;
+    if (!el) return;
+    setInput(el.innerText ?? "");
+  }
+
+  function insertElementBadge(info: ElementAttachment) {
+    const el = editableRef.current;
+    if (!el) return;
+    const span = document.createElement("span");
+    span.contentEditable = "false";
+    span.dataset.elementSelector = info.selector ?? "";
+    span.dataset.elementHtml = info.html ?? "";
+    span.dataset.elementTag = info.tagName ?? "";
+    span.className =
+      "inline-flex items-center gap-1 rounded border border-violet-400/30 bg-violet-500/10 px-1.5 py-0.5 text-[11px] text-violet-100 font-mono cursor-default select-none mx-0.5 align-baseline";
+    span.textContent = info.tagName ? `<${info.tagName}>` : "<el>";
+    if (info.selector) span.title = info.selector;
+
+    span.addEventListener("mouseenter", () => {
+      const s = info.selector;
+      if (s)
+        sendIframeMessage({ type: "wybitna:hover-element", selector: s });
+    });
+    span.addEventListener("mouseleave", () => {
+      sendIframeMessage({ type: "wybitna:hover-element-clear" });
+    });
+
+    // Insert at saved caret or append at end.
+    const range = caretRangeRef.current;
+    let insertion: Range;
+    if (range && el.contains(range.commonAncestorContainer)) {
+      range.deleteContents();
+      range.insertNode(span);
+      insertion = range;
+    } else {
+      el.appendChild(span);
+      insertion = document.createRange();
+      insertion.selectNodeContents(el);
+      insertion.collapse(false);
+    }
+    // Trailing space → łatwiej kontynuować pisanie po badge.
+    const trailing = document.createTextNode(" ");
+    insertion.setStartAfter(span);
+    insertion.collapse(true);
+    insertion.insertNode(trailing);
+    insertion.setStartAfter(trailing);
+    insertion.collapse(true);
+
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(insertion);
+    caretRangeRef.current = insertion.cloneRange();
+
+    el.focus();
+    syncInputFromEditable();
+  }
+
+  /**
+   * Walk the editable DOM left→right and build the message text:
+   *  - text/<br> nodes → plain text
+   *  - badge spans     → inline `[Wybrany element <tag> \`selector\`]` + HTML block
+   * Zachowuje chronologiczną kolejność tak jak user napisał.
+   */
+  function composeEditableText(): string {
+    const el = editableRef.current;
+    if (!el) return input;
+    let out = "";
+    el.childNodes.forEach((node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        out += node.textContent ?? "";
+        return;
+      }
+      if (!(node instanceof HTMLElement)) return;
+      if (node.tagName === "BR") {
+        out += "\n";
+        return;
+      }
+      if (node.dataset.elementSelector !== undefined) {
+        const tag = node.dataset.elementTag
+          ? `<${node.dataset.elementTag}>`
+          : "";
+        const selStr = node.dataset.elementSelector
+          ? `\`${node.dataset.elementSelector}\``
+          : "";
+        const html = node.dataset.elementHtml
+          ? `\n\nAktualny HTML:\n\`\`\`html\n${node.dataset.elementHtml}\n\`\`\``
+          : "";
+        out += `[Wybrany element ${tag} ${selStr}]${html}`;
+        return;
+      }
+      out += node.textContent ?? "";
+    });
+    return out;
+  }
+
+  function clearEditable() {
+    if (editableRef.current) editableRef.current.innerHTML = "";
+    caretRangeRef.current = null;
+    setInput("");
+  }
+
   useImperativeHandle(
     ref,
     () => ({
       appendHint: (text: string) => {
-        setInput((prev) => (prev ? `${prev}\n${text}` : text));
+        const el = editableRef.current;
+        if (el) {
+          if (el.innerText.trim()) {
+            el.appendChild(document.createTextNode(`\n${text}`));
+          } else {
+            el.appendChild(document.createTextNode(text));
+          }
+          syncInputFromEditable();
+        } else {
+          setInput((prev) => (prev ? `${prev}\n${text}` : text));
+        }
       },
       attachElement: (info) => {
-        setElementAttachment({
+        insertElementBadge({
           selector: info.selector,
           html: info.html,
           tagName: info.tagName,
@@ -435,28 +570,10 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
   }
 
   function submit() {
-    const trimmed = input.trim();
-    if (!trimmed && attachments.length === 0 && !elementAttachment) return;
-
-    // Cursor-style attachment: kontekst wybranego elementu dolaczamy do
-    // wiadomosci jako prefiks, a chip czyscimy po wyslaniu.
-    let elementPrefix = "";
-    if (elementAttachment) {
-      const tag = elementAttachment.tagName
-        ? `<${elementAttachment.tagName}>`
-        : "";
-      const sel = elementAttachment.selector
-        ? `\`${elementAttachment.selector}\``
-        : "";
-      const html = elementAttachment.html
-        ? `\n\nAktualny HTML:\n\`\`\`html\n${elementAttachment.html}\n\`\`\``
-        : "";
-      const coords =
-        !elementAttachment.selector && elementAttachment.x !== undefined
-          ? ` w okolicy (x:${elementAttachment.x}px, y:${elementAttachment.y ?? 0}px)`
-          : "";
-      elementPrefix = `[Wybrany element ${tag} ${sel}${coords}]${html}\n\n`;
-    }
+    // Composed text łączy plain text z inline-badges (chronologicznie).
+    const composed = composeEditableText();
+    const trimmed = composed.trim();
+    if (!trimmed && attachments.length === 0) return;
 
     // Faza 3.2: image-to-code. Obrazki wysylamy jako oddzielne parts (Claude Vision).
     const imageAttachments = attachments.filter((a) =>
@@ -490,7 +607,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
       > = [
         {
           type: "text",
-          text: `${elementPrefix}${trimmed}${toolText}${attachmentText}`,
+          text: `${trimmed}${toolText}${attachmentText}`,
         },
       ];
       for (const a of imageAttachments) {
@@ -501,12 +618,13 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
       sendMessage({ parts } as unknown as Parameters<typeof sendMessage>[0]);
     } else {
       sendMessage({
-        text: `${elementPrefix}${trimmed}${toolText}${attachmentText}`,
+        text: `${trimmed}${toolText}${attachmentText}`,
       });
     }
-    setInput("");
+    clearEditable();
     setAttachments([]);
-    setElementAttachment(null);
+    // Wyczyść hover overlay w iframe (na wypadek aktywnego pulsu).
+    sendIframeMessage({ type: "wybitna:hover-element-clear" });
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -854,35 +972,6 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
           }}
         />
 
-        {elementAttachment && (
-          <div className="mb-2 flex flex-wrap gap-1.5">
-            <span
-              className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-violet-400/30 bg-violet-500/10 px-2 py-1 text-[11px] text-violet-100"
-              title={elementAttachment.selector ?? "Wybrany element"}
-            >
-              <MousePointer2 className="h-3 w-3 text-violet-300" />
-              <span className="font-mono">
-                {elementAttachment.tagName
-                  ? `<${elementAttachment.tagName}>`
-                  : "element"}
-              </span>
-              {elementAttachment.selector && (
-                <span className="max-w-[180px] truncate font-mono text-[10px] text-violet-200/80">
-                  {elementAttachment.selector}
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={() => setElementAttachment(null)}
-                className="cursor-pointer text-violet-300/80 hover:text-violet-100"
-                aria-label="Odepnij element"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </span>
-          </div>
-        )}
-
         {attachments.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-1.5">
             {attachments.map((att) => {
@@ -926,25 +1015,44 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
         )}
 
         <div className="rounded-xl border border-beige/10 bg-card/30 transition focus-within:border-beige/40">
-          <textarea
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                event.currentTarget.form?.requestSubmit();
-              }
-            }}
-            placeholder={
+          {/* Contenteditable zamiast textarea — pozwala wstrzykiwać inline-badges
+              (wybrane elementy podglądu) bezpośrednio w treść wpisywaną przez usera. */}
+          <div
+            ref={editableRef}
+            contentEditable={!isStreaming}
+            suppressContentEditableWarning
+            role="textbox"
+            aria-multiline="true"
+            aria-label="Treść wiadomości"
+            data-placeholder={
               mode === "plan"
                 ? "Opisz pomysl — asystent przygotuje plan..."
                 : mode === "discuss"
                   ? "Zapytaj o kod, architekturę, sugestie..."
                   : "Co dodać lub zmienić?"
             }
-            rows={1}
-            className="block max-h-32 min-h-[36px] w-full resize-none bg-transparent px-3 pt-2.5 pb-1 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
-            disabled={isStreaming}
+            onInput={syncInputFromEditable}
+            onBlur={saveCaret}
+            onMouseUp={saveCaret}
+            onKeyUp={saveCaret}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                const form = (event.currentTarget as HTMLElement).closest(
+                  "form",
+                ) as HTMLFormElement | null;
+                form?.requestSubmit();
+              }
+            }}
+            onPaste={(event) => {
+              // Strip formatting — wkleja czysty tekst.
+              event.preventDefault();
+              const text = event.clipboardData.getData("text/plain");
+              document.execCommand("insertText", false, text);
+            }}
+            className={`block max-h-32 min-h-[36px] w-full overflow-y-auto bg-transparent px-3 pt-2.5 pb-1 text-sm leading-relaxed text-foreground whitespace-pre-wrap break-words focus:outline-none empty:before:pointer-events-none empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)] ${
+              isStreaming ? "opacity-60" : ""
+            }`}
           />
 
           <div className="flex items-center gap-1 bg-card/30 px-2 pb-2">

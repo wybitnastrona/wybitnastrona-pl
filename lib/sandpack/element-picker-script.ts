@@ -26,12 +26,51 @@ export const ELEMENT_PICKER_SCRIPT = `
     'border:2px dashed rgba(255,255,255,0.92);' +
     'box-shadow:0 0 0 1px rgba(0,0,0,0.88),inset 0 0 0 1px rgba(0,0,0,0.45);' +
     'background:transparent;transition:top 45ms ease-out,left 45ms ease-out,width 45ms ease-out,height 45ms ease-out';
+
+  // OSOBNY overlay dla "hover preview" zalacznika z chatu — wyrazna pulsujaca
+  // ramka biala zeby user wiedzial ze patrzy na zalacznik (a nie tryb wyboru).
+  const previewOverlay = document.createElement('div');
+  previewOverlay.style.cssText =
+    'position:fixed;pointer-events:none;z-index:2147483646;display:none;' +
+    'border:3px solid rgba(255,255,255,0.95);border-radius:4px;' +
+    'box-shadow:0 0 0 2px rgba(0,0,0,0.6),0 0 22px 6px rgba(255,255,255,0.45);' +
+    'background:rgba(255,255,255,0.06);' +
+    'animation:wybitnaPickerPulse 1.4s ease-in-out infinite;' +
+    'transition:top 45ms ease-out,left 45ms ease-out,width 45ms ease-out,height 45ms ease-out';
+
+  // Dolacz keyframes dla pulsu — raz, idempotentnie.
+  const styleEl = document.createElement('style');
+  styleEl.textContent =
+    '@keyframes wybitnaPickerPulse{' +
+    '0%,100%{box-shadow:0 0 0 2px rgba(0,0,0,0.6),0 0 22px 6px rgba(255,255,255,0.45)}' +
+    '50%{box-shadow:0 0 0 2px rgba(0,0,0,0.6),0 0 32px 10px rgba(255,255,255,0.7)}' +
+    '}';
+
   function mountOverlay() {
     if (!document.body) return;
     document.body.appendChild(overlay);
+    document.body.appendChild(previewOverlay);
+    document.head.appendChild(styleEl);
   }
   if (document.body) mountOverlay();
   else document.addEventListener('DOMContentLoaded', mountOverlay);
+
+  function syncPreviewOverlay(el) {
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    previewOverlay.style.display = 'block';
+    previewOverlay.style.top = r.top + 'px';
+    previewOverlay.style.left = r.left + 'px';
+    previewOverlay.style.width = r.width + 'px';
+    previewOverlay.style.height = r.height + 'px';
+  }
+  function setPreviewSelector(sel) {
+    if (sel) previewOverlay.setAttribute('data-selector', sel);
+    else previewOverlay.removeAttribute('data-selector');
+  }
+  function hidePreviewOverlay() {
+    previewOverlay.style.display = 'none';
+  }
 
   function getSelector(el) {
     if (!el || el.nodeType !== 1) return '';
@@ -88,6 +127,17 @@ export const ELEMENT_PICKER_SCRIPT = `
   function onScrollOrResize() {
     if (mode === 'pick' && highlighted) syncOverlayRect(highlighted);
     else if (pickedEl) syncOverlayRect(pickedEl);
+    // Resynchronizuj preview overlay jesli jest widoczny
+    if (previewOverlay.style.display === 'block') {
+      // Pobierz selector z atrybutu zapisanego przy hover (jesli dostepny)
+      var ps = previewOverlay.getAttribute('data-selector');
+      if (ps) {
+        try {
+          var el = document.querySelector(ps);
+          if (el) syncPreviewOverlay(el);
+        } catch (_e) { /* noop */ }
+      }
+    }
   }
 
   function onMove(e) {
@@ -264,6 +314,23 @@ export const ELEMENT_PICKER_SCRIPT = `
       }
     } else if (e.data.type === 'wybitna:set-edit-mode') {
       setMode(e.data.active ? 'edit-text' : 'off');
+    } else if (e.data.type === 'wybitna:hover-element') {
+      // Podswietl element wskazany w zalaczniku chatu (osobny overlay z pulsem).
+      var sel = e.data.selector;
+      if (typeof sel === 'string' && sel.length > 0) {
+        try {
+          var el = document.querySelector(sel);
+          if (el) {
+            setPreviewSelector(sel);
+            syncPreviewOverlay(el);
+          }
+        } catch (_err) {
+          // niepoprawny selektor — ignoruj
+        }
+      }
+    } else if (e.data.type === 'wybitna:hover-element-clear') {
+      setPreviewSelector(null);
+      hidePreviewOverlay();
     }
   });
 })();

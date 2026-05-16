@@ -72,9 +72,11 @@ export const AI_MODELS: AiModelDef[] = [
     label: "Pan Programista (Sonnet 4.6)",
     labelShort: "Pan Programista",
     displayName: "Pan Programista",
+    // Anthropic API id: na razie sonnet-4-5 (najnowszy GA). Aktualizujemy gdy
+    // 4.6 trafi do produkcji.
     anthropicModel: "claude-sonnet-4-5",
     description:
-      "Domyślny — najlepszy stosunek jakości do kosztu. ≈ 60 kr / generacja (1.20 zł).",
+      "Domyślny — najlepszy stosunek jakości do kosztu. Koszt: 60 kr (≈ 1,20 zł) za generację.",
     badge: "powerful",
     // Markup ~8x na koszt API (~0.42 PLN build, ~0.24 PLN edit). Stary pointCost
     // 240 byl ~12x dla 39 PLN plan — obnizone do 60 zeby plan 39 zl mial sens.
@@ -89,7 +91,7 @@ export const AI_MODELS: AiModelDef[] = [
     labelShort: "Szybki",
     anthropicModel: "claude-haiku-4-5",
     description:
-      "Tryb budżetowy — szybki, do drobnych poprawek. ≈ 8 kr / generacja (0.16 zł).",
+      "Budżet — szybkie, drobne poprawki. Koszt: 8 kr (≈ 0,16 zł) za generację.",
     badge: "fast",
     // Haiku jest tanszy ~5x niz Sonnet w API; markup ~8x daje 8 kr.
     pointCost: 8,
@@ -103,7 +105,7 @@ export const AI_MODELS: AiModelDef[] = [
     labelShort: "Opus 4.6",
     anthropicModel: "claude-opus-4-5",
     description:
-      "Zaawansowane projekty, refaktoryzacja architektury, złożona logika. ≈ 150 kr / generacja (3.00 zł). Wymaga PRO.",
+      "Refaktoryzacja architektury, złożona logika biznesowa. Koszt: 150 kr (≈ 3,00 zł) za generację. Wymaga planu PRO.",
     badge: "powerful",
     // Opus 4.6 jest ~2.5x drozszy niz Sonnet; markup ~8x daje 150 kr.
     pointCost: 150,
@@ -114,9 +116,10 @@ export const AI_MODELS: AiModelDef[] = [
     id: "claude-opus-4-7",
     label: "Claude Opus 4.7",
     labelShort: "Opus 4.7",
+    // Najwyzszy tier Opusa — gdy Anthropic wypusci 4-6/4-7 zaktualizujemy ten ID.
     anthropicModel: "claude-opus-4-5",
     description:
-      "Maksymalna jakość. Natywne aplikacje Apple (ARKit, HealthKit, Metal). ≈ 300 kr / generacja (6.00 zł). Wymaga PRO.",
+      "Maksymalna jakość. Natywne aplikacje Apple (ARKit, HealthKit, Metal). Koszt: 300 kr (≈ 6,00 zł) za generację. Wymaga planu PRO.",
     badge: "new",
     // Opus 4.7 ~5x drozszy niz Sonnet; markup ~8x daje 300 kr.
     pointCost: 300,

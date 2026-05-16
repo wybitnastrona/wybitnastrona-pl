@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { UIMessage } from "ai";
 import { ProjectTopbar } from "@/components/project/project-topbar";
 import {
@@ -114,6 +114,17 @@ export function ProjectWorkspace({
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
   }, [chatWidth]);
+
+  // Anuluje tryb wyboru gdy uzytkownik nacisnie Escape lub klik in iframe nie
+  // wybral elementu (workspace-canvas dispatchuje ten event).
+  useEffect(() => {
+    function onCancel() {
+      setSelectMode(false);
+    }
+    window.addEventListener("wybitna:cancel-select-mode", onCancel);
+    return () =>
+      window.removeEventListener("wybitna:cancel-select-mode", onCancel);
+  }, []);
 
   function handleElementPick(info: {
     x: number;

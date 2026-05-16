@@ -1,7 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Edit2, ListTodo, Loader2, Save, SkipForward, X } from "lucide-react";
+import {
+  CheckCircle2,
+  Edit2,
+  ListTodo,
+  Loader2,
+  Play,
+  Save,
+  SkipForward,
+  X,
+} from "lucide-react";
 
 type Props = {
   steps: string[];
@@ -109,9 +118,9 @@ export function PlanCard({ steps, consumed = false, approvalPending = false, onA
             {approvalPending ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
-              <CheckCircle2 className="h-3.5 w-3.5" />
+              <Play className="h-3.5 w-3.5" />
             )}
-            {approvalPending ? "Wysyłanie…" : "Zatwierdź i buduj"}
+            {approvalPending ? "Wysyłanie…" : "Zaimplementuj"}
           </button>
 
           <button

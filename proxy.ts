@@ -72,16 +72,20 @@ function extractPublishSlug(host: string, roots: string[]): string | null {
   return null;
 }
 
-/** Pobiera {slug, id} projektu dla danego sluga — używane przy subdomenach. */
+/**
+ * Pobiera {id, isStaticDeployed} projektu dla danego sluga — używane przy subdomenach.
+ * `isStaticDeployed` decyduje czy odcinamy Sandpack całkowicie (static build istnieje
+ * → 404 dla brakujących plików zamiast fallbacku do bundlera).
+ */
 async function lookupProjectBySlug(
   slug: string,
-): Promise<{ id: string } | null> {
+): Promise<{ id: string; isStaticDeployed: boolean } | null> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) return null;
 
   const endpoint = new URL("/rest/v1/projects", url);
-  endpoint.searchParams.set("select", "id");
+  endpoint.searchParams.set("select", "id,static_deployed_at");
   endpoint.searchParams.set("slug", `eq.${slug}`);
   endpoint.searchParams.set("is_public", "eq.true");
   endpoint.searchParams.set("limit", "1");
@@ -96,23 +100,28 @@ async function lookupProjectBySlug(
       cache: "no-store",
     });
     if (!res.ok) return null;
-    const rows = (await res.json()) as Array<{ id: string }>;
-    return rows[0] ? { id: rows[0].id } : null;
+    const rows = (await res.json()) as Array<{
+      id: string;
+      static_deployed_at: string | null;
+    }>;
+    const row = rows[0];
+    if (!row) return null;
+    return { id: row.id, isStaticDeployed: !!row.static_deployed_at };
   } catch {
     return null;
   }
 }
 
-/** Pobiera {slug, id} dla zweryfikowanej custom domain. */
+/** Pobiera {slug, id, isStaticDeployed} dla zweryfikowanej custom domain. */
 async function lookupByCustomDomain(
   host: string,
-): Promise<{ slug: string; id: string } | null> {
+): Promise<{ slug: string; id: string; isStaticDeployed: boolean } | null> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) return null;
 
   const endpoint = new URL("/rest/v1/projects", url);
-  endpoint.searchParams.set("select", "slug,id");
+  endpoint.searchParams.set("select", "slug,id,static_deployed_at");
   endpoint.searchParams.set("custom_domain", `eq.${host}`);
   endpoint.searchParams.set("custom_domain_verified_at", "not.is.null");
   endpoint.searchParams.set("is_public", "eq.true");
@@ -131,10 +140,15 @@ async function lookupByCustomDomain(
     const rows = (await res.json()) as Array<{
       slug: string | null;
       id: string;
+      static_deployed_at: string | null;
     }>;
     const row = rows[0];
     if (!row?.slug) return null;
-    return { slug: row.slug, id: row.id };
+    return {
+      slug: row.slug,
+      id: row.id,
+      isStaticDeployed: !!row.static_deployed_at,
+    };
   } catch {
     return null;
   }
@@ -167,8 +181,26 @@ function getContentType(path: string): string {
 }
 
 /**
+ * Wyciąga rozszerzenie pliku z pathname. Zwraca pusty string gdy nie ma
+ * kropki w ostatnim segmencie (czyli ścieżka wygląda jak SPA route).
+ */
+function getExt(pathname: string): string {
+  const last = pathname.split("/").pop() ?? "";
+  const dot = last.lastIndexOf(".");
+  if (dot < 0) return "";
+  return last.slice(dot + 1).toLowerCase();
+}
+
+/**
  * Próbuje serwować plik bezpośrednio z publicznego bucketa `deployed-sites`.
- * Zwraca NextResponse z COOP/COEP lub null (fallback do Sandpacka).
+ *
+ * Zachowanie:
+ *  - "/" lub "" → próbuje "index.html".
+ *  - "/assets/foo.js" → "assets/foo.js" (zwraca null gdy 404 — caller decyduje co dalej).
+ *  - "/legal/privacy" (bez rozszerzenia) → SPA fallback do "index.html"
+ *    żeby React Router / Next App Router obsłużył routing po stronie klienta.
+ *
+ * Zwraca NextResponse z COOP/COEP lub null (np. dla brakujących assetów `.js`).
  */
 async function serveFromStorage(
   projectId: string,
@@ -177,32 +209,64 @@ async function serveFromStorage(
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!supabaseUrl) return null;
 
-  // "/" → "index.html", "/assets/foo.js" → "assets/foo.js"
-  const filePath =
-    pathname === "/" || pathname === ""
-      ? "index.html"
-      : pathname.replace(/^\//, "");
+  const isRoot = pathname === "/" || pathname === "";
+  const filePath = isRoot ? "index.html" : pathname.replace(/^\//, "");
+  const ext = getExt(filePath);
+  const looksLikeRoute = !isRoot && ext === "";
 
-  const storageUrl = `${supabaseUrl}/storage/v1/object/public/deployed-sites/${projectId}/${filePath}`;
+  async function fetchFile(p: string): Promise<NextResponse | null> {
+    const storageUrl = `${supabaseUrl}/storage/v1/object/public/deployed-sites/${projectId}/${p}`;
+    try {
+      const res = await fetch(storageUrl, { cache: "no-store" });
+      if (!res.ok) return null;
+      const body = await res.arrayBuffer();
+      return new NextResponse(body, {
+        status: 200,
+        headers: {
+          "Content-Type": getContentType(p),
+          "Cache-Control": "public, max-age=300, stale-while-revalidate=3600",
+          ...SITE_HEADERS,
+        },
+      });
+    } catch {
+      return null;
+    }
+  }
 
-  try {
-    const res = await fetch(storageUrl, { cache: "no-store" });
-    if (!res.ok) return null;
+  // 1. Direct hit
+  const direct = await fetchFile(filePath);
+  if (direct) return direct;
 
-    const body = await res.arrayBuffer();
-    const contentType = getContentType(filePath);
+  // 2. SPA fallback — tylko dla ścieżek wyglądających na route (bez rozszerzenia)
+  if (looksLikeRoute) {
+    const spa = await fetchFile("index.html");
+    if (spa) return spa;
+  }
 
-    return new NextResponse(body, {
-      status: 200,
+  return null;
+}
+
+/**
+ * Czyściutka odpowiedź 404 dla statycznie opublikowanych projektów.
+ * Używana zamiast fallbacku do Sandpacka gdy plik nie istnieje w buckecie
+ * (np. /manifest.json, /apple-icon, /favicon.ico które nie zostały zbudowane).
+ */
+function staticNotFound(): NextResponse {
+  return new NextResponse(
+    `<!doctype html><meta charset="utf-8"><title>404</title>` +
+      `<style>body{font-family:system-ui;background:#0a0a09;color:#e7e3da;` +
+      `display:flex;min-height:100vh;align-items:center;justify-content:center;` +
+      `margin:0;padding:24px;text-align:center}h1{font-size:42px;margin:0 0 8px}` +
+      `p{opacity:.6;margin:4px 0}</style>` +
+      `<div><h1>404</h1><p>Strona nie znaleziona.</p></div>`,
+    {
+      status: 404,
       headers: {
-        "Content-Type": contentType,
-        "Cache-Control": "public, max-age=300, stale-while-revalidate=3600",
+        "Content-Type": "text/html; charset=utf-8",
         ...SITE_HEADERS,
       },
-    });
-  } catch {
-    return null;
-  }
+    },
+  );
 }
 
 /**
@@ -235,44 +299,59 @@ export async function proxy(request: NextRequest) {
   // ── 1. Subdomeny publikacji (slug.wybitny.website) ────────────────────────
   const publishSlug = extractPublishSlug(host, roots);
   if (publishSlug) {
-    // Cookie cache: zapisuje "{slug}|{projectId}" żeby uniknąć DB lookup na każde żądanie.
+    // Cookie cache: zapisuje "{slug}|{projectId}|{static?'1':'0'}" — unika DB lookup
+    // i pozwala middleware'owi wiedzieć od razu czy static build jest dostępny.
     const pidCookie = request.cookies.get("wbn_pid");
     let projectId: string | null = null;
+    let isStaticDeployed = false;
     if (pidCookie?.value) {
-      const [cachedSlug, cachedId] = pidCookie.value.split("|");
-      if (cachedSlug === publishSlug && cachedId) projectId = cachedId;
+      const [cachedSlug, cachedId, cachedStatic] = pidCookie.value.split("|");
+      if (cachedSlug === publishSlug && cachedId) {
+        projectId = cachedId;
+        isStaticDeployed = cachedStatic === "1";
+      }
     }
 
     if (!projectId) {
       const proj = await lookupProjectBySlug(publishSlug);
       projectId = proj?.id ?? null;
+      isStaticDeployed = !!proj?.isStaticDeployed;
+    }
+
+    const cookieValue = projectId
+      ? `${publishSlug}|${projectId}|${isStaticDeployed ? "1" : "0"}`
+      : null;
+    function setPidCookie(res: NextResponse) {
+      if (cookieValue) {
+        res.cookies.set("wbn_pid", cookieValue, {
+          maxAge: ROUTE_COOKIE_MAX_AGE,
+          path: "/",
+          httpOnly: true,
+          sameSite: "lax",
+        });
+      }
     }
 
     // Próba serwowania z Storage (static build dostępny)
     if (projectId) {
-      const staticResponse = await serveFromStorage(
-        projectId,
-        originalPathname,
-      );
+      const staticResponse = await serveFromStorage(projectId, originalPathname);
       if (staticResponse) {
-        staticResponse.cookies.set(
-          "wbn_pid",
-          `${publishSlug}|${projectId}`,
-          { maxAge: ROUTE_COOKIE_MAX_AGE, path: "/", httpOnly: true, sameSite: "lax" },
-        );
+        setPidCookie(staticResponse);
         return staticResponse;
+      }
+      // Static build istnieje, ale plik nie znaleziony → 404 (NIGDY Sandpack).
+      // To eliminuje błędy 'Unsafe attempt to load URL sandpack-bundler' dla
+      // brakujących /manifest.json, /apple-icon, /_rsc itp.
+      if (isStaticDeployed) {
+        const notFound = staticNotFound();
+        setPidCookie(notFound);
+        return notFound;
       }
     }
 
-    // Fallback: Sandpack — zachowaj oryginalny sufiks ścieżki
+    // Brak static build → fallback do Sandpacka (preview deweloperski)
     const sandpackResponse = rewriteToSandpack(url, publishSlug, originalPathname);
-    if (projectId) {
-      sandpackResponse.cookies.set(
-        "wbn_pid",
-        `${publishSlug}|${projectId}`,
-        { maxAge: ROUTE_COOKIE_MAX_AGE, path: "/", httpOnly: true, sameSite: "lax" },
-      );
-    }
+    setPidCookie(sandpackResponse);
     return sandpackResponse;
   }
 
@@ -291,13 +370,15 @@ export async function proxy(request: NextRequest) {
   const cached = request.cookies.get(ROUTE_COOKIE);
   let slug: string | null = null;
   let projectId: string | null = null;
+  let isStaticDeployed = false;
 
   if (cached?.value) {
     const parts = cached.value.split("|");
-    const [cachedHost, cachedSlug, cachedId] = parts;
+    const [cachedHost, cachedSlug, cachedId, cachedStatic] = parts;
     if (cachedHost === host && cachedSlug) {
       slug = cachedSlug;
       projectId = cachedId ?? null;
+      isStaticDeployed = cachedStatic === "1";
     }
   }
 
@@ -305,6 +386,7 @@ export async function proxy(request: NextRequest) {
     const proj = await lookupByCustomDomain(host);
     slug = proj?.slug ?? null;
     projectId = proj?.id ?? null;
+    isStaticDeployed = !!proj?.isStaticDeployed;
   }
 
   if (!slug) {
@@ -326,25 +408,33 @@ export async function proxy(request: NextRequest) {
     return res;
   }
 
+  const cookieValue = `${host}|${slug}|${projectId ?? ""}|${isStaticDeployed ? "1" : "0"}`;
+  function setRouteCookie(res: NextResponse) {
+    res.cookies.set(ROUTE_COOKIE, cookieValue, {
+      maxAge: ROUTE_COOKIE_MAX_AGE,
+      path: "/",
+      httpOnly: true,
+      sameSite: "lax",
+    });
+  }
+
   // Próba serwowania z Storage
   if (projectId) {
     const staticResponse = await serveFromStorage(projectId, originalPathname);
     if (staticResponse) {
-      staticResponse.cookies.set(
-        ROUTE_COOKIE,
-        `${host}|${slug}|${projectId}`,
-        { maxAge: ROUTE_COOKIE_MAX_AGE, path: "/", httpOnly: true, sameSite: "lax" },
-      );
+      setRouteCookie(staticResponse);
       return staticResponse;
+    }
+    // Static build istnieje → 404 zamiast Sandpacka
+    if (isStaticDeployed) {
+      const notFound = staticNotFound();
+      setRouteCookie(notFound);
+      return notFound;
     }
   }
 
-  // Fallback: Sandpack
+  // Brak static build → fallback do Sandpacka
   const response = rewriteToSandpack(url, slug, originalPathname);
-  response.cookies.set(
-    ROUTE_COOKIE,
-    `${host}|${slug}|${projectId ?? ""}`,
-    { maxAge: ROUTE_COOKIE_MAX_AGE, path: "/", httpOnly: true, sameSite: "lax" },
-  );
+  setRouteCookie(response);
   return response;
 }

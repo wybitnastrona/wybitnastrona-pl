@@ -282,21 +282,40 @@ export function WorkspaceCanvas({
   const [wcUrl, setWcUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!selectMode) return;
-    queueMicrotask(() => {
-      setView("preview");
-    });
-    // Aktywuj tryb picker w iframe WC.
-    const id = setTimeout(() => {
-      const iframe = document.querySelector(
+    function getIframe() {
+      return document.querySelector(
         "iframe[title='Preview']",
       ) as HTMLIFrameElement | null;
-      iframe?.contentWindow?.postMessage(
-        { type: "wybitna:set-pick-mode", active: true },
-        "*",
-      );
-    }, 80);
-    return () => clearTimeout(id);
+    }
+
+    if (selectMode) {
+      queueMicrotask(() => setView("preview"));
+      // Aktywuj tryb picker w iframe WC.
+      const id = setTimeout(() => {
+        getIframe()?.contentWindow?.postMessage(
+          { type: "wybitna:set-pick-mode", active: true },
+          "*",
+        );
+      }, 80);
+
+      // Escape anuluje wybor — emit event do parenta (project-workspace).
+      function onEscape(e: KeyboardEvent) {
+        if (e.key === "Escape") {
+          window.dispatchEvent(new CustomEvent("wybitna:cancel-select-mode"));
+        }
+      }
+      window.addEventListener("keydown", onEscape);
+      return () => {
+        clearTimeout(id);
+        window.removeEventListener("keydown", onEscape);
+      };
+    }
+
+    // Tryb wylaczony — wyslij active:false do iframe zeby zdjac crosshair.
+    getIframe()?.contentWindow?.postMessage(
+      { type: "wybitna:set-pick-mode", active: false },
+      "*",
+    );
   }, [selectMode]);
 
   /**

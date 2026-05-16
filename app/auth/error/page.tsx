@@ -12,7 +12,7 @@ function hintForError(msg: string): string | null {
     return "Link potwierdzający wygasł. Wyślij ponownie poniżej.";
   }
   if (lower.includes("already") || lower.includes("uzyt")) {
-    return "Adres e-mail jest już potwierdzony — zaloguj się.";
+    return "Adres e-mail jest już potwierdzony - zaloguj się.";
   }
   if (
     lower.includes("invalid") ||

@@ -106,7 +106,7 @@ function EmptyState() {
         <Sparkles className="h-5 w-5" />
       </div>
       <h2 className="text-xl font-medium tracking-tight">
-        Brak projektów — zacznij budować
+        Brak projektów - zacznij budować
       </h2>
       <p className="max-w-md text-sm text-muted-foreground">
         Wpisz pomysł na stronie głównej, a AI wygeneruje pierwszy projekt w kilka sekund.

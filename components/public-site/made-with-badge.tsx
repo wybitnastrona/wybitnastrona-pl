@@ -1,6 +1,6 @@
 /**
- * Badge "Stworzone na wybitnastrona.pl" — pokazywany na publikowanych
- * stronach uzytkownikow z FREE planem. Znika dla PRO.
+ * Badge "Stwórzone na wybitnastrona.pl" - pokazywany na publikowanych
+ * stronach użytkownikow z FREE planem. Znika dla PRO.
  *
  * Server component (zero JS na publikowanej stronie), zawsze pokazany w
  * prawym dolnym rogu. Klikniecie otwiera homepage w nowej karcie.

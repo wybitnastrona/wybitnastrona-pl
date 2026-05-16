@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Rozwijane menu pod przyciskiem "+" w czacie — wzorowane na Bolt.new.
+ * Rozwijane menu pod przyciskiem "+" w czacie - wzorowane na Bolt.new.
  *
  * Sekcje:
  *  - ZAŁĄCZNIK: zdjęcie / plik
@@ -9,7 +9,7 @@
  *  - URZĄDZENIE: Media, Sensory, Pamięć itd. (Expo-like, po polsku)
  *  - AI: Analiza obrazu, generowanie tekstu, agenci (Sonnet 4.6 / Opus 4.7 / OpenAI)
  *
- * Po kliknięciu pozycji wywołujemy `onPickTool(tool)` w rodzicu — rodzic dorzuca
+ * Po kliknięciu pozycji wywołujemy `onPickTool(tool)` w rodzicu - rodzic dorzuca
  * chip do `attachments`, który widzi AI w prompt jako "Narzędzia do uwzględnienia".
  */
 
@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 type Props = {
-  /** Klasyczny upload — input[type=file] u rodzica. */
+  /** Klasyczny upload - input[type=file] u rodzica. */
   onPickFile: () => void;
   /** Dodanie chipu narzędzia. */
   onPickTool: (tool: AttachmentTool) => void;

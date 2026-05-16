@@ -5,7 +5,7 @@
  *
  * Konfiguracja buildu Android i wysylki do Google Play Console:
  *  - Application ID, version code/name, target SDK
- *  - Keystore upload (.jks) — przechowywane w Supabase Storage 'submissions-keystores'
+ *  - Keystore upload (.jks) - przechowywane w Supabase Storage 'submissions-keystores'
  *  - Play track (internal / alpha / beta / production)
  *  - ABI splits (arm64-v8a / armeabi-v7a / universal)
  *  - ProGuard / minify on/off
@@ -238,7 +238,7 @@ export function AndroidOptionsPanel({
           />
         </div>
         <p className="text-[10px] text-muted-foreground">
-          Plik .jks i hasla zapisujemy w Supabase Vault. Mozesz odebrac dostep w
+          Plik .jks i hasla zapisujemy w Supabase Vault. Możesz odebrac dostep w
           dowolnym momencie z Settings → Integrations.
         </p>
       </section>

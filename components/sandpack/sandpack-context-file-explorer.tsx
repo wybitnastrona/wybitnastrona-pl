@@ -42,7 +42,7 @@ type MenuState =
 
 type DirNode = {
   name: string;
-  /** e.g. "/components" — empty string for synthetic root */
+  /** e.g. "/components" - empty string for synthetic root */
   prefix: string;
   subdirs: Map<string, DirNode>;
   files: { name: string; path: string }[];
@@ -188,7 +188,7 @@ function MenuSep() {
 export type SandpackContextFileExplorerProps = {
   projectId?: string;
   readOnly?: boolean;
-  /** „Wskaż wszystko” — włącza tryb wyboru elementu w podglądzie (jak na screenie: Target all). */
+  /** „Wskaż wszystko” - włącza tryb wyboru elementu w podglądzie (jak na screenie: Target all). */
   onTargetAll?: () => void;
 } & HTMLAttributes<HTMLDivElement>;
 
@@ -397,7 +397,7 @@ export function SandpackContextFileExplorer({
       </div>
     ) : null;
 
-    // Dzieci folderu — pionowa linia po lewej + staly paddingLeft.
+    // Dzieci folderu - pionowa linia po lewej + staly paddingLeft.
     // ml-[13px] wyrownuje linie z ikona Folder w naglowku rodzica (chevron 14px + 0.5 gap).
     const children = (!node.name || isOpen) && (
       <div

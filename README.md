@@ -1,13 +1,13 @@
-# wybitnastrona.pl — AI Website Builder
+# wybitnastrona.pl - AI Website Builder
 
-Kreator stron wybitnastrona.pl — AI Website Builder w paletcie czerni i beżu, z polskim UI. Stack:
+Kreator stron wybitnastrona.pl - AI Website Builder w paletcie czerni i beżu, z polskim UI. Stack:
 
-- **Next.js 16** (App Router, Turbopack, **`proxy.ts`** — rewrite subdomen + nagłówki COOP/COEP)
+- **Next.js 16** (App Router, Turbopack, **`proxy.ts`** - rewrite subdomen + nagłówki COOP/COEP)
 - **Tailwind CSS v4** + **shadcn/ui** + **Lucide**
-- **Supabase** (`@supabase/ssr`) — auth (email/hasło + Google) + persistencja projektów
-- **Anthropic Claude** (Sonnet) — generowanie kodu przez tool calls (`writeFile`, `deleteFile`)
-- **Sandpack** (`@codesandbox/sandpack-react`) — sandbox z live preview w bezpiecznym iframe
-- Subdomeny `<slug>.wybitnastrona.pl` — publish jednym klikiem
+- **Supabase** (`@supabase/ssr`) - auth (email/hasło + Google) + persistencja projektów
+- **Anthropic Claude** (Sonnet) - generowanie kodu przez tool calls (`writeFile`, `deleteFile`)
+- **Sandpack** (`@codesandbox/sandpack-react`) - sandbox z live preview w bezpiecznym iframe
+- Subdomeny `<slug>.wybitnastrona.pl` - publish jednym klikiem
 
 ## Funkcje
 
@@ -43,7 +43,7 @@ npm install
    - Site URL: `http://localhost:3000`
    - Redirect URL: `http://localhost:3000/auth/callback`
 
-5. (Opcjonalnie) Włącz Google OAuth w **Authentication → Providers → Google** — instrukcja: [supabase.com/docs/guides/auth/social-login/auth-google](https://supabase.com/docs/guides/auth/social-login/auth-google).
+5. (Opcjonalnie) Włącz Google OAuth w **Authentication → Providers → Google** - instrukcja: [supabase.com/docs/guides/auth/social-login/auth-google](https://supabase.com/docs/guides/auth/social-login/auth-google).
 
 ### 3. Anthropic API key
 
@@ -67,7 +67,7 @@ npm run dev
 
 [http://localhost:3000](http://localhost:3000).
 
-## Subdomeny — jak to działa
+## Subdomeny - jak to działa
 
 `proxy.ts` w katalogu głównym sprawdza nagłówek `Host`. Jeśli pasuje do wzorca `<slug>.<NEXT_PUBLIC_ROOT_DOMAIN>` lub domena własna z tabeli `projects`, robi `NextResponse.rewrite` do `/sites/<slug>`. W przeciwnym wypadku odświeża sesję Supabase.
 

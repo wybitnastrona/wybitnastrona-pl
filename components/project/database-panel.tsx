@@ -10,6 +10,7 @@ import {
   ExternalLink,
   Eye,
   EyeOff,
+  Inbox,
   Loader2,
   Plug,
   Plus,
@@ -20,6 +21,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FormSubmissionsPanel } from "@/components/project/form-submissions-panel";
 import type { Project } from "@/lib/types/project";
 
 type Props = {
@@ -34,8 +36,18 @@ export function DatabasePanel({ project }: Props) {
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showSubmissions, setShowSubmissions] = useState(false);
 
   const isConfigured = Boolean(project.database_url);
+
+  if (showSubmissions) {
+    return (
+      <FormSubmissionsPanel
+        project={project}
+        onBack={() => setShowSubmissions(false)}
+      />
+    );
+  }
 
   async function handleSave() {
     setError(null);
@@ -90,12 +102,37 @@ export function DatabasePanel({ project }: Props) {
               Baza danych projektu
             </h2>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              Podepnij wlasny projekt Supabase do tej wygenerowanej strony.
-              Asystent AI bedzie wiedzial o jego istnieniu i bedzie generowac
-              kod uzywajacy tych poswiadczen.
+              Podepnij własny projekt Supabase do tej wygenerowanej strony.
+              Asystent AI będzie wiedział o jego istnieniu i będzie generować
+              kod używający tych poświadczeń.
             </p>
           </div>
         </header>
+
+        <section className="flex items-center justify-between gap-3 rounded-xl border border-beige/15 bg-card/40 p-5">
+          <div className="flex items-start gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-beige/20 bg-beige/10 text-beige">
+              <Inbox className="h-4 w-4" />
+            </span>
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                Formularze i administratorzy
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Przeglądaj zgłoszenia z formularzy kontaktowych, eksportuj
+                do CSV i twórz konta admina dla panelu strony.
+              </p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => setShowSubmissions(true)}
+            className="shrink-0 bg-beige text-beige-foreground hover:bg-beige/90"
+          >
+            Zarządzaj formularzami
+          </Button>
+        </section>
 
         <WybitnaBazaDanychSection project={project} />
 
@@ -152,7 +189,7 @@ export function DatabasePanel({ project }: Props) {
                   size="icon-sm"
                   variant="outline"
                   onClick={() => setShowKey((value) => !value)}
-                  aria-label={showKey ? "Ukryj klucz" : "Pokaz klucz"}
+                  aria-label={showKey ? "Ukryj klucz" : "Pokaż klucz"}
                 >
                   {showKey ? (
                     <EyeOff className="h-3.5 w-3.5" />
@@ -183,7 +220,7 @@ export function DatabasePanel({ project }: Props) {
                 disabled={saving}
                 className="text-red-300 hover:bg-red-500/10"
               >
-                Odlacz
+                Odłącz
               </Button>
             )}
             <Button
@@ -198,7 +235,7 @@ export function DatabasePanel({ project }: Props) {
               ) : (
                 <Save className="h-3.5 w-3.5" />
               )}
-              Zapisz konfiguracje
+              Zapisz konfigurację
             </Button>
           </div>
         </section>
@@ -228,7 +265,7 @@ function Field({
 
 
 /**
- * Wybitna Baza Danych — shared Supabase instance, per-project opt-in.
+ * Wybitna Baza Danych - shared Supabase instance, per-project opt-in.
  *
  * One Supabase project hosts tables for ALL generated apps. Each app is
  * isolated by a `project_id` column + RLS policies that read the
@@ -287,10 +324,10 @@ function WybitnaBazaDanychSection({ project }: { project: Project }) {
               Wybitna Baza Danych
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Wspólna baza PostgreSQL dla wszystkich projektów — tabele{" "}
+              Wspólna baza PostgreSQL dla wszystkich projektów - tabele{" "}
               <code>categories</code>, <code>products</code>, <code>cart_items</code>.
               Twoje dane są odizolowane przez kolumnę <code>project_id</code> i
-              polityki RLS — żaden inny projekt nie widzi Twoich rekordów.
+              polityki RLS - żaden inny projekt nie widzi Twoich rekordów.
             </p>
           </div>
         </div>
@@ -361,14 +398,14 @@ function WybitnaBazaDanychSection({ project }: { project: Project }) {
 }
 
 /**
- * "Połącz z własnym Supabase" — Personal Access Token (PAT) flow.
+ * "Połącz z własnym Supabase" - Personal Access Token (PAT) flow.
  *
  * 1. Użytkownik generuje PAT na supabase.com/dashboard/account/tokens
- * 2. Wkleja token w pole — kliknięcie "Pobierz projekty" odpytuje Management API
+ * 2. Wkleja token w pole - kliknięcie "Pobierz projekty" odpytuje Management API
  * 3. Modal pokazuje listę projektów użytkownika → wybiera → backend pobiera anon key
  *    → zapisuje database_url + database_anon_key w projects row
  *
- * PAT NIE jest persystowany — używany jednorazowo w trakcie flow.
+ * PAT NIE jest persystowany - używany jednorazowo w trakcie flow.
  */
 function SupabaseOAuthConnectSection({ project }: { project: Project }) {
   const router = useRouter();
@@ -377,7 +414,7 @@ function SupabaseOAuthConnectSection({ project }: { project: Project }) {
   const [fetching, setFetching] = useState(false);
   const [patError, setPatError] = useState<string | null>(null);
 
-  // Dane pobrane PAT-em — przekazywane do modala
+  // Dane pobrane PAT-em - przekażywane do modala
   const [fetchedData, setFetchedData] = useState<{
     projects: SupabaseProjectRow[];
     organizations: SupabaseOrgRow[];
@@ -446,7 +483,7 @@ function SupabaseOAuthConnectSection({ project }: { project: Project }) {
             >
               supabase.com/dashboard/account/tokens
             </a>
-            {" "}— wybierzesz projekt z listy. Token nie jest zapisywany.
+            {" "}- wybierzesz projekt z listy. Token nie jest zapisywany.
           </p>
 
           <div className="mt-3 flex items-center gap-2">
@@ -635,7 +672,7 @@ function SupabaseProjectPickerModal({
                 </p>
                 {projects.length === 0 ? (
                   <p className="text-xs text-muted-foreground">
-                    Brak projektów — utwórz nowy poniżej.
+                    Brak projektów - utwórz nowy poniżej.
                   </p>
                 ) : (
                   <ul className="max-h-48 space-y-1.5 overflow-y-auto">
@@ -712,7 +749,7 @@ function SupabaseProjectPickerModal({
 }
 
 /**
- * "Generuj SQL dla projektu" — AI analizuje kod aplikacji i proponuje SQL
+ * "Generuj SQL dla projektu" - AI analizuje kod aplikacji i proponuje SQL
  * (CREATE TABLE + RLS + indeksy) dopasowany do tej konkretnej apki.
  *
  * Zastępuje statyczną listę "Co założyć w Supabase" + sekcję "Wkrótce: kreator".

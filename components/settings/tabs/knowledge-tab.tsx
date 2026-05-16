@@ -30,7 +30,7 @@ export function KnowledgeTab() {
   }
 
   useEffect(() => {
-    // loading zainicjowany jako true — nie trzeba go ustawiać synchronicznie
+    // loading zainicjowany jako true - nie trzeba go ustawiać synchronicznie
     void load();
   }, []);
 
@@ -117,7 +117,7 @@ export function KnowledgeTab() {
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          placeholder="Treść — dłuższe dokumenty są dzielone na chunki po 1000 znaków."
+          placeholder="Treść - dłuższe dokumenty są dzielone na chunki po 1000 znaków."
           rows={6}
           className="w-full resize-y rounded-md border border-beige/15 bg-background/60 px-3 py-2 text-sm focus:border-beige/40 focus:outline-none"
         />

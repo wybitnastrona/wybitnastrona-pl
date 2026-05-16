@@ -1,9 +1,9 @@
 "use client";
 
 /**
- * BuyCreditsDialog — DEPRECATED. Topupy one-time zostaly usuniete (Bolt-style
+ * BuyCreditsDialog - DEPRECATED. Topupy one-time zostaly usuniete (Bolt-style
  * pricing: tylko subskrypcja PRO ze sliderem). Komponent zostal zachowany jako
- * cienki shim — pokazuje krotki komunikat i prowadzi do /pricing.
+ * cienki shim - pokazuje krotki komunikat i prowadzi do /pricing.
  */
 
 import { useEffect } from "react";
@@ -43,7 +43,7 @@ export function BuyCreditsDialog({ open, onClose }: Props) {
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
               Nie sprzedajemy już doładowań jednorazowych. Wybierz pakiet PRO ze
-              suwakiem — od 500 do 96 000 kredytów miesięcznie. Pełna lista
+              suwakiem - od 500 do 96 000 kredytów miesięcznie. Pełna lista
               modeli (Pan Programista, Opus 4.6, Opus 4.7), własna subdomena i
               integracje czekają na Ciebie.
             </p>

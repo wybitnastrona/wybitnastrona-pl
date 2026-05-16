@@ -121,7 +121,7 @@ function PixelFrame({
       <div className="relative">
         <GlowRing isGenerating={isGenerating} radius="rounded-[46px]" />
         <div className="relative rounded-[42px] border-[8px] border-neutral-800 bg-black shadow-2xl shadow-black/60">
-          {/* Punch-hole kamerka — Pixel-style, centered */}
+          {/* Punch-hole kamerka - Pixel-style, centered */}
           <div className="absolute left-1/2 top-3 z-20 h-3 w-3 -translate-x-1/2 rounded-full bg-neutral-900 ring-1 ring-neutral-700" />
           <div className="relative h-[760px] w-[360px] overflow-hidden rounded-[34px] bg-white">
             {children}
@@ -157,7 +157,7 @@ function WatchFrame({
   );
 }
 
-// ─── Apple TV — simulated CTV display ─────────────────────────────────────────
+// ─── Apple TV - simulated CTV display ─────────────────────────────────────────
 
 function TvFrame({
   isGenerating,

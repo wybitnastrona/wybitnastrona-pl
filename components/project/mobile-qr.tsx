@@ -46,7 +46,7 @@ export function MobileQrButton({ previewUrl, isExpo }: Props) {
 }
 
 /**
- * Modal-content — wydzielony do osobnego komponentu zeby `mounted` resetowal sie
+ * Modal-content - wydzielony do osóbnego komponentu zeby `mounted` resetowal sie
  * przy kazdym otwarciu (komponent unmount-uje sie po zamknieciu, wiec animacja
  * wejscia odtwarza sie poprawnie).
  */
@@ -65,7 +65,7 @@ function QrModal({
       ? window.matchMedia("(max-width: 640px)").matches
       : false,
   );
-  // Lokalny URL (WebContainer localhost) — wymaga tej samej sieci Wi-Fi.
+  // Lokalny URL (WebContainer localhost) - wymaga tej samej sieci Wi-Fi.
   // Opublikowane subdomeny (*.wybitny.website, custom domain) nie wymagają.
   const isLocalUrl =
     qrUrl.includes("localhost") ||
@@ -87,8 +87,8 @@ function QrModal({
     return () => window.removeEventListener("keydown", handleKey);
   }, [onClose]);
 
-  // Portal do body — wyrwie modal ze stacking context preview/webcontainera
-  // (inaczej iframe podgladu moze go przykryc) i sprawi ze fixed/inset-0 dziala
+  // Portal do body - wyrwie modal ze stacking context preview/webcontainera
+  // (inaczej iframe podgladu może go przykryc) i sprawi ze fixed/inset-0 dziala
   // wzgledem viewportu, nie wzgledem rodzica z transformem.
   if (typeof window === "undefined") return null;
 
@@ -136,8 +136,8 @@ function QrModal({
             {isExpo
               ? "Zeskanuj kod aplikacją Expo Go (iOS/Android), aby zobaczyć podgląd projektu na żywo."
               : isLocalUrl
-                ? "Zeskanuj kod aparatem — telefon musi być na tej samej sieci Wi-Fi co komputer."
-                : "Zeskanuj kod aparatem — strona otworzy się w przeglądarce mobilnej."}
+                ? "Zeskanuj kod aparatem - telefon musi być na tej samej sieci Wi-Fi co komputer."
+                : "Zeskanuj kod aparatem - strona otworzy się w przeglądarce mobilnej."}
           </p>
         </div>
 
@@ -169,7 +169,7 @@ function QrModal({
                 Zainstaluj <span className="font-mono text-beige">Expo Go</span>{" "}
                 z App Store / Google Play.
               </li>
-              <li>Otworz Expo Go i wybierz &ldquo;Scan QR code&rdquo;.</li>
+              <li>Otwórz Expo Go i wybierz &ldquo;Scan QR code&rdquo;.</li>
               <li>
                 Lub wpisz URL recznie w polu &ldquo;Enter URL manually&rdquo;.
               </li>

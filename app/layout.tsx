@@ -23,13 +23,13 @@ const APP_URL =
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
   title: {
-    default: "wybitnastrona.pl — AI Website Builder",
+    default: "wybitnastrona.pl - AI Website Builder",
     template: "%s | wybitnastrona.pl",
   },
   description:
     "Opisz pomysł, a AI zbuduje wybitną stronę w kilka sekund. Generator stron napędzany sztuczną inteligencją.",
   openGraph: {
-    title: "wybitnastrona.pl — AI Website Builder",
+    title: "wybitnastrona.pl - AI Website Builder",
     description:
       "Opisz pomysł, a AI zbuduje wybitną stronę w kilka sekund.",
     type: "website",
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "wybitnastrona.pl — AI Website Builder",
+    title: "wybitnastrona.pl - AI Website Builder",
     description:
       "Opisz pomysł, a AI zbuduje wybitną stronę w kilka sekund.",
   },

@@ -28,8 +28,8 @@ export default async function SitePage({ params }: { params: Params }) {
     notFound();
   }
 
-  // Badge widoczny tylko dla FREE planu — PRO platnosci go zdejmuja.
-  // Sprawdzane po wlascicielu projektu (`user_id`), nie po sesji
+  // Badge widoczny tylko dla FREE planu - PRO płatności go zdejmuja.
+  // Sprawdzane po właścicielu projektu (`user_id`), nie po sesji
   // przegladajacego, bo to jego "marka".
   const ownerIsPro = await isProjectOwnerPro(project.user_id);
 

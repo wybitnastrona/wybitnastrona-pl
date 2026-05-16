@@ -5,7 +5,7 @@ import { PricingClient } from "@/components/pricing/pricing-client";
 export const metadata = {
   title: "Cennik - wybitnastrona.pl",
   description:
-    "FREE i PRO — jedna subskrypcja, suwakiem dobierzesz idealną ilość kredytów. Bez ukrytych kosztów, ceny brutto.",
+    "FREE i PRO - jedna subskrypcja, suwakiem dobierzesz idealną ilość kredytów. Bez ukrytych kosztów, ceny brutto.",
 };
 
 export default function PricingPage() {
@@ -23,7 +23,7 @@ export default function PricingPage() {
             </h1>
             <p className="mx-auto mt-4 max-w-2xl text-balance text-muted-foreground">
               Jeden plan PRO. Suwakiem dobierzesz idealną ilość kredytów na
-              miesiąc — od 500 po 96&nbsp;000 kr/mc.
+              miesiąc - od 500 po 96&nbsp;000 kr/mc.
             </p>
           </div>
 
@@ -34,9 +34,9 @@ export default function PricingPage() {
             <p className="mt-2 text-sm text-muted-foreground">
               Każda generacja AI kosztuje od{" "}
               <strong className="text-foreground">30 kredytów</strong> (Haiku 4.5
-              — szybki) do <strong className="text-foreground">1200 kredytów</strong>{" "}
-              (Opus 4.7 — najwyższa jakość). Kredyty z subskrypcji odświeżają
-              się co miesiąc. Bez doładowań jednorazowych — większe pakiety w
+              - szybki) do <strong className="text-foreground">1200 kredytów</strong>{" "}
+              (Opus 4.7 - najwyższa jakość). Kredyty z subskrypcji odświeżają
+              się co miesiąc. Bez doładowań jednorazowych - większe pakiety w
               suwaku.
             </p>
           </div>

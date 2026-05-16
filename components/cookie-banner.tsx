@@ -61,7 +61,7 @@ export function CookieBanner() {
           </span>
         </div>
         <p className="flex-1 text-sm text-foreground/90">
-          Uzywamy ciasteczek niezbednych do dzialania uslugi i opcjonalnych do
+          Uzywamy ciasteczek niezbednych do dzialania usługi i opcjonalnych do
           analityki. Wiecej w{" "}
           <Link
             href="/legal/privacy"

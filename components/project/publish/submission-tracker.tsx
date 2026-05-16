@@ -4,7 +4,7 @@
  * Submission Tracker.
  *
  * Real-time podglad statusu submission (TestFlight / Play). Polling co 3s +
- * Supabase Realtime subscribe na `project_submissions` aby UI sie odswiezalo
+ * Supabase Realtime subscribe na `project_submissions` aby UI sie odświeżalo
  * gdy webhook Codemagic/EAS zaktualizuje rekord.
  */
 
@@ -87,7 +87,7 @@ export function SubmissionTracker({ submissionId }: Props) {
       )
       .subscribe();
 
-    // Backup polling — co 5s gdy webhook sie spozni
+    // Backup polling - co 5s gdy webhook sie spozni
     const interval = setInterval(fetchOnce, 5000);
 
     return () => {
@@ -183,7 +183,7 @@ export function SubmissionTracker({ submissionId }: Props) {
               rel="noopener"
               className="text-beige hover:underline"
             >
-              Otworz w TestFlight
+              Otwórz w TestFlight
             </a>
           )}
           {submission.app_store_url && (
@@ -193,7 +193,7 @@ export function SubmissionTracker({ submissionId }: Props) {
               rel="noopener"
               className="text-beige hover:underline"
             >
-              Otworz w App Store
+              Otwórz w App Store
             </a>
           )}
         </div>

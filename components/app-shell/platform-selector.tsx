@@ -3,8 +3,8 @@
 /**
  * Rork-style platform selector.
  *
- * Pill w toolbarze pod textarea — pokazuje aktualnie wybrana platforme
- * i otwiera dropdown z dostepnymi platformami zgodnie z tierem uzytkownika.
+ * Pill w toolbarze pod textarea - pokazuje aktualnie wybrana platforme
+ * i otwiera dropdown z dostepnymi platformami zgodnie z tierem użytkownika.
  *
  * Free -> Web
  * Pro  -> wszystko (Web + Android + iOS + Watch + TV + Vision Pro)
@@ -31,7 +31,7 @@ import { tierAllows, type UserTier } from "@/lib/ai-models";
 type Props = {
   value: ProjectMode;
   onChange: (mode: ProjectMode) => void;
-  /** Tier zalogowanego uzytkownika — sluzy do gatingu platform Apple Pro+. */
+  /** Tier zalogowanego użytkownika - sluzy do gatingu platform Apple Pro+. */
   userTier?: UserTier;
 };
 
@@ -46,7 +46,7 @@ const ICON_FOR_KEY: Record<
   globe: ({ className }) => <Globe className={className} />,
   watch: ({ className }) => <Watch className={className} />,
   tv: ({ className }) => <Tv className={className} />,
-  // Lucide nie ma Vision Pro icon — uzywamy stylizowanego Apple (Vision Pro to Apple).
+  // Lucide nie ma Vision Pro icon - uzywamy stylizowanego Apple (Vision Pro to Apple).
   vision: ({ className }) => <AppleIcon className={className} />,
 };
 
@@ -78,7 +78,7 @@ export function PlatformSelector({ value, onChange, userTier = "free" }: Props) 
 
         <DropdownMenuGroup>
           <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-beige">
-            PRO — Pełne Apple
+            PRO - Pełne Apple
           </DropdownMenuLabel>
           {PROJECT_MODES.filter((m) =>
             ["watchos", "tvos", "visionos"].includes(m.id),

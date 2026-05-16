@@ -69,20 +69,20 @@ export function WorkspaceCodeEditor({
   // potrzebna (brak setState w effect → spelnia react-hooks/set-state-in-effect).
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   /**
-   * `streamingPath` — sciezka pliku ktory AI aktualnie streamuje. Jezeli ustawione,
+   * `streamingPath` - sciezka pliku ktory AI aktualnie streamuje. Jezeli ustawione,
    * edytor automatycznie pokazuje ten plik. Czyszczone po zakonczeniu streamu
    * (przez wybitna:partial-write-end).
    */
   const [streamingPath, setStreamingPath] = useState<string | null>(null);
   /**
-   * `streamingContent` — najnowsza tresc streamowanego pliku.
+   * `streamingContent` - najnowsza tresc streamowanego pliku.
    * Pokazujemy ja w Monako podczas streamingu bez triggera onChange (bez zapisu).
    */
   const [streamingContent, setStreamingContent] = useState<string>("");
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [copied, setCopied] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Ref do aktualnej funkcji recznego zapisu — uzywany przez handleEditorDidMount
+  // Ref do aktualnej funkcji recznego zapisu - uzywany przez handleEditorDidMount
   // (useCallback bez deps) zeby Ctrl+S zawsze widzial aktualny `overrides` state.
   const manualSaveRef = useRef<() => void>(() => {});
 
@@ -90,14 +90,14 @@ export function WorkspaceCodeEditor({
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   // Tresc pliku w ostatnim renderze streamu (do append-detection).
   const prevStreamContentRef = useRef<string>("");
-  // Sciezka pliku ktora byla streamowana ostatnio — reset typing-anim na zmianie pliku.
+  // Sciezka pliku ktora byla streamowana ostatnio - reset typing-anim na zmianie pliku.
   const prevStreamPathRef = useRef<string | null>(null);
-  // Czy uzytkownik recznie odscrollowal w gore (scroll-lock).
+  // Czy użytkownik recznie odscrollowal w gore (scroll-lock).
   const userScrolledRef = useRef(false);
 
   // Priorytet ścieżek: streamingPath (live) > selectedPath > pickInitialPath(files).
   // Jezeli wybrany plik znika z props (AI nadpisuje), pokazujemy automatycznie
-  // pierwszy widoczny — derived, bez setState w useEffect.
+  // pierwszy widoczny - derived, bez setState w useEffect.
   const activePath =
     streamingPath ??
     (selectedPath && files[selectedPath]
@@ -106,7 +106,7 @@ export function WorkspaceCodeEditor({
 
   // Nasluch live stream z chat-panel: AI pisze plik → ten event przychodzi z
   // kazda kolejna delta tresci. Edytor pokazuje plik na zywo + auto-przelacza
-  // sie na niego, zeby uzytkownik widzial co AI buduje (UX Bolt/Cursor).
+  // sie na niego, zeby użytkownik widzial co AI buduje (UX Bolt/Cursor).
   useEffect(() => {
     function handlePartialWrite(e: Event) {
       const { path, content } = (
@@ -119,7 +119,7 @@ export function WorkspaceCodeEditor({
     function handleStreamEnd() {
       setStreamingPath(null);
       setStreamingContent("");
-      // Bezpieczne miejsce na wyczyszczenie overrides — w tym momencie
+      // Bezpieczne miejsce na wyczyszczenie overrides - w tym momencie
       // chat-panel.tsx juz wywolal router.refresh(), wiec swiezepropsy
       // `files` zaraz przyjda z serwera (lub sa juz w locie). Dzieki temu
       // edytor nie "cofa sie" do stałych propsow sprzed edycji.
@@ -136,7 +136,7 @@ export function WorkspaceCodeEditor({
   const lockedSet = useMemo(() => new Set(lockedPaths), [lockedPaths]);
   const isLocked = activePath ? lockedSet.has(activePath) : false;
 
-  // Emituj zmiane aktywnego pliku do globalnego eventu — WcStatusBar i ew. inne
+  // Emituj zmiane aktywnego pliku do globalnego eventu - WcStatusBar i ew. inne
   // komponenty (np. wskaznik kursora) moga sluchac bez prop drillingu.
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -145,10 +145,10 @@ export function WorkspaceCodeEditor({
     );
   }, [activePath]);
 
-  // Konfiguracja TypeScript w Monaco — wylaczamy "czerwone falki" dla
+  // Konfiguracja TypeScript w Monaco - wylaczamy "czerwone falki" dla
   // sekcji ktorych Monaco nie potrafi rozwiazac (typy reactowe, lucide-react,
   // framer-motion itd.) bo te paczki sa preinstalowane w WebContainerze, a
-  // nie w przegladarce. Syntax validation zostaje wlaczony — to wykryje
+  // nie w przegladarce. Syntax validation zostaje wlaczony - to wykryje
   // realne bledy gramatyczne (brak nawiasu, missing semicolon).
   const handleEditorWillMount = useCallback((monaco: Monaco) => {
     monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
@@ -173,13 +173,13 @@ export function WorkspaceCodeEditor({
     });
   }, []);
 
-  // Mount handler — zapisuje editorRef, podpina onDidScrollChange dla scroll-lock
+  // Mount handler - zapisuje editorRef, podpina onDidScrollChange dla scroll-lock
   // i rejestruje skrot Ctrl+S.
   const handleEditorDidMount = useCallback(
     (instance: editor.IStandaloneCodeEditor, monacoInstance: Monaco) => {
       editorRef.current = instance;
 
-      // Scroll-lock: jezeli uzytkownik scrolluje wyzej niz dol minus 80px,
+      // Scroll-lock: jezeli użytkownik scrolluje wyzej niz dol minus 80px,
       // wylaczamy auto-scroll przy nowych chunkach.
       instance.onDidScrollChange(() => {
         const top = instance.getScrollTop();
@@ -189,7 +189,7 @@ export function WorkspaceCodeEditor({
         userScrolledRef.current = top < maxTop - 80;
       });
 
-      // Ctrl+S (lub Cmd+S na Mac) — reczny zapis bez czekania na debounce.
+      // Ctrl+S (lub Cmd+S na Mac) - reczny zapis bez czekania na debounce.
       // Uzywa manualSaveRef zamiast bezposrednio handleManualSave, zeby
       // useCallback nie musialo sie rebindowac przy kazdej zmianie overrides.
       instance.addCommand(
@@ -201,7 +201,7 @@ export function WorkspaceCodeEditor({
   );
 
   // Typing-animation: gdy AI streamuje plik, zamiast `value={streamingContent}`
-  // (ktore powoduje full re-render Monaco — caly model.setValue), korzystamy
+  // (ktore powoduje full re-render Monaco - caly model.setValue), korzystamy
   // z editor.executeEdits z append delta. Daje to klasyczny efekt pisania
   // "litera po literze" znany z Bolt/Cursor. Reset prevContentRef kiedy:
   // - zmienia sie streamingPath (nowy plik),
@@ -289,7 +289,7 @@ export function WorkspaceCodeEditor({
       });
       if (!res.ok) throw new Error("save failed");
       setSaveStatus("saved");
-      // NIE czyscimy tutaj setOverrides({}) — `files` props sa nadal stale
+      // NIE czyscimy tutaj setOverrides({}) - `files` props sa nadal stale
       // (router.refresh() nie jest wywolywany po recznym zapisie). Gdybysmy
       // wyczyscili overrides, currentCode cofnelby sie do starego files[path].code
       // i edycja "zniknelaby" wizualnie (bug: edyty znikaja po zapisie).
@@ -312,7 +312,7 @@ export function WorkspaceCodeEditor({
   }
 
   /**
-   * Reczny zapis — uzywany przez przycisk "Zapisz" i skrot Ctrl+S.
+   * Reczny zapis - uzywany przez przycisk "Zapisz" i skrot Ctrl+S.
    * Anuluje oczekujacy debounce i od razu wywoluje persist.
    */
   function handleManualSave() {
@@ -326,11 +326,11 @@ export function WorkspaceCodeEditor({
   // zawsze widzial swiezy `overrides` i `readOnly` bez re-bindowania komendy.
   manualSaveRef.current = handleManualSave;
 
-  // Wartosc dla edytora — priorytet:
-  //  1. streaming (gdy AI aktualnie pisze ten plik) — tresc steruje useEffect
+  // Wartosc dla edytora - priorytet:
+  //  1. streaming (gdy AI aktualnie pisze ten plik) - tresc steruje useEffect
   //     przez executeEdits, prop `value` zostaje ustawiony tylko na pierwszy
-  //     chunk; pozniejsze zmiany pomijaja React (zeby uniknac full re-render).
-  //  2. overrides (lokalne edycje uzytkownika),
+  //     chunk; późniejsze zmiany pomijaja React (zeby uniknac full re-render).
+  //  2. overrides (lokalne edycje użytkownika),
   //  3. files (zapisane w bazie).
   const isStreamingActive = streamingPath !== null && streamingPath === activePath;
   const currentCode =
@@ -364,7 +364,7 @@ export function WorkspaceCodeEditor({
       <div className="relative flex min-w-0 flex-1 flex-col">
         <div className="flex h-8 shrink-0 items-center justify-between border-b border-beige/10 px-3 text-[11px] text-muted-foreground">
           <span className="truncate font-mono">
-            {activePath ?? "—"}
+            {activePath ?? "-"}
             {isStreamingActive && (
               <span className="ml-2 inline-flex items-center gap-1 rounded-full border border-amber-200/30 bg-amber-950/30 px-1.5 py-px text-[9px] uppercase tracking-wider text-amber-200">
                 <span className="inline-block h-1 w-1 animate-pulse rounded-full bg-amber-200" />
@@ -392,7 +392,7 @@ export function WorkspaceCodeEditor({
                 </>
               )}
             </button>
-            {/* Przycisk "Zapisz" — widoczny gdy sa niezapisane zmiany. */}
+            {/* Przycisk "Zapisz" - widoczny gdy sa niezapisane zmiany. */}
             {!readOnly && !isLocked && Object.keys(overrides).length > 0 && (
               <button
                 type="button"
@@ -436,7 +436,7 @@ export function WorkspaceCodeEditor({
                 automaticLayout: true,
                 padding: { top: 12, bottom: 12 },
                 renderLineHighlight: "gutter",
-                // Wylacz "Cannot find name" itd. dla edytora — pelna walidacja
+                // Wylacz "Cannot find name" itd. dla edytora - pelna walidacja
                 // zachodzi w WebContainerze podczas Vite dev-server.
                 quickSuggestions: { other: true, comments: false, strings: false },
                 renderValidationDecorations: "off",

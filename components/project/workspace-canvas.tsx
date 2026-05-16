@@ -80,13 +80,13 @@ type Props = {
     html?: string;
     tagName?: string;
   }) => void;
-  /** Callback gdy uzytkownik klika 'Napraw przez AI' przy bledzie iframe. */
+  /** Callback gdy użytkownik klika 'Napraw przez AI' przy bledzie iframe. */
   onFixError?: (hint: string, opts: { auto: boolean }) => void;
-  /** True jezeli AI obecnie generuje — auto-fix nie wystartuje wtedy. */
+  /** True jezeli AI obecnie generuje - auto-fix nie wystartuje wtedy. */
   isStreaming?: boolean;
-  /** Tryb chatu — w `plan` nie pokazujemy overlay (podgląd zostaje statyczny). */
+  /** Tryb chatu - w `plan` nie pokazujemy overlay (podgląd zostaje statyczny). */
   chatMode?: "build" | "plan" | "discuss";
-  /** Czy projekt ma już wygenerowane pliki — gdy true to overlay degraduje do paska. */
+  /** Czy projekt ma już wygenerowane pliki - gdy true to overlay degraduje do paska. */
   hasFiles?: boolean;
   /** Z menu plików: włącza tryb „wskaż w podglądzie” (jak Target all). */
   onActivatePreviewPickMode?: () => void;
@@ -105,7 +105,7 @@ export function WorkspaceCanvas({
 }: Props) {
   const router = useRouter();
   // Lazy initial view: dla code-only templates (iOS / Android) zaczynamy od "code",
-  // dla pozostalych — od "preview".
+  // dla pozostalych - od "preview".
   const templateIdForInit = project.template ?? "react-ts";
   const initialView: WorkspaceView =
     TEMPLATES.find((t) => t.id === templateIdForInit)?.codeOnly === true
@@ -122,7 +122,7 @@ export function WorkspaceCanvas({
     | { kind: "error"; message: string }
   >(null);
 
-  // Build progress overlay — shows which file is being generated
+  // Build progress overlay - shows which file is being generated
   const [buildFile, setBuildFile] = useState<string | null>(null);
   const [writtenFiles, setWrittenFiles] = useState<string[]>([]);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -272,7 +272,7 @@ export function WorkspaceCanvas({
   const useWC = !isCodeOnly;
   const wcFiles = useMemo(() => {
     if (!useWC) return project.files;
-    // Merge React+Vite starter only for react-ts — other WC templates (Next/Astro/Vue/Svelte/Expo)
+    // Merge React+Vite starter only for react-ts - other WC templates (Next/Astro/Vue/Svelte/Expo)
     // have their own complete starters and don't need the React starter overlaid on top.
     if (templateDef?.id === "react-ts" || !templateDef?.id) {
       return mergeWebContainerReactFiles(project.files);
@@ -298,7 +298,7 @@ export function WorkspaceCanvas({
         );
       }, 80);
 
-      // Escape anuluje wybor — emit event do parenta (project-workspace).
+      // Escape anuluje wybor - emit event do parenta (project-workspace).
       function onEscape(e: KeyboardEvent) {
         if (e.key === "Escape") {
           window.dispatchEvent(new CustomEvent("wybitna:cancel-select-mode"));
@@ -311,7 +311,7 @@ export function WorkspaceCanvas({
       };
     }
 
-    // Tryb wylaczony — wyslij active:false do iframe zeby zdjac crosshair.
+    // Tryb wylaczony - wyslij active:false do iframe zeby zdjac crosshair.
     getIframe()?.contentWindow?.postMessage(
       { type: "wybitna:set-pick-mode", active: false },
       "*",
@@ -319,10 +319,10 @@ export function WorkspaceCanvas({
   }, [selectMode]);
 
   /**
-   * Smart fallback dla "Otworz w nowej karcie":
+   * Smart fallback dla "Otwórz w nowej karcie":
    * - Jezeli projekt opublikowany -> otwiera {slug}.{publishDomain} w nowej karcie.
    * - Jezeli nie -> dispatchuje event 'wybitna:request-publish' ktory otwiera
-   *   PublishDialog w topbarze. Bezposrednie window.open(wcUrl) nie dziala —
+   *   PublishDialog w topbarze. Bezposrednie window.open(wcUrl) nie dziala -
    *   StackBlitz WebContainer wymaga "Connect to project" -> 404.
    */
   function handleOpenLive() {
@@ -410,7 +410,7 @@ export function WorkspaceCanvas({
       <div className="relative min-h-0 flex-1">
         {useWC && (
           <>
-            {/* Preview (iframe z dev-servera Vite) — zawsze zamontowany, ukrywany przez CSS,
+            {/* Preview (iframe z dev-servera Vite) - zawsze zamontowany, ukrywany przez CSS,
                 dzieki czemu nie tracimy stanu serwera przy przelaczaniu Kod ↔ Podglad. */}
             <div className={view === "preview" ? "h-full" : "hidden h-full"}>
               <WCRuntime
@@ -482,8 +482,8 @@ export function WorkspaceCanvas({
 }
 
 /**
- * Slim top progress bar — wyswietlana podczas edycji istniejacej strony (hasFiles).
- * Nie blokuje podgladu: uzytkownik widzi zmiany "na zywo" w trakcie patchowania.
+ * Slim top progress bar - wyswietlana podczas edycji istniejacej strony (hasFiles).
+ * Nie blokuje podgladu: użytkownik widzi zmiany "na zywo" w trakcie patchowania.
  */
 function BuildProgressBar({ currentFile }: { currentFile: string }) {
   return (
@@ -567,8 +567,8 @@ function CodeOnlyBanner({
   const ide = isIos ? "Xcode 15+" : "Android Studio";
   const title = isIos ? "Aplikacja iOS (SwiftUI)" : "Aplikacja Android (Compose)";
   const hint = isIos
-    ? "Brak podgladu w przegladarce — pobierz ZIP i otworz w Xcode."
-    : "Brak podgladu w przegladarce — pobierz ZIP i otworz w Android Studio.";
+    ? "Brak podgladu w przegladarce - pobierz ZIP i otworz w Xcode."
+    : "Brak podgladu w przegladarce - pobierz ZIP i otworz w Android Studio.";
 
   return (
     <div className="flex shrink-0 items-center gap-3 border-b border-beige/15 bg-beige/[0.04] px-4 py-2 text-[12px]">
@@ -619,7 +619,7 @@ function CanvasTopbar({
 }) {
   return (
     <div className="flex h-10 shrink-0 items-center gap-2 border-b border-beige/10 bg-background/80 px-2">
-      {/* View toggles — same ikony z tooltipem */}
+      {/* View toggles - same ikony z tooltipem */}
       <div className="flex items-center gap-0.5 rounded-md border border-beige/15 bg-card/40 p-0.5">
         {!isCodeOnly && (
           <IconToggle
@@ -637,7 +637,7 @@ function CanvasTopbar({
         />
       </div>
 
-      {/* Baza + More menu (Stripe/Zasoby/Historia) — kliknięcie otwiera
+      {/* Baza + More menu (Stripe/Zasoby/Historia) - kliknięcie otwiera
           ProjectSettingsDialog na właściwej zakładce (event delegowany do
           ProjectTopbar przez `wybitna:open-settings`). */}
       <div className="flex items-center gap-0.5 rounded-md border border-beige/15 bg-card/40 p-0.5">
@@ -656,7 +656,7 @@ function CanvasTopbar({
           />
         )}
         <MoreMenu isCodeOnly={isCodeOnly} />
-        {/* Przycisk Ustawień — przeniesiony tutaj z topbara, na prawo od "Więcej" */}
+        {/* Przycisk Ustawień - przeniesiony tutaj z topbara, na prawo od "Więcej" */}
         <button
           type="button"
           title="Ustawienia projektu"
@@ -674,7 +674,7 @@ function CanvasTopbar({
         </button>
       </div>
 
-      {/* URL bar — tylko dla web, zwężony do 50% żeby nie wypychał toolbara */}
+      {/* URL bar - tylko dla web, zwężony do 50% żeby nie wypychał toolbara */}
       {!isCodeOnly && (
         <div className="mx-1 hidden h-7 max-w-[50%] min-w-0 shrink items-center gap-2 rounded-md border border-beige/15 bg-card/40 px-2 text-xs text-muted-foreground sm:flex">
           <span className="min-w-0 flex-1 truncate font-mono">{displayUrl}</span>
@@ -689,7 +689,7 @@ function CanvasTopbar({
         </div>
       )}
 
-      {/* Right toolbar — wszystkie akcje icon-only z tooltipem */}
+      {/* Right toolbar - wszystkie akcje icon-only z tooltipem */}
       {!isCodeOnly && (
         <IconButton
           icon={Pencil}
@@ -705,7 +705,7 @@ function CanvasTopbar({
         <IconButton
           icon={PictureInPicture2}
           label="Float"
-          tooltip="Floating preview — draggable window"
+          tooltip="Floating preview - draggable window"
           active={!!floatingOpen}
           onClick={onToggleFloating}
         />
@@ -740,7 +740,7 @@ function CanvasTopbar({
           tooltip={
             isPublished
               ? "Otwiera opublikowana strone w nowej karcie"
-              : "Najpierw opublikuj projekt — klikniecie otworzy dialog publikacji"
+              : "Najpierw opublikuj projekt - klikniecie otworzy dialog publikacji"
           }
           onClick={onOpenLive}
         />
@@ -750,7 +750,7 @@ function CanvasTopbar({
 }
 
 /**
- * IconButton — przycisk z sama ikona, etykieta widoczna tylko jako native
+ * IconButton - przycisk z sama ikona, etykieta widoczna tylko jako native
  * tooltip (atrybut `title`). Subtelny border + tinted background na hover.
  */
 function IconButton({
@@ -787,7 +787,7 @@ function IconButton({
 }
 
 /**
- * MoreMenu — animowany dropdown z dodatkowymi widokami (Stripe / Zasoby /
+ * MoreMenu - animowany dropdown z dodatkowymi widokami (Stripe / Zasoby /
  * Historia). Trigger = ikona MoreHorizontal, klik rozwija liste z gory na dol
  * przez CSS transition + framer-style scale enter.
  */
@@ -818,7 +818,7 @@ function MoreMenu({ isCodeOnly }: { isCodeOnly: boolean }) {
   ];
 
   // Po przeniesieniu sekcji do Settings dialog menu nie ma juz "aktywnego"
-  // stanu zaleznego od canvas view — zostawiamy zwykly hover.
+  // stanu zaleznego od canvas view - zostawiamy zwykly hover.
   const activeInMenu = false;
 
   return (
@@ -837,7 +837,7 @@ function MoreMenu({ isCodeOnly }: { isCodeOnly: boolean }) {
       >
         <MoreHorizontal className="h-3 w-3" />
       </button>
-      {/* Dropdown panel — CSS transition (scale + opacity od gory na dol) */}
+      {/* Dropdown panel - CSS transition (scale + opacity od gory na dol) */}
       <div
         className={`absolute right-0 top-full z-30 mt-1 min-w-[150px] origin-top-right overflow-hidden rounded-lg border border-beige/15 bg-card shadow-2xl shadow-black/40 transition-all duration-150 ${
           open

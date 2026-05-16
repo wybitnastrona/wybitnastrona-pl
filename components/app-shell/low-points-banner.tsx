@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 
 /**
  * Baner ostrzegajacy o niskim saldzie punktow. Renderowany na dashboardzie
- * jezeli user ma < 100 pkt. SSR — bez flicker.
+ * jezeli user ma < 100 pkt. SSR - bez flicker.
  */
 export async function LowPointsBanner() {
   const supabase = await createClient();

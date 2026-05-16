@@ -14,7 +14,7 @@ type IframeError = {
 type Props = {
   /** Called when the user (or auto-fix) wants to dispatch a fix request. */
   onFixRequest: (hint: string, opts: { auto: boolean }) => void;
-  /** True while a generation is in flight — auto-fix waits for completion. */
+  /** True while a generation is in flight - auto-fix waits for completion. */
   isStreaming: boolean;
 };
 
@@ -74,7 +74,7 @@ export function ErrorWatcher({ onFixRequest, isStreaming }: Props) {
 
   // Listen for errors posted by the preview iframe.
   // Podczas streamu AI pisze pliki czesciowo i Vite zglasza tranzytowe HMR 500
-  // przy kazdym chunkcie. Tlumimy te bledy az do `isStreaming=false` — pelny
+  // przy kazdym chunkcie. Tlumimy te bledy az do `isStreaming=false` - pelny
   // banner pokazujemy tylko gdy AI skonczy generacje.
   useEffect(() => {
     const handler = (e: MessageEvent) => {
@@ -96,7 +96,7 @@ export function ErrorWatcher({ onFixRequest, isStreaming }: Props) {
   const fire = useCallback(
     (err: IframeError, opts: { auto: boolean }) => {
       const hint =
-        `W podgladzie wystapil blad — napraw go.\n\n` +
+        `W podgladzie wystapil blad - napraw go.\n\n` +
         `Typ: ${err.kind}\n` +
         `Komunikat: ${err.message}\n` +
         (err.filename ? `Plik: ${err.filename}:${err.lineno}\n` : "") +
@@ -120,14 +120,14 @@ export function ErrorWatcher({ onFixRequest, isStreaming }: Props) {
     autoAttempts < MAX_AUTO_FIX_ATTEMPTS &&
     lastFiredKey !== (latest ? errKey(latest) : null);
 
-  // Auto-fix scheduler — runs only while armed. Cleanup clears the state, so
+  // Auto-fix scheduler - runs only while armed. Cleanup clears the state, so
   // we don't have to call setState in the effect body's early-return paths.
   useEffect(() => {
     if (!shouldArm || !latest) return;
 
     const start = Date.now();
     const initial = Math.ceil(AUTO_FIX_COUNTDOWN_MS / 1000);
-    // Initial countdown render — triggers one extra render but is required
+    // Initial countdown render - triggers one extra render but is required
     // so the user sees "Naprawiam za Ns" before the first interval tick.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setAutoCountdown(initial);
@@ -155,7 +155,7 @@ export function ErrorWatcher({ onFixRequest, isStreaming }: Props) {
   }, [shouldArm, latest, fire]);
 
   // When generation finishes successfully (no new error within 5s), reset the
-  // attempt counter — fresh starting point for a new auto-fix sequence.
+  // attempt counter - fresh starting point for a new auto-fix sequence.
   useEffect(() => {
     if (isStreaming) return;
     const id = setTimeout(() => {
@@ -185,7 +185,7 @@ export function ErrorWatcher({ onFixRequest, isStreaming }: Props) {
 
           {cooldownActive && (
             <p className="mt-1 text-[10px] text-amber-200/90">
-              AI próbował naprawić {MAX_AUTO_FIX_ATTEMPTS}× — popraw ręcznie lub
+              AI próbował naprawić {MAX_AUTO_FIX_ATTEMPTS}× - popraw ręcznie lub
               cofnij się do snapshotu.
             </p>
           )}

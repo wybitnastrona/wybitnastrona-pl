@@ -12,7 +12,7 @@ import {
 type Props = {
   /** Original prompt from the creation hero */
   initialPrompt: string;
-  /** Called when the user finishes the wizard — passes the enriched prompt */
+  /** Called when the user finishes the wizard - passes the enriched prompt */
   onComplete: (enrichedPrompt: string) => void;
   /** Called if the user wants to skip the wizard */
   onSkip: () => void;
@@ -42,7 +42,7 @@ export function WizardPanel({ initialPrompt, onComplete, onSkip }: Props) {
           return;
         }
       } catch {
-        // ignore — fall through to preset
+        // ignore - fall through to preset
       }
       if (!cancelled) {
         const industry = detectIndustry(initialPrompt);

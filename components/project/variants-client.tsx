@@ -79,7 +79,7 @@ export function VariantsClient({ projectId, prompt }: Props) {
           <ArrowLeft className="h-4 w-4" />
           Wróć
         </button>
-        <h1 className="text-sm font-medium">A/B Testing — 3 warianty</h1>
+        <h1 className="text-sm font-medium">A/B Testing - 3 warianty</h1>
         <div className="text-xs text-muted-foreground">
           Koszt: <span className="text-amber-400">3× punktów</span>
         </div>

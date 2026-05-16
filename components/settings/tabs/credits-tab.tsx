@@ -55,7 +55,7 @@ export function CreditsTab() {
         window.location.assign(data.url);
         return;
       }
-      alert(data.error ?? "Nie udalo sie rozpoczac platnosci");
+      alert(data.error ?? "Nie udalo sie rozpoczac płatności");
     } catch {
       alert("Blad sieci");
     } finally {
@@ -69,7 +69,7 @@ export function CreditsTab() {
         <h2 className="text-lg font-medium text-foreground">Kredyty</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Kredyty to nasza waluta generowania. Kazdy model AI ma swoj
-          koszt — wybierz pakiet, ktory najlepiej dopasujesz do swojego
+          koszt - wybierz pakiet, ktory najlepiej dopasujesz do swojego
           tempa pracy.
         </p>
       </header>
@@ -145,7 +145,7 @@ export function CreditsTab() {
       <ReferralSection />
 
       <p className="text-[11px] text-muted-foreground">
-        Platnosci obsluguje Stripe. Akceptujemy karty, BLIK i Przelewy24.
+        Płatności obsluguje Stripe. Akceptujemy karty, BLIK i Przelewy24.
       </p>
     </div>
   );
@@ -218,7 +218,7 @@ function ReferralSection() {
               Program poleceń
             </h3>
             <p className="text-xs text-muted-foreground">
-              Polec znajomego — gdy dokona pierwszej płatności, otrzymujesz{" "}
+              Polec znajomego - gdy dokona pierwszej płatności, otrzymujesz{" "}
               <span className="font-mono text-beige">300 kredytów</span>.
             </p>
           </div>

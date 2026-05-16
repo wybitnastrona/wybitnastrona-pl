@@ -51,7 +51,7 @@ export default async function NewProjectPage({
     (rawCtx ?? "").trim().slice(0, 2000) || undefined;
 
   // Sanity check: upewnij sie ze profil istnieje. Bez wpisu w `profiles` RLS-y
-  // dla `finish_job` zawioda, a uzytkownik nie zobaczy zadnego feedbacku.
+  // dla `finish_job` zawioda, a użytkownik nie zobaczy zadnego feedbacku.
   await supabase.from("profiles").upsert(
     {
       id: user.id,
@@ -75,7 +75,7 @@ export default async function NewProjectPage({
     redirect(`/?error=create-project&detail=${encodeURIComponent(message)}`);
   }
 
-  // Apply optional flags. Bledy na update'ach NIE blokuja przekierowania —
+  // Apply optional flags. Bledy na update'ach NIE blokuja przekierowania -
   // projekt juz istnieje, user ma do niego dostep.
   if (isPublic) {
     await supabase

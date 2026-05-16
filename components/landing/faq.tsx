@@ -10,15 +10,15 @@ import {
 const QUESTIONS = [
   {
     q: "Czym wybitnastrona.pl rozni sie od ChatGPT?",
-    a: "ChatGPT zwraca tekst. My uruchamiamy wygenerowany kod w bezpiecznym sandboxie (Sandpack), wiec od razu widzisz dzialajaca strone, mozesz ja edytowac, opublikowac na subdomenie i wyeksportowac jako ZIP.",
+    a: "ChatGPT zwraca tekst. My uruchamiamy wygenerowany kod w bezpiecznym sandboxie (Sandpack), wiec od razu widzisz dzialajaca strone, możesz ja edytowac, opublikowac na subdomenie i wyeksportowac jako ZIP.",
   },
   {
     q: "Jakiego frameworka uzywa AI?",
-    a: "Generujemy aplikacje React 19 + TypeScript z Tailwind CSS. Dla bardziej zlozonych projektow w pelnym Next.js mozesz wyeksportowac kod do ZIP i kontynuowac lokalnie.",
+    a: "Generujemy aplikacje React 19 + TypeScript z Tailwind CSS. Dla bardziej zlozonych projektów w pelnym Next.js możesz wyeksportowac kod do ZIP i kontynuowac lokalnie.",
   },
   {
     q: "Czy strona dziala bez logowania?",
-    a: "Mozesz przegladac i klikac sugestie bez konta, ale do zapisania projektu i opublikowania potrzebne jest zalozenie konta (email lub Google).",
+    a: "Możesz przegladac i klikac sugestie bez konta, ale do zapisania projektu i opublikowania potrzebne jest zalozenie konta (email lub Google).",
   },
   {
     q: "Czy moge eksportowac kod?",
@@ -26,7 +26,7 @@ const QUESTIONS = [
   },
   {
     q: "Gdzie hostowane sa opublikowane strony?",
-    a: "Subdomeny <slug>.wybitnastrona.pl serwuja podglad Sandpack zapisany w naszej bazie. Po wyeksportowaniu mozesz wdrozyc na Vercel, Netlify lub dowolnym hostingu statycznym.",
+    a: "Subdomeny <slug>.wybitnastrona.pl serwuja podglad Sandpack zapisany w naszej bazie. Po wyeksportowaniu możesz wdrozyc na Vercel, Netlify lub dowolnym hostingu statycznym.",
   },
   {
     q: "Ile to kosztuje?",

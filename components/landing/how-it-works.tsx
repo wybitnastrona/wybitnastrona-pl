@@ -17,7 +17,7 @@ const STEPS = [
     icon: Rocket,
     title: "Publikuj jednym klikiem",
     description:
-      "Strona pojawia sie pod Twoja subdomena. Mozesz tez wyeksportowac kod jako ZIP.",
+      "Strona pojawia sie pod Twoja subdomena. Możesz tez wyeksportowac kod jako ZIP.",
   },
 ];
 
@@ -37,7 +37,7 @@ export function HowItWorks() {
           </h2>
           <p className="mt-3 text-muted-foreground">
             Bez znajomosci kodu, bez kombinowania z hostingiem. Wszystko w
-            jednym miejscu — opisujesz, my budujemy i publikujemy.
+            jednym miejscu - opisujesz, my budujemy i publikujemy.
           </p>
         </div>
 

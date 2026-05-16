@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/tooltip";
 
 /**
- * Tekst wyjasnienia proraty — uzywany w 2 miejscach (pricing-client + credits-tab),
+ * Tekst wyjasnienia proraty - uzywany w 2 miejscach (pricing-client + credits-tab),
  * trzymamy w jednym miejscu zeby slowo "proporcjonalne rozliczenie Stripe" bylo
  * zawsze identyczne (latwiej tlumaczyc / zmieniac copywriting).
  */
@@ -22,7 +22,7 @@ const PRO_FEATURES = [
   "Wszystkie modele AI: Pan Programista (Sonnet 4.6), Opus 4.6, Opus 4.7",
   "Web, Android, iOS oraz Watch / TV / Vision Pro",
   "Custom subdomena (twoja-nazwa.wybitny.website)",
-  "Projekty prywatne — pełna kontrola dostępu",
+  "Projekty prywatne - pełna kontrola dostępu",
   "Eksport ZIP i push do GitHub",
   "Integracje: Supabase, Notion, Stripe",
   "Priorytetowy support",
@@ -32,7 +32,7 @@ const PRO_FEATURES = [
 export function PricingClient() {
   const { user, openAuth } = useAuth();
   const [busy, setBusy] = useState<string | null>(null);
-  // `isPro` decyduje czy pokazujemy tooltip o proracie — dla nowych klientow
+  // `isPro` decyduje czy pokazujemy tooltip o proracie - dla nowych klientow
   // Stripe nie naliczy zwrotu za "niewykorzystany czas obecnego planu",
   // wiec wyswietlanie tej informacji byloby mylace.
   const [isPro, setIsPro] = useState(false);
@@ -56,7 +56,7 @@ export function PricingClient() {
     };
   }, [user]);
 
-  // Default = recommended tier (drugi od najtanszego — psychologia anchoring).
+  // Default = recommended tier (drugi od najtanszego - psychologia anchoring).
   const defaultIndex = Math.max(
     0,
     PRO_TIERS.findIndex((t) => t.id === RECOMMENDED_PRO_TIER_ID),
@@ -85,7 +85,7 @@ export function PricingClient() {
       if (data.url) {
         window.location.assign(data.url);
       } else {
-        alert(data.error ?? "Nie udalo sie rozpoczac platnosci");
+        alert(data.error ?? "Nie udalo sie rozpoczac płatności");
         setBusy(null);
       }
     } catch {
@@ -112,7 +112,7 @@ export function PricingClient() {
         <div className="grid gap-4 lg:grid-cols-2">
           <FreeTierCard />
 
-          {/* PRO — jedna karta z suwakiem */}
+          {/* PRO - jedna karta z suwakiem */}
           <ProSliderCard
             tierIndex={tierIndex}
             onTierIndexChange={setTierIndex}
@@ -250,7 +250,7 @@ function ProSliderCard({
         className="mt-auto inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-lg bg-beige px-4 text-sm font-medium text-beige-foreground transition hover:bg-beige/90 disabled:opacity-60"
       >
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-        Aktywuj PRO — {tier.pln} zł / mc
+        Aktywuj PRO - {tier.pln} zł / mc
       </button>
     </div>
   );

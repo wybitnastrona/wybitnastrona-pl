@@ -1,9 +1,9 @@
 "use client";
 
 /**
- * Wybitna-style "Ustawienia projektu" — modal w stylu Bolt.new:
+ * Wybitna-style "Ustawienia projektu" - modal w stylu Bolt.new:
  * lewa nawigacja + prawa zawartosc. Skupia w jednym miejscu wszystkie
- * konfiguracje per-projekt: Ogolne, Domeny, Analytics, Database, Auth, Stripe,
+ * konfigurację per-projekt: Ogolne, Domeny, Analytics, Database, Auth, Stripe,
  * File Storage, Backups.
  *
  * Trigger: <ProjectTopbar> ma przycisk z ikonka Settings.
@@ -62,14 +62,14 @@ const TABS: {
   label: string;
   icon: typeof SettingsIcon;
 }[] = [
-  { id: "general", label: "Ogolne", icon: SettingsIcon },
+  { id: "general", label: "Ogólne", icon: SettingsIcon },
   { id: "domains", label: "Domeny i hosting", icon: Globe },
   { id: "analytics", label: "Analityka", icon: BarChart3 },
   { id: "database", label: "Baza danych", icon: Database },
   { id: "authentication", label: "Uwierzytelnianie", icon: ShieldCheck },
-  { id: "stripe", label: "Platnosci (Stripe)", icon: CreditCard },
+  { id: "stripe", label: "Płatności (Stripe)", icon: CreditCard },
   { id: "secrets", label: "Sekrety", icon: Lock },
-  { id: "user-management", label: "Uzytkownicy", icon: Users },
+  { id: "user-management", label: "Użytkownicy", icon: Users },
   { id: "file-storage", label: "Pliki", icon: FolderOpen },
   { id: "knowledge", label: "Wiedza", icon: Sparkles },
   { id: "history", label: "Historia (snapshoty)", icon: History },
@@ -81,9 +81,9 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   project: Project;
   /**
-   * Optional handler — gdy klikniety zostanie "Otworz panel domen" w tabie
-   * domain, mozemy delegowac do istniejacego `DomainsDialog`. Jezeli nie ma —
-   * uzytkownik widzi prosty form w tabie.
+   * Optional handler - gdy klikniety zostanie "Otwórz panel domen" w tabie
+   * domain, mozemy delegowac do istniejacego `DomainsDialog`. Jezeli nie ma -
+   * użytkownik widzi prosty form w tabie.
    */
   onOpenDomains?: () => void;
   initialTab?: ProjectSettingsTabId;
@@ -113,7 +113,7 @@ export function ProjectSettingsDialog({
               Ustawienia projektu
             </DialogTitle>
             <DialogDescription className="sr-only">
-              Konfiguracja domen, bazy danych, platnosci i innych funkcji
+              Konfiguracja domen, bazy danych, płatności i innych funkcji
               projektu w wybitnastrona.pl
             </DialogDescription>
             <nav className="mt-1 flex flex-col gap-0.5">
@@ -162,8 +162,8 @@ export function ProjectSettingsDialog({
               <SecretsTabContent project={project} />
             )}
             {activeTab === "user-management" && <ComingSoonCard
-              title="Zarzadzanie uzytkownikami"
-              description="Zaproszenia do projektu, role i permissions. Wkrotce."
+              title="Zarządzanie użytkownikami"
+              description="Zaproszenia do projektu, role i permissions. Wkrótce."
               icon={Users}
             />}
             {activeTab === "file-storage" && <FileStorageTabContent />}
@@ -172,12 +172,12 @@ export function ProjectSettingsDialog({
             )}
             {activeTab === "knowledge" && <ComingSoonCard
               title="Baza wiedzy"
-              description="Zaladuj dokumentacje / PDF-y do kontekstu AI dla tego projektu. Wkrotce."
+              description="Zaladuj dokumentacje / PDF-y do kontekstu AI dla tego projektu. Wkrótce."
               icon={Sparkles}
             />}
             {activeTab === "backups" && <ComingSoonCard
               title="Kopie zapasowe"
-              description="Automatyczne snapshoty wygenerowanego kodu + DB. Wkrotce."
+              description="Automatyczne snapshoty wygenerowanego kodu + DB. Wkrótce."
               icon={History}
             />}
           </div>
@@ -258,7 +258,7 @@ function GeneralTabContent({ project }: { project: Project }) {
               Claude Agent
             </span>
             <span className="text-[10px] text-muted-foreground">
-              Domyslny — najlepsza jakosc kodu.
+              Domyslny - najlepsza jakosc kodu.
             </span>
           </button>
           <button
@@ -270,7 +270,7 @@ function GeneralTabContent({ project }: { project: Project }) {
               <Server className="h-3.5 w-3.5" />
               Codex
               <span className="ml-1 rounded-full border border-beige/20 px-1.5 text-[9px] uppercase tracking-wider">
-                Wkrotce
+                Wkrótce
               </span>
             </span>
           </button>
@@ -291,7 +291,7 @@ function GeneralTabContent({ project }: { project: Project }) {
         <Label>Kontekst</Label>
         <div className="rounded-md border border-beige/10 bg-card/40 p-3 text-xs text-muted-foreground">
           Reset kontekstu czyscic historie chatu, ale nie wplywa na pliki
-          projektu. Otworz panel czatu — przycisk <span className="font-medium text-foreground">"Wyczysc czat"</span>.
+          projektu. Otwórz panel czatu - przycisk <span className="font-medium text-foreground">"Wyczysc czat"</span>.
         </div>
       </section>
     </div>
@@ -315,7 +315,7 @@ function DomainsTabContent({
         <p className="mt-0.5 text-xs text-muted-foreground">
           Twoj projekt jest dostepny pod subdomena{" "}
           <span className="font-mono text-foreground">.wybitny.website</span>.
-          Aby uzyc wlasnej domeny — kup nowa lub podepnij istniejaca.
+          Aby uzyc własnej domeny - kup nowa lub podepnij istniejaca.
         </p>
       </header>
 
@@ -352,7 +352,7 @@ function DomainsTabContent({
           onClick={() => onOpenDomains?.()}
           className="border-beige/20"
         >
-          Podepnij wlasna domene
+          Podepnij własna domene
         </Button>
       </section>
 
@@ -376,9 +376,9 @@ function DomainsTabContent({
 }
 
 /**
- * Tabela uzytkownikow aplikacji wygenerowanej w projekcie. Pobiera dane z
+ * Tabela użytkownikow aplikacji wygenerowanej w projekcie. Pobiera dane z
  * `/api/projects/[id]/app-users` (server-side: autoryzacja + filtr
- * `project_id`). Kolumny sa dynamiczne — pobierane z odpowiedzi.
+ * `project_id`). Kolumny sa dynamiczne - pobierane z odpowiedzi.
  */
 function AuthTabContent({ project }: { project: Project }) {
   type AppUsersResponse = {
@@ -424,10 +424,10 @@ function AuthTabContent({ project }: { project: Project }) {
       <header className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-base font-medium text-foreground">
-            Uwierzytelnianie — uzytkownicy aplikacji
+            Uwierzytelnianie - użytkownicy aplikacji
           </h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Tabela uzytkownikow z dzielonej Wybitnej Bazy Danych (filtr{" "}
+            Tabela użytkownikow z dzielonej Wybitnej Bazy Danych (filtr{" "}
             <code className="font-mono">project_id</code>). Maksymalnie 100
             wierszy.
           </p>
@@ -440,7 +440,7 @@ function AuthTabContent({ project }: { project: Project }) {
           disabled={loading}
           className="border-beige/20"
         >
-          {loading ? "..." : "Odswiez"}
+          {loading ? "..." : "Odśwież"}
         </Button>
       </header>
 
@@ -456,7 +456,7 @@ function AuthTabContent({ project }: { project: Project }) {
           <p className="text-sm font-medium text-foreground">Brak danych</p>
           <p className="max-w-sm text-xs text-muted-foreground">
             {state.message ??
-              "Brak tabeli `users` w bazie lub zero zarejestrowanych uzytkownikow. Poles AI o jej utworzenie."}
+              "Brak tabeli `users` w bazie lub zero zarejestrowanych użytkownikow. Poles AI o jej utworzenie."}
           </p>
         </div>
       )}
@@ -511,15 +511,15 @@ function AuthTabContent({ project }: { project: Project }) {
 }
 
 /**
- * Sekrety — czyta pliki `.env*` bezposrednio z `project.files`.
+ * Sekrety - czyta pliki `.env*` bezposrednio z `project.files`.
  *
  * Bezpieczenstwo: `project.files` jest dostarczany jako prop tylko gdy
- * `getProject(id)` na serwerze potwierdzi wlasciciela (sprawdzane w
+ * `getProject(id)` na serwerze potwierdzi właściciela (sprawdzane w
  * `app/project/[id]/page.tsx` przez `getProject` + RLS w Supabase). Klient
- * nigdy nie pobiera plikow obcych projektow.
+ * nigdy nie pobiera plikow obcych projektów.
  *
  * Wartosci sa zamaskowane domyslnie. Klucze wrazliwe (zawierajace SECRET,
- * KEY, TOKEN, PASSWORD, STRIPE) wymagaja jawnego "Pokaz".
+ * KEY, TOKEN, PASSWORD, STRIPE) wymagaja jawnego "Pokaż".
  */
 const ENV_FILE_PATTERNS = [
   /(^|\/)\.env$/i,
@@ -611,7 +611,7 @@ function SecretsTabContent({ project }: { project: Project }) {
           onClick={refresh}
           className="border-beige/20"
         >
-          Odswiez
+          Odśwież
         </Button>
       </header>
 
@@ -673,8 +673,8 @@ function SecretsTabContent({ project }: { project: Project }) {
                         {isRevealed
                           ? "Ukryj"
                           : sensitive
-                            ? "Pokaz"
-                            : "Pokaz"}
+                            ? "Pokaż"
+                            : "Pokaż"}
                       </button>
                     </li>
                   );
@@ -686,7 +686,7 @@ function SecretsTabContent({ project }: { project: Project }) {
       )}
 
       <p className="rounded-md border border-beige/10 bg-background/40 p-3 text-[11px] leading-relaxed text-muted-foreground">
-        Sekrety widoczne tylko dla wlasciciela projektu — backend weryfikuje
+        Sekrety widoczne tylko dla właściciela projektu - backend weryfikuje
         autoryzacje na poziomie `getProject(id)` przed wyslaniem `files` do
         klienta.
       </p>
@@ -703,7 +703,7 @@ function HistoryTabContent({ project }: { project: Project }) {
           Historia zmian (snapshoty)
         </h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Kazdy build tworzy snapshot kodu projektu. Mozesz porownac go z
+          Kazdy build tworzy snapshot kodu projektu. Możesz porownac go z
           aktualnymi plikami albo przywrocic.
         </p>
       </header>
@@ -722,14 +722,14 @@ function FileStorageTabContent() {
       <header>
         <h2 className="text-base font-medium text-foreground">File Storage</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Pliki przechowywane przez Twoja aplikacje (np. uploady uzytkownikow).
+          Pliki przechowywane przez Twoja aplikacje (np. uploady użytkownikow).
         </p>
       </header>
       <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-beige/15 bg-card/40 py-12 text-center">
         <Cloud className="h-8 w-8 text-muted-foreground/50" />
         <p className="text-sm font-medium text-foreground">Brak plikow</p>
         <p className="text-xs text-muted-foreground">
-          Mozesz poprosic Wybitna AI o utworzenie bucketow w bazie danych.
+          Możesz poprosic Wybitna AI o utworzenie bucketow w bazie danych.
         </p>
       </div>
     </div>
@@ -753,9 +753,9 @@ function ComingSoonCard({
       </header>
       <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-beige/15 bg-card/40 py-16 text-center">
         <Icon className="h-10 w-10 text-muted-foreground/40" />
-        <p className="text-sm font-medium text-foreground">Wkrotce</p>
+        <p className="text-sm font-medium text-foreground">Wkrótce</p>
         <p className="max-w-sm text-xs text-muted-foreground">
-          Pracujemy nad ta funkcja. Mozesz dac znac co chcialbys zobaczyc na{" "}
+          Pracujemy nad ta funkcja. Możesz dac znac co chcialbys zobaczyc na{" "}
           <a
             href="mailto:hello@wybitnastrona.pl"
             className="text-beige hover:underline"

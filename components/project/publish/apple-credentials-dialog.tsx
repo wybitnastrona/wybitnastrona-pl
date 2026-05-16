@@ -3,11 +3,11 @@
 /**
  * Apple Credentials Dialog.
  *
- * Pozwala uzytkownikowi wprowadzic dane App Store Connect:
+ * Pozwala użytkownikowi wprowadzic dane App Store Connect:
  *  - Key ID (10 znakow)
  *  - Issuer ID (UUID)
  *  - Team ID (10 znakow)
- *  - Private key (.p8 — uzytkownik wkleja pelna zawartosc lub uploaduje plik)
+ *  - Private key (.p8 - użytkownik wkleja pelna zawartosc lub uploaduje plik)
  *
  * Zapisuje do public.user_integration_credentials (RLS owner-only).
  * Klucz jest przechowywany w bazie (TODO: migracja do Supabase Vault dla pelnego szyfrowania).
@@ -87,7 +87,7 @@ export function AppleCredentialsDialog({ open, onOpenChange, onSaved }: Props) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Apple className="h-4 w-4 text-beige" />
-            App Store Connect — klucze API
+            App Store Connect - klucze API
           </DialogTitle>
           <DialogDescription className="text-xs">
             Wygeneruj klucz API w{" "}
@@ -180,7 +180,7 @@ export function AppleCredentialsDialog({ open, onOpenChange, onSaved }: Props) {
               <p className="text-foreground">Bezpieczenstwo:</p>
               <p>
                 Twoj klucz jest dostepny tylko dla Twojego konta (RLS owner-only).
-                Mozesz go usunac w Settings → Integrations w dowolnym momencie.
+                Możesz go usunac w Settings → Integrations w dowolnym momencie.
                 Klucz uzywany jest tylko do podpisywania zadan do API App Store Connect.
               </p>
             </div>

@@ -7,7 +7,7 @@
  * Expanded: lista zdań tokowych z REASONING_PREAMBLE jako ładne kroki.
  *
  * Pokazywany tylko zanim pojawi się pierwszy tool-call (writeFile / showPlan)
- * — później chowamy, bo akcje wyświetla `ActionsTaken`.
+ * - później chowamy, bo akcje wyświetla `ActionsTaken`.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -15,9 +15,9 @@ import { ChevronDown, Lightbulb, Loader2 } from "lucide-react";
 import type { UIMessage } from "ai";
 
 type Props = {
-  /** Wszystkie wiadomosci w czacie — uzywamy do wyciagniecia text-partow asystenta. */
+  /** Wszystkie wiadomosci w czacie - uzywamy do wyciagniecia text-partow asystenta. */
   messages: UIMessage[];
-  /** Czy stream w toku — steruje animacja "Working...". */
+  /** Czy stream w toku - steruje animacja "Working...". */
   isStreaming: boolean;
 };
 

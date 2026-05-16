@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-export const alt = "wybitnastrona.pl — AI builder stron internetowych";
+export const alt = "wybitnastrona.pl - AI builder stron internetowych";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -41,7 +41,7 @@ export default function OpengraphImage() {
             maxWidth: 800,
           }}
         >
-          Buduj wybitne strony internetowe — AI tworzy kod za Ciebie
+          Buduj wybitne strony internetowe - AI tworzy kod za Ciebie
         </div>
         <div
           style={{

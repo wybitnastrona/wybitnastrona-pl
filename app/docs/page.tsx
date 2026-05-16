@@ -2,7 +2,7 @@ import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 
 export const metadata = {
-  title: "Dokumentacja — wybitnastrona.pl",
+  title: "Dokumentacja - wybitnastrona.pl",
   description: "Jak korzystać z wybitnastrona.pl. Przewodnik po wszystkich funkcjach platformy.",
 };
 
@@ -17,7 +17,7 @@ const SECTIONS = [
       },
       {
         heading: "2. Wybierz platformę",
-        body: "Przycisk 'Strona internetowa' pozwala wybrać typ projektu: Web (React/Vite), iOS (Swift/SwiftUI), Android (Kotlin/Compose). Dla stron internetowych nie potrzebujesz nic instalować — podgląd działa w przeglądarce.",
+        body: "Przycisk 'Strona internetowa' pozwala wybrać typ projektu: Web (React/Vite), iOS (Swift/SwiftUI), Android (Kotlin/Compose). Dla stron internetowych nie potrzebujesz nic instalować - podgląd działa w przeglądarce.",
       },
       {
         heading: "3. Kliknij 'Zbuduj'",
@@ -29,7 +29,7 @@ const SECTIONS = [
       },
       {
         heading: "5. Opublikuj",
-        body: "Kliknij 'Opublikuj' — strona dostaje publiczny URL w formacie {slug}.wybitny.website. Możesz też podpiąć własną domenę w ustawieniach projektu.",
+        body: "Kliknij 'Opublikuj' - strona dostaje publiczny URL w formacie {slug}.wybitny.website. Możesz też podpiąć własną domenę w ustawieniach projektu.",
       },
     ],
   },
@@ -57,7 +57,7 @@ const SECTIONS = [
     content: [
       {
         heading: "Czym są kredyty?",
-        body: "Kredyty to waluta platformy. 1 kredyt = 0.02 zł (50 kredytów = 1 PLN). Nowy użytkownik otrzymuje 100 kredytów na start — wystarczy na ~1–2 generacje Auto.",
+        body: "Kredyty to waluta platformy. 1 kredyt = 0.02 zł (50 kredytów = 1 PLN). Nowy użytkownik otrzymuje 100 kredytów na start - wystarczy na ~1–2 generacje Auto.",
       },
       {
         heading: "Koszt poszczególnych modeli",

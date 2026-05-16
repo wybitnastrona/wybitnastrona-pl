@@ -51,7 +51,7 @@ type PendingFile = {
 };
 
 type CreationHeroProps = {
-  /** Tier zalogowanego uzytkownika — decyduje o widocznych platformach i modelach. */
+  /** Tier zalogowanego użytkownika - decyduje o widocznych platformach i modelach. */
   userTier?: UserTier;
 };
 
@@ -63,13 +63,13 @@ export function CreationHero({ userTier = "free" }: CreationHeroProps) {
   const [prompt, setPrompt] = useState("");
   const [projectMode, setProjectMode] = useState<ProjectMode>(DEFAULT_MODE);
   // Wszystkie projekty domyslnie prywatne (gating w PublishDialog).
-  // FREE moze publikowac na auto-slug; custom slug tylko PRO.
+  // FREE może publikowac na auto-slug; custom slug tylko PRO.
   // Initial model: dla FREE = Pan Programista (Sonnet), dla PRO = Sonnet default.
   const initialModel: AiModelId = DEFAULT_MODEL_ID;
   const [model, setModel] = useState<AiModelId>(initialModel);
   const [template, setTemplate] = useState<TemplateId>(DEFAULT_TEMPLATE);
   const [customContext, setCustomContext] = useState("");
-  // Plan-first mode jest wymuszony — AI zawsze najpierw pyta o detalle
+  // Plan-first mode jest wymuszony - AI zawsze najpierw pyta o detalle
   // (showQuestions) i pokazuje plan przed generowaniem kodu. Stary toggle
   // "Tworzenie" zostal usuniety zeby uniknac one-shot codingu.
   const isPlanMode = true;
@@ -135,7 +135,7 @@ export function CreationHero({ userTier = "free" }: CreationHeroProps) {
           JSON.stringify(imageFiles),
         );
       } catch {
-        // sessionStorage unavailable — ignore
+        // sessionStorage unavailable - ignore
       }
     } else {
       sessionStorage.removeItem("wybitna_attachments");
@@ -148,7 +148,7 @@ export function CreationHero({ userTier = "free" }: CreationHeroProps) {
     });
     if (template !== DEFAULT_TEMPLATE) params.set("template", template);
     params.set("model", model);
-    // Wszystkie projekty domyslnie prywatne — publikacja w PublishDialog.
+    // Wszystkie projekty domyslnie prywatne - publikacja w PublishDialog.
     const trimmedCtx = customContext.trim();
     if (trimmedCtx) params.set("ctx", trimmedCtx.slice(0, 2000));
 
@@ -242,7 +242,7 @@ export function CreationHero({ userTier = "free" }: CreationHeroProps) {
             </div>
           )}
 
-          {/* Bottom toolbar — Rork style */}
+          {/* Bottom toolbar - Rork style */}
           <div className="flex flex-wrap items-center gap-1.5 px-3 pb-3 sm:px-4 sm:pb-4">
             <PlusMenu
               onAttachImage={() => fileInputRef.current?.click()}
@@ -319,7 +319,7 @@ export function CreationHero({ userTier = "free" }: CreationHeroProps) {
             <>
               {" • "}
               <span className="text-muted-foreground">
-                FREE: 1500 kr/mc, 800 kr/dzień —{" "}
+                FREE: 1500 kr/mc, 800 kr/dzień -{" "}
                 <a href="/pricing" className="underline hover:text-beige">
                   odblokuj PRO
                 </a>
@@ -328,7 +328,7 @@ export function CreationHero({ userTier = "free" }: CreationHeroProps) {
           )}
         </p>
 
-        {/* Suggestion chips — per-mode */}
+        {/* Suggestion chips - per-mode */}
         <div className="mt-3 flex flex-wrap justify-center gap-2">
           {currentModeDef.suggestions.map((chip) => (
             <button
@@ -405,11 +405,11 @@ function PlusMenu({
           Załącz zdjęcie
         </DropdownMenuItem>
 
-        {/* Toggle "Tworzenie / Planowanie" zostal usuniety — plan-first
+        {/* Toggle "Tworzenie / Planowanie" zostal usuniety - plan-first
             mode jest wymuszony, AI zawsze najpierw pyta o detalle i
             pokazuje plan zanim zacznie pisac kod. */}
 
-        {/* FREE: tylko default model (Pan Programista) — ukrywamy selektor.
+        {/* FREE: tylko default model (Pan Programista) - ukrywamy selektor.
             PRO: dropdown z wszystkimi modelami. */}
         {!isFreeTier && (
           <>

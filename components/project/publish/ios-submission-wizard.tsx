@@ -3,7 +3,7 @@
 /**
  * iOS Submission Wizard (3 stepy: Details → Build → Review).
  *
- * Faza 10 — UI tylko, wszystkie API calls do `/api/submissions/...` w Phase 11.
+ * Faza 10 - UI tylko, wszystkie API calls do `/api/submissions/...` w Phase 11.
  */
 
 import { useState } from "react";
@@ -155,7 +155,7 @@ export function IosSubmissionWizard({ projectId, defaults }: Props) {
         <section className="flex flex-col gap-4">
           <header className="flex items-center gap-2">
             <Tag className="h-4 w-4 text-beige" />
-            <h3 className="text-base font-medium">Krok 1 — Szczegoly aplikacji</h3>
+            <h3 className="text-base font-medium">Krok 1 - Szczegoly aplikacji</h3>
           </header>
 
           <div className="grid gap-3 sm:grid-cols-2">
@@ -266,7 +266,7 @@ export function IosSubmissionWizard({ projectId, defaults }: Props) {
         <section className="flex flex-col gap-4">
           <header className="flex items-center gap-2">
             <Settings className="h-4 w-4 text-beige" />
-            <h3 className="text-base font-medium">Krok 2 — Build & podpis</h3>
+            <h3 className="text-base font-medium">Krok 2 - Build & podpis</h3>
           </header>
 
           <div className="flex flex-col gap-3">
@@ -307,7 +307,7 @@ export function IosSubmissionWizard({ projectId, defaults }: Props) {
                   </span>
                   <span className="text-[11px] text-muted-foreground">
                     {d === "testflight"
-                      ? "Beta testers, do 10 000 uzytkownikow"
+                      ? "Beta testers, do 10 000 użytkownikow"
                       : "Publikacja w App Store po recenzji"}
                   </span>
                 </button>
@@ -345,11 +345,11 @@ export function IosSubmissionWizard({ projectId, defaults }: Props) {
         <section className="flex flex-col gap-4">
           <header className="flex items-center gap-2">
             <Send className="h-4 w-4 text-beige" />
-            <h3 className="text-base font-medium">Krok 3 — Tracking & weryfikacja</h3>
+            <h3 className="text-base font-medium">Krok 3 - Tracking & weryfikacja</h3>
           </header>
 
           <p className="text-sm text-muted-foreground">
-            Build uruchomiony. Status odswieza sie na zywo (Codemagic webhook + Supabase Realtime).
+            Build uruchomiony. Status odświeża sie na zywo (Codemagic webhook + Supabase Realtime).
           </p>
 
           <SubmissionTracker submissionId={submissionId} />

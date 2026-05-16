@@ -66,7 +66,7 @@ export function WCRuntime({
 
     (async () => {
       try {
-        // Napraw package.json przed mounted do WC — stare projekty moga miec
+        // Napraw package.json przed mounted do WC - stare projekty moga miec
         // JSON z trailing commas wygenerowanymi przez AI. npm install pada z
         // EJSONPARSE bez tej sanitizacji.
         const safeFiles = sanitizeProjectPackageJson(files);
@@ -96,7 +96,7 @@ export function WCRuntime({
     );
     if (changed.length === 0) return;
 
-    // Aktualizuj ref SYNCHRONICZNIE przed petla async — dziala jako "lock"
+    // Aktualizuj ref SYNCHRONICZNIE przed petla async - dziala jako "lock"
     // zapobiegajacy ponownemu wejsciu do efektu gdy React StrictMode lub
     // szybkie re-rendery wywolaja go ponownie zanim pierwsza petla skonczy
     // pisac pliki. Bez tego `package.json` (i inne pliki) sa wgrywane
@@ -207,7 +207,7 @@ export function WCRuntime({
         )
       )}
 
-      {/* Pasek postępu statycznego deployu — pojawia się nad iframe po publikacji */}
+      {/* Pasek postępu statycznego deployu - pojawia się nad iframe po publikacji */}
       {deployStatus !== "idle" && (
         <div
           className={`pointer-events-none absolute bottom-3 left-1/2 z-50 -translate-x-1/2 rounded-full border px-3 py-1 text-[11px] font-medium shadow-lg backdrop-blur ${
@@ -231,7 +231,7 @@ export function WCRuntime({
             </>
           )}
           {deployStatus === "done" && "Opublikowano wersję statyczną"}
-          {deployStatus === "error" && "Build nie powiódł się — Sandpack aktywny"}
+          {deployStatus === "error" && "Build nie powiódł się - Sandpack aktywny"}
         </div>
       )}
     </div>

@@ -9,7 +9,7 @@ import type { UserTier } from "@/lib/ai-models";
 type AppShellProps = {
   projects: ProjectListItem[];
   /**
-   * Tier zalogowanego uzytkownika — decyduje o widocznych platformach,
+   * Tier zalogowanego użytkownika - decyduje o widocznych platformach,
    * modelach AI i trybie WYBITNY w `CreationHero`.
    */
   userTier?: UserTier;

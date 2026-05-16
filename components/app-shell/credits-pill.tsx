@@ -26,7 +26,7 @@ export function CreditsPill() {
       <Link
         href="/pricing"
         className="flex cursor-pointer items-center gap-1.5 rounded-full border border-beige/25 bg-beige/10 px-3 py-1 text-xs font-medium text-beige transition hover:border-beige/40 hover:bg-beige/15"
-        title="Kredyty — kliknij aby zobaczyc plany"
+        title="Kredyty - kliknij aby zobaczyc plany"
       >
         <Zap className="h-3 w-3" />
         {points === null ? "..." : points.toLocaleString("pl-PL")} kr

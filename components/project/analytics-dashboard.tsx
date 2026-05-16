@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Analytics dashboard projektu — uzywany w `ProjectSettingsDialog`.
+ * Analytics dashboard projektu - uzywany w `ProjectSettingsDialog`.
  *
  * Pokazuje:
  *  - Karty z sumami per typ eventu (view / prompt / publish / ...).
@@ -143,7 +143,7 @@ export function AnalyticsDashboard({ projectId, events }: Props) {
 
   const preset = RANGE_PRESETS[range];
 
-  // Full grid of buckets — always numBuckets long
+  // Full grid of buckets - always numBuckets long
   const grid = useMemo(
     () => buildFullGrid(data, preset.days, preset.bucketHours),
     [data, preset.days, preset.bucketHours],
@@ -222,7 +222,7 @@ export function AnalyticsDashboard({ projectId, events }: Props) {
           </div>
         ) : (
           <>
-            {/* Full-grid bar chart — wąskie słupki, zawsze pełna liczba kubełków */}
+            {/* Full-grid bar chart - wąskie słupki, zawsze pełna liczba kubełków */}
             <div className="flex h-48 items-end gap-px overflow-hidden">
               {grid.map((bucket, i) => {
                 const heightPct = (bucket.total / maxValue) * 100;
@@ -263,7 +263,7 @@ export function AnalyticsDashboard({ projectId, events }: Props) {
                       </div>
                     )}
 
-                    {/* Empty bucket placeholder — very subtle */}
+                    {/* Empty bucket placeholder - very subtle */}
                     {isEmpty && (
                       <div className="absolute inset-0 opacity-0 group-hover:opacity-100">
                         <div className="h-full w-full rounded-sm bg-beige/5" />

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * CloudTab — status usług platformy z prawdziwym monitoringiem.
+ * CloudTab - status usług platformy z prawdziwym monitoringiem.
  *
  * Sprawdza realne statusy:
  *  - Generowanie AI: testuje /api/enhance-prompt z timeout
@@ -72,7 +72,7 @@ async function checkPreview(): Promise<SystemStatus> {
       "https://sandpack-bundler.codesandbox.io",
       { method: "HEAD", mode: "no-cors", signal: AbortSignal.timeout(5000) },
     );
-    // no-cors zwraca opaque response — jesli nie rzuci, serwer odpowiada
+    // no-cors zwraca opaque response - jesli nie rzuci, serwer odpowiada
     void res;
     return "ok";
   } catch {

@@ -40,7 +40,7 @@ export default async function ProjectPage({
 
   const storedMessages = await listChatMessages(id);
   // Wiadomosci sa przechowywane w bazie zgodnie z formatem UIMessage z @ai-sdk.
-  // Cast do UIMessage[] — runtime gwarantuje odpowiedni ksztalt parts (wpisy
+  // Cast do UIMessage[] - runtime gwarantuje odpowiedni ksztalt parts (wpisy
   // sa serializowane bezposrednio z useChat().messages w PUT /messages).
   const initialMessages = storedMessages.map((m) => ({
     id: m.id,

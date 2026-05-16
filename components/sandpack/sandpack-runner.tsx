@@ -23,7 +23,7 @@ export type SandpackRunnerProps = {
   viewMode?: SandpackViewMode;
   /** Tryb wyboru elementu - aktywuje overlay nad podgladem. */
   selectMode?: boolean;
-  /** Callback wywolywany gdy uzytkownik kliknie w preview w trybie select. */
+  /** Callback wywolywany gdy użytkownik kliknie w preview w trybie select. */
   onElementPick?: (info: {
     x: number;
     y: number;
@@ -34,24 +34,24 @@ export type SandpackRunnerProps = {
   /** Wyrenderuj nadpisany URL bar - jezeli true, wewnetrzny navigator Sandpacka jest ukryty. */
   hideInternalNavigator?: boolean;
   /**
-   * ID projektu — jezeli przekazane, SandpackSaver bedzie automatycznie
-   * zapisywal reczne edycje uzytkownika do bazy (debounce 1.5s).
+   * ID projektu - jezeli przekażane, SandpackSaver bedzie automatycznie
+   * zapisywal reczne edycje użytkownika do bazy (debounce 1.5s).
    */
   projectId?: string;
   /** When true the editor is read-only (AI is actively writing files). */
   isGenerating?: boolean;
   /**
-   * Wywoływane z menu eksploratora („Wskaż w podglądzie”) — np. włącza tryb
+   * Wywoływane z menu eksploratora („Wskaż w podglądzie”) - np. włącza tryb
    * wyboru elementu i przełącza na widok podglądu.
    */
   onRequestPreviewPickMode?: () => void;
   /**
    * Gdy true (zakładka „Podgląd”): zwęża eksplorator + edytor do zera, ale zostawia
-   * je w DOM — żeby bundler Sandpacka nie przechodził w „idle”.
+   * je w DOM - żeby bundler Sandpacka nie przechodził w „idle”.
    */
   collapseChrome?: boolean;
   /**
-   * Gdy true (zakładka „Kod”): zwęża kolumnę podglądu — pełna szerokość na edytor,
+   * Gdy true (zakładka „Kod”): zwęża kolumnę podglądu - pełna szerokość na edytor,
    * iframe nadal w DOM (bundler aktywny).
    */
   collapsePreview?: boolean;

@@ -1,9 +1,9 @@
 "use client";
 
 /**
- * FloatingPreview — draggable, resizable floating browser preview window.
+ * FloatingPreview - draggable, resizable floating browser preview window.
  *
- * Inspiracja: Rork.com — okno z podgladem strony ktore mozna przesuwac
+ * Inspiracja: Rork.com - okno z podgladem strony ktore mozna przesuwac
  * i skalowac niezaleznie od edytora kodu.
  *
  * Zawiera:
@@ -163,7 +163,7 @@ export function FloatingPreview({ previewUrl, onClose, iframeSrc }: Props) {
       style={containerStyle}
       className="flex flex-col overflow-hidden border border-beige/20 bg-[#1a1a1a] shadow-2xl shadow-black/70"
     >
-      {/* Window chrome header — draggable */}
+      {/* Window chrome header - draggable */}
       <div
         onMouseDown={onDragStart}
         className="flex h-10 shrink-0 cursor-grab select-none items-center gap-2 border-b border-white/10 bg-[#242424] px-3 active:cursor-grabbing"
@@ -276,7 +276,7 @@ export function FloatingPreview({ previewUrl, onClose, iframeSrc }: Props) {
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-sm text-neutral-400">
-              Brak podgladu — uruchom generowanie
+              Brak podgladu - uruchom generowanie
             </div>
           )}
         </div>

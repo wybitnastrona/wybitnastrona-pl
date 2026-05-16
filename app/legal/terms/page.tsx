@@ -12,7 +12,7 @@ export default function TermsPage() {
       <main className="flex flex-1 flex-col">
         <article className="prose mx-auto w-full max-w-3xl px-4 py-16 sm:px-6 sm:py-24">
           <h1 className="text-3xl font-medium tracking-tight sm:text-4xl">
-            Regulamin uslugi
+            Regulamin usługi
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Ostatnia aktualizacja: {new Date().toLocaleDateString("pl-PL")}
@@ -22,18 +22,18 @@ export default function TermsPage() {
             <Section title="1. Postanowienia wstepne">
               Niniejszy regulamin okresla zasady korzystania z platformy
               wybitnastrona.pl - generatora stron internetowych opartego o AI.
-              Korzystanie z uslugi oznacza akceptacje regulaminu.
+              Korzystanie z usługi oznacza akceptacje regulaminu.
             </Section>
 
-            <Section title="2. Konto uzytkownika">
-              Dostep do funkcji generowania wymaga utworzenia konta. Uzytkownik
+            <Section title="2. Konto użytkownika">
+              Dostep do funkcji generowania wymaga utworzenia konta. Użytkownik
               odpowiada za poufnosc swoich danych logowania i wszystkie dzialania
               wykonane z jego konta.
             </Section>
 
             <Section title="3. Tresci generowane">
-              Wygenerowany kod nalezy do uzytkownika. Uzytkownik zobowiazuje sie
-              nie generowac tresci sprzecznych z prawem, naruszajacych prawa osob
+              Wygenerowany kod nalezy do użytkownika. Użytkownik zobowiazuje sie
+              nie generowac tresci sprzecznych z prawem, naruszajacych prawa osób
               trzecich, ani sluzacych do oszustw, phishingu, malware lub
               dystrybucji tresci niedozwolonych.
             </Section>
@@ -45,13 +45,13 @@ export default function TermsPage() {
 
             <Section title="5. Prawa wlasnosci intelektualnej">
               Logo, marka i kod platformy naleza do wybitnastrona.pl. Tresci
-              uzytkownika - prompty, pliki - pozostaja jego wlasnoscia.
+              użytkownika - prompty, pliki - pozostaja jego wlasnoscia.
             </Section>
 
             <Section title="6. Wylaczenie odpowiedzialnosci">
               Uslugi swiadczone sa as-is. Nie gwarantujemy poprawnosci,
               kompletnosci ani przydatnosci wygenerowanego kodu do okreslonego
-              celu. Uzytkownik korzysta na wlasna odpowiedzialnosc.
+              celu. Użytkownik korzysta na własna odpowiedzialnosc.
             </Section>
 
             <Section title="7. Reklamacje i kontakt">

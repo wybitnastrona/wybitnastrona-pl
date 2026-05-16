@@ -5,7 +5,7 @@ import { Zap } from "lucide-react";
 import Link from "next/link";
 
 type Props = {
-  /** Opcjonalne saldo przekazane serwerowo (SSR),
+  /** Opcjonalne saldo przekażane serwerowo (SSR),
    *  aby uniknac migania przy pierwszym renderze. */
   initialPoints?: number;
 };
@@ -14,7 +14,7 @@ export function PointsBadge({ initialPoints }: Props) {
   const [points, setPoints] = useState<number | null>(initialPoints ?? null);
 
   useEffect(() => {
-    // Odswiezaj saldo co 30 sekund (po kazdym generowaniu router.refresh() + ten hook)
+    // Odświeżaj saldo co 30 sekund (po kazdym generowaniu router.refresh() + ten hook)
     let cancelled = false;
 
     async function fetchPoints() {
@@ -43,7 +43,7 @@ export function PointsBadge({ initialPoints }: Props) {
   return (
     <Link
       href="/pricing"
-      title="Twoje punkty — kliknij aby dokupic"
+      title="Twoje punkty - kliknij aby dokupic"
       className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium transition hover:opacity-80 ${
         isLow
           ? "border-amber-500/40 bg-amber-500/10 text-amber-300"

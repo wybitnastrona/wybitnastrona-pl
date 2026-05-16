@@ -10,7 +10,7 @@ const APPLICATIONS = [
     name: "Supabase",
     category: "Baza danych",
     description:
-      "Baza, autoryzacja i storage. Wykorzystywane przez wybitnastrona.pl do przechowywania projektow.",
+      "Baza, autoryzacja i storage. Wykorzystywane przez wybitnastrona.pl do przechowywania projektów.",
     docsUrl: "https://supabase.com/docs",
     accent: "#3ecf8e",
     initials: "S",
@@ -20,7 +20,7 @@ const APPLICATIONS = [
     name: "Netlify",
     category: "Hosting",
     description:
-      "Alternatywny hosting publikowanych stron. Wkrotce: deploy jednym klikiem.",
+      "Alternatywny hosting publikowanych stron. Wkrótce: deploy jednym klikiem.",
     docsUrl: "https://www.netlify.com/",
     accent: "#00ad9f",
     initials: "N",
@@ -30,7 +30,7 @@ const APPLICATIONS = [
     name: "Figma",
     category: "Design",
     description:
-      "Importuj projekty z Figmy do generatora. Wkrotce: pelna integracja OAuth.",
+      "Importuj projekty z Figmy do generatora. Wkrótce: pelna integracja OAuth.",
     docsUrl: "https://www.figma.com/",
     accent: "#a259ff",
     initials: "F",
@@ -54,7 +54,7 @@ export function ApplicationsTab() {
       <header>
         <h2 className="text-lg font-medium text-foreground">Aplikacje</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Polacz zewnetrzne narzedzia z kreatorem. W pierwszej wersji
+          Połącz zewnetrzne narzedzia z kreatorem. W pierwszej wersji
           dostepne sa linki konfiguracyjne; pelne polaczenie OAuth zostanie
           wlaczone w kolejnych aktualizacjach.
         </p>
@@ -119,7 +119,7 @@ function AppRow({ app }: AppRowProps) {
           }`}
         >
           <Plug className="h-3 w-3" />
-          {connected ? "Polaczono" : "Polacz"}
+          {connected ? "Połączono" : "Połącz"}
         </button>
       </div>
     </article>

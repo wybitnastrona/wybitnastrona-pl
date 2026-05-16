@@ -19,7 +19,7 @@ export default function BillingSuccessPage() {
             Płatność zakończona pomyślnie
           </h1>
           <p className="text-sm text-muted-foreground">
-            Punkty zostały dodane do Twojego konta. Zaczekaj kilka sekund — synchronizacja
+            Punkty zostały dodane do Twojego konta. Zaczekaj kilka sekund - synchronizacja
             sesji może zająć chwilę.
           </p>
           <Link

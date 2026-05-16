@@ -2,7 +2,7 @@
 
 /**
  * @deprecated Zastapione przez `PlatformSelector` (Rork-style pill).
- * Komponent zachowany tymczasowo na wypadek odwrotu — bedzie usuniety po stabilizacji.
+ * Komponent zachowany tymczasowo na wypadek odwrotu - bedzie usuniety po stabilizacji.
  */
 
 import { Globe, Watch, Tv } from "lucide-react";
@@ -42,13 +42,13 @@ export function ModeTabs({ value, onChange }: Props) {
                   : "text-muted-foreground hover:text-foreground/70"
               }
               ${mode.comingSoon ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
-            title={mode.comingSoon ? "Wkrotce" : mode.label}
+            title={mode.comingSoon ? "Wkrótce" : mode.label}
           >
             <Icon className="h-3.5 w-3.5 shrink-0" />
             {mode.label}
             {mode.comingSoon && (
               <span className="ml-0.5 rounded bg-beige/15 px-1 py-px text-[8px] uppercase tracking-wider text-beige/80">
-                Wkrotce
+                Wkrótce
               </span>
             )}
           </button>

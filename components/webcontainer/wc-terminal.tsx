@@ -38,7 +38,7 @@ export function WCTerminal() {
       term.open(containerRef.current);
       fit.fit();
 
-      term.writeln("\x1b[33mwybitnastrona.pl — terminal WebContainer\x1b[0m");
+      term.writeln("\x1b[33mwybitnastrona.pl - terminal WebContainer\x1b[0m");
       term.writeln("Wpisz dowolna komende shell (npm, node, git…)");
       term.writeln("");
 
@@ -47,7 +47,7 @@ export function WCTerminal() {
         if (ev.type === "log") term.write(ev.line);
       });
 
-      // Interaktywna powloka (jsh — domyslny shell WC)
+      // Interaktywna powloka (jsh - domyslny shell WC)
       let writer: ((s: string) => void) | null = null;
       try {
         const proc = await wcManager.spawn("jsh", [], (chunk) =>

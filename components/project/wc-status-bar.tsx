@@ -19,7 +19,7 @@ type Props = {
  *   - prawa: nazwa pliku w edytorze
  */
 export function WcStatusBar({ activePath: activePathProp }: Props) {
-  // Lazy init z obecnego stanu wcManagera — pozwala uniknac setState w useEffect.
+  // Lazy init z obecnego stanu wcManagera - pozwala uniknac setState w useEffect.
   const [phase, setPhase] = useState<Phase>(() =>
     wcManager.getServerUrl() ? "ready" : "idle",
   );
@@ -70,7 +70,7 @@ export function WcStatusBar({ activePath: activePathProp }: Props) {
   }, []);
 
   const { label, dotClass } = describe(phase);
-  const fileLabel = activePath ?? "—";
+  const fileLabel = activePath ?? "-";
 
   return (
     <div className="flex h-6 shrink-0 items-center justify-between gap-3 border-t border-beige/10 bg-card/40 px-3 text-[10px] text-muted-foreground">

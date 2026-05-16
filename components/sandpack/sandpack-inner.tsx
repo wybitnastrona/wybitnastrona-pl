@@ -94,12 +94,12 @@ export function SandpackInner({
         autorun: true,
         autoReload: true,
         // Tailwind CDN jest juz wstrzykniety bezposrednio w index.html
-        // (lib/sandpack/starter.ts) — laduje sie niezawodnie jako pierwszy
+        // (lib/sandpack/starter.ts) - laduje sie niezawodnie jako pierwszy
         // skrypt, zanim React wyrenderuje DOM.
         bundlerURL: "https://sandpack-bundler.codesandbox.io",
         /** Leniwy start + ciezkie pliki = TIME_OUT; immediate startuje bundler od razu. */
         initMode: "immediate",
-        /** Domyslnie 40s — na Vercelu / wolniejszej sieci bundler czesto potrzebuje wiecej. */
+        /** Domyslnie 40s - na Vercelu / wolniejszej sieci bundler czesto potrzebuje wiecej. */
         bundlerTimeOut: 120_000,
       }}
     >
@@ -182,7 +182,7 @@ function CodeView({
 }) {
   return (
     <div className="flex h-full w-full">
-      {/* File explorer — ukryty na mobile, oddzielony cienka linia */}
+      {/* File explorer - ukryty na mobile, oddzielony cienka linia */}
       <aside className="hidden h-full w-[200px] shrink-0 border-r border-beige/10 md:block lg:w-[220px]">
         <SandpackContextFileExplorer
           projectId={projectId}
@@ -195,8 +195,8 @@ function CodeView({
       {/* Edytor + terminal (kolumna) */}
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="min-h-0 flex-1 overflow-hidden">
-          {/* showTabs=false — caly tab bar usuniety, file explorer obok jest jedynym
-              sposobem nawigacji. Tabs zajmuja pasek pionowy, ktorego uzytkownik nie chce. */}
+          {/* showTabs=false - caly tab bar usuniety, file explorer obok jest jedynym
+              sposóbem nawigacji. Tabs zajmuja pasek pionowy, ktorego użytkownik nie chce. */}
           <SandpackCodeEditor
             showTabs={false}
             showLineNumbers
@@ -207,7 +207,7 @@ function CodeView({
           />
         </div>
 
-        {/* Konsola — collapsible; pokazuje console.log/warn/error z podglądu */}
+        {/* Konsola - collapsible; pokazuje console.log/warn/error z podglądu */}
         <div
           className={`flex shrink-0 flex-col border-t border-beige/10 transition-all ${
             terminalOpen ? "h-[38%] min-h-[140px]" : "h-9"
@@ -230,9 +230,9 @@ function CodeView({
           </button>
           {terminalOpen && (
             <div className="flex min-h-0 flex-1 flex-col">
-              {/* Info bar — explains this is a browser preview, not a real shell */}
+              {/* Info bar - explains this is a browser preview, not a real shell */}
               <div className="shrink-0 border-b border-beige/10 bg-[#0a0a0a] px-3 py-1.5 text-[11px] text-neutral-500">
-                Konsola podglądu (console.log / błędy JS) · npm/node niedostępne — użyj chatu AI
+                Konsola podglądu (console.log / błędy JS) · npm/node niedostępne - użyj chatu AI
               </div>
               <div className="min-h-0 flex-1 overflow-auto">
                 <SandpackConsole
@@ -416,9 +416,9 @@ function PreviewWithOverlay({
     };
   }, [selectMode, onElementPick]);
 
-  // Gdy `previewFrame` jest ustawiony — owin iframe w PhoneFrame / BrowserFrame
+  // Gdy `previewFrame` jest ustawiony - owin iframe w PhoneFrame / BrowserFrame
   // (faza 3). Wymusza ukrycie natywnego navigator'a Sandpacka, bo ramka ma
-  // wlasny URL bar / wyglada lepiej.
+  // własny URL bar / wyglada lepiej.
   const useFrame = !!previewFrame;
   const effectiveHideNavigator = useFrame ? true : hideNavigator;
 
@@ -435,7 +435,7 @@ function PreviewWithOverlay({
     <div className="pointer-events-none absolute left-1/2 top-3 z-10 -translate-x-1/2">
       <span className="inline-flex items-center gap-1.5 rounded-full border border-beige/30 bg-background/90 px-2.5 py-1 text-[11px] text-beige shadow">
         <MousePointer2 className="h-3 w-3" />
-        Tryb wyboru — kliknij element w podglądzie
+        Tryb wyboru - kliknij element w podglądzie
       </span>
     </div>
   ) : null;

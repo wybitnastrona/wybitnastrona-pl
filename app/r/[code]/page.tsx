@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 type Params = { params: Promise<{ code: string }> };
 
 /**
- * /r/[code] — landing dla linku polecajacego.
+ * /r/[code] - landing dla linku polecajacego.
  * Ustawia cookie `wybitna_ref=<code>` na 30 dni i redirectuje na home.
  * Cookie zostanie odczytane przy rejestracji (signup-form) i zapisane w
  * tabeli `referrals` po utworzeniu profilu nowego usera.

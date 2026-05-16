@@ -9,7 +9,7 @@ type Props = {
 };
 
 /**
- * Formularz "Wyslij ponownie link potwierdzajacy" — uzywany na stronach
+ * Formularz "Wyslij ponownie link potwierdzajacy" - uzywany na stronach
  * /auth/error i /signin. Wywoluje supabase.auth.resend({type:'signup'}).
  */
 export function ResendConfirmationForm({ initialEmail = "" }: Props) {

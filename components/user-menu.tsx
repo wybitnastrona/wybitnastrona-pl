@@ -88,7 +88,7 @@ export function UserMenu({ variant = "navbar" }: UserMenuProps) {
         <DropdownMenuGroup>
           <DropdownMenuItem onClick={() => void signOut()}>
             <LogOut className="h-4 w-4" />
-            Wyloguj sie
+            Wyloguj się
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>

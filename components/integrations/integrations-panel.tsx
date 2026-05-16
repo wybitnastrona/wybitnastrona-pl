@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * IntegrationsPanel — UI do konfiguracji integracji MCP (Supabase / Notion /
+ * IntegrationsPanel - UI do konfiguracji integracji MCP (Supabase / Notion /
  * Memory / Stitch). Renderowany w CreationHero (przycisk "Integracje") oraz w
  * workspace projektu (zakladka "Integracje" w MoreMenu).
  */
@@ -123,7 +123,7 @@ export function IntegrationsPanel({ open, onClose }: Props) {
           <div>
             <h2 className="text-lg font-medium text-foreground">Integracje</h2>
             <p className="text-xs text-muted-foreground">
-              Podłącz Supabase / Notion / MCP — AI użyje konfiguracji podczas
+              Podłącz Supabase / Notion / MCP - AI użyje konfiguracji podczas
               budowy strony.
             </p>
           </div>
@@ -210,7 +210,7 @@ function IntegrationForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Komponent remountuje sie przy zmianie provider (klucz `key={activeTab}` w
-  // parent) — wiec lazy init jest jedynym potrzebnym sposobem zainicjowania.
+  // parent) - wiec lazy init jest jedynym potrzebnym sposóbem zainicjowania.
   const [values, setValues] = useState<Record<string, string>>(() => {
     const out: Record<string, string> = {};
     for (const [k, v] of Object.entries(initialConfig)) {
@@ -380,7 +380,7 @@ const FIELDS_PER_PROVIDER: Record<IntegrationProvider, Field[]> = {
     },
     {
       key: "service_role_key",
-      label: "service_role key (opcjonalnie — odblokowuje auto-migracje)",
+      label: "service_role key (opcjonalnie - odblokowuje auto-migracje)",
       placeholder: "eyJ…",
       secret: true,
     },
@@ -408,7 +408,7 @@ const FIELDS_PER_PROVIDER: Record<IntegrationProvider, Field[]> = {
     { key: "api_key", label: "API key (placeholder)", placeholder: "klucz", secret: true },
   ],
   supabase_oauth: [
-    // OAuth — pola wypelniane automatycznie po callback. Manualne wpisywanie nie jest
+    // OAuth - pola wypelniane automatycznie po callback. Manualne wpisywanie nie jest
     // wspierane, ale typ wymaga tablicy.
     {
       key: "access_token",
@@ -418,10 +418,10 @@ const FIELDS_PER_PROVIDER: Record<IntegrationProvider, Field[]> = {
     },
   ],
   stripe: [
-    // Stripe Connect — wypelniane przez OAuth callback. Manual fallback dla power-userow.
+    // Stripe Connect - wypelniane przez OAuth callback. Manual fallback dla power-userow.
     {
       key: "stripe_user_id",
-      label: "Stripe account ID (acct_…) — automat z OAuth",
+      label: "Stripe account ID (acct_…) - automat z OAuth",
       placeholder: "acct_1Nxxxxx",
     },
     {

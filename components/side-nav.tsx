@@ -1,13 +1,13 @@
 "use client";
 
 /**
- * SideNav — staly lewy sidebar dla publicznych podstron wybitnastrona.pl.
+ * SideNav - staly lewy sidebar dla publicznych podstron wybitnastrona.pl.
  *
  * Zastapuje gorny `<Navbar>` (sticky header). Na desktopie (>= md) zajmuje
  * 224px szerokosci (w-56) po lewej, na mobile zwijany do top-bar +
  * portalowanego drawer-a.
  *
- * Strony konsumenckie nie musza dodawac `pl-56` manualnie — komponent w
+ * Strony konsumenckie nie musza dodawac `pl-56` manualnie - komponent w
  * `useEffect` ustawia `document.body.style.paddingLeft` na medium+ szerokosciach
  * i zdejmuje przy unmount.
  */
@@ -21,10 +21,10 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { UserMenu } from "@/components/user-menu";
 import { PointsBadge } from "@/components/points-badge";
 
-// Lista linkow publicznych (bez Showcase — usuniete w Task 13).
+// Lista linkow publicznych (bez Showcase - usuniete w Task 13).
 const PUBLIC_LINKS: { label: string; href: string }[] = [
   { label: "Szablony", href: "/templates" },
-  { label: "Jak to dziala", href: "/#how-it-works" },
+  { label: "Jak to działa", href: "/#how-it-works" },
   { label: "Pricing", href: "/pricing" },
   { label: "FAQ", href: "/#faq" },
   { label: "Dokumentacja", href: "/docs" },
@@ -84,7 +84,7 @@ export function SideNav() {
             </Link>
           ))}
         </nav>
-        {/* Pasek kredytow — psychologia "popycha" do upgrade gdy zaczyna sie
+        {/* Pasek kredytow - psychologia "popycha" do upgrade gdy zaczyna sie
             robic czerwony. Pokazujemy tylko gdy user zalogowany (FREE i PRO). */}
         {user && <CreditBar />}
         <div className="shrink-0 border-t border-beige/10 p-3">
@@ -103,7 +103,7 @@ export function SideNav() {
                 onClick={() => openAuth({ mode: "login" })}
                 className="justify-start text-beige/90 hover:bg-white/5 hover:text-beige"
               >
-                Zaloguj sie
+                Zaloguj się
               </Button>
               <Button
                 size="sm"
@@ -126,7 +126,7 @@ export function SideNav() {
         </Link>
         <button
           type="button"
-          aria-label="Otworz menu"
+          aria-label="Otwórz menu"
           onClick={() => setMobileOpen(true)}
           className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-md border border-beige/20 text-beige"
         >
@@ -134,7 +134,7 @@ export function SideNav() {
         </button>
       </header>
 
-      {/* Mobile drawer via portal — wynosimy z header stacking contextu zeby
+      {/* Mobile drawer via portal - wynosimy z header stacking contextu zeby
           backdrop-blur na headerze nie tlumil drawera. */}
       {mounted &&
         mobileOpen &&
@@ -194,7 +194,7 @@ export function SideNav() {
                       }}
                       className="justify-start text-beige/90 hover:bg-white/5"
                     >
-                      Zaloguj sie
+                      Zaloguj się
                     </Button>
                     <Button
                       size="sm"
@@ -218,14 +218,14 @@ export function SideNav() {
 }
 
 /**
- * CreditBar — pasek postepu zuzycia miesiecznych kredytow.
+ * CreditBar - pasek postepu zuzycia miesiecznych kredytow.
  *
  * Logika:
  *  - Fetch z `/api/me/points` (zwraca `points`, `monthlyLimit`).
  *  - `points` to BIEZACE saldo (malejace). `used = monthlyLimit - points`.
  *  - Pasek pokazuje zuzycie: szerokosc = clamp(used / limit * 100, 0..100).
  *  - Kolor: czerwony gdy zostalo < 20% kredytow (pct zuzycia > 80%),
- *    czyli moment "panicznego upgrade" — beige w pozostalych przypadkach.
+ *    czyli moment "panicznego upgrade" - beige w pozostalych przypadkach.
  *  - Ikona Zap obok linkuje do `/pricing` (najprostsza droga do upgrade).
  *
  * Defensywnie: gdy saldo > limit (rzadkie, np. po dokupieniu pakietu), pasek
@@ -280,8 +280,8 @@ export function CreditBar({ onUpgradeClick }: { onUpgradeClick?: () => void } = 
         <Link
           href="/pricing"
           onClick={onUpgradeClick}
-          title="Doladuj kredyty"
-          aria-label="Doladuj kredyty"
+          title="Doładuj kredyty"
+          aria-label="Doładuj kredyty"
           className={`inline-flex h-5 w-5 items-center justify-center rounded-md transition ${
             isLow
               ? "bg-red-500/15 text-red-400 hover:bg-red-500/25"
@@ -297,7 +297,7 @@ export function CreditBar({ onUpgradeClick }: { onUpgradeClick?: () => void } = 
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={usedPct}
-        aria-label="Zuzyte kredyty"
+        aria-label="Zużyte kredyty"
       >
         <div
           className={`h-full transition-all ${

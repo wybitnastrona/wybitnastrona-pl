@@ -68,7 +68,7 @@ export default async function PublicSharePage({ params }: { params: Params }) {
                 className="inline-flex h-9 items-center gap-2 rounded-lg border border-beige/20 px-3 text-sm text-foreground/80 transition hover:border-beige/40 hover:text-beige"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
-                Otworz live
+                Otwórz live
               </a>
               <RemixButton projectId={project.id} />
             </div>

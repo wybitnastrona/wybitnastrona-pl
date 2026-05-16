@@ -3,7 +3,7 @@
 /**
  * Project Publish View (Screen 6).
  *
- * Pokazywany po kliknieciu "Opublikuj" dla projektow mobilnych:
+ * Pokazywany po kliknieciu "Opublikuj" dla projektów mobilnych:
  *  - iOS: lista poprzednich submission + przycisk "New Submission" otwierajacy iOS Wizard.
  *  - Android: AndroidOptionsPanel od razu.
  *  - watchOS / tvOS / visionOS: jak iOS.
@@ -53,7 +53,7 @@ export function ProjectPublishView({ projectId, platform }: Props) {
     null,
   );
 
-  // Ostatnia ref do fetcha — uzywany w handlerach (np. po sukcesie android submit).
+  // Ostatnia ref do fetcha - uzywany w handlerach (np. po sukcesie android submit).
   const refreshRef = useRef<() => void>(() => {});
 
   useEffect(() => {
@@ -115,7 +115,7 @@ export function ProjectPublishView({ projectId, platform }: Props) {
         )}
       </header>
 
-      {/* Active submission tracker — gdy uzytkownik kliknal poprzednia */}
+      {/* Active submission tracker - gdy użytkownik kliknal poprzednia */}
       {activeSubmissionId && !showNew && (
         <div className="flex flex-col gap-2">
           <button

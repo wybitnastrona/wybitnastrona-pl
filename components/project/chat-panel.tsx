@@ -77,7 +77,7 @@ type ChatPanelProps = {
   hasFiles: boolean;
   selectMode: boolean;
   onSelectModeChange: (value: boolean) => void;
-  /** Model wybrany w CreationHero (przekazany przez URL). */
+  /** Model wybrany w CreationHero (przekażany przez URL). */
   initialModel?: string;
   /** Tryb wybrany w CreationHero. */
   initialMode?: ChatMode;
@@ -185,7 +185,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
   }, []);
 
   // Jednorazowe nadpisanie trybu na potrzeby konkretnego wyslanego komunikatu.
-  // Uzywane przez "Kontynuuj generowanie" — chcemy wyslac jedna wiadomosc w
+  // Uzywane przez "Kontynuuj generowanie" - chcemy wyslac jedna wiadomosc w
   // trybie 'continue', ale nie zmieniac stalego trybu UI.
   const oneShotModeRef = useRef<"continue" | null>(null);
 
@@ -193,7 +193,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
   const hasStoredHistory = (initialMessages?.length ?? 0) > 0;
 
   // model is kept in deps so transport recreates when model changes.
-  // mode is NOT in deps — we read modeRef.current inside body() at request time.
+  // mode is NOT in deps - we read modeRef.current inside body() at request time.
   // body() is a callback invoked by DefaultChatTransport outside of render, so
   // accessing modeRef.current there is intentional and safe.
   /* eslint-disable react-hooks/refs */
@@ -259,7 +259,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
   // Auto-start generacji TYLKO przy pierwszym wejsciu w nowy projekt:
   //  - mamy initialPrompt
   //  - brak zapisanej historii w bazie (hasStoredHistory)
-  //  - brak wygenerowanych plikow uzytkownika
+  //  - brak wygenerowanych plikow użytkownika
   //  - wizard nie jest aktywny (wizardBlocked)
   useEffect(() => {
     if (
@@ -311,9 +311,9 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     messages.length,
   ]);
 
-  // Smart auto-scroll: trzymamy `stickyBottom = true` dopoki uzytkownik jest
+  // Smart auto-scroll: trzymamy `stickyBottom = true` dopoki użytkownik jest
   // blisko dolu (< 80px). Gdy odscrolluje wyzej, wylacza sie auto-scroll dla
-  // nowych wiadomosci/streamingu — uzytkownik moze spokojnie czytac wczesniejsze
+  // nowych wiadomosci/streamingu - użytkownik może spokojnie czytac wczesniejsze
   // partie kodu bez "skakania" do dolu.
   const stickyBottomRef = useRef(true);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
@@ -363,7 +363,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
         };
         const sp = part as StreamingPart;
 
-        // writeFile — stream while typing
+        // writeFile - stream while typing
         if (
           sp.type === "tool-writeFile" &&
           sp.state === "input-streaming" &&
@@ -377,7 +377,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
           );
         }
 
-        // patchFile — emit final patched content once the tool output is available
+        // patchFile - emit final patched content once the tool output is available
         if (
           sp.type === "tool-patchFile" &&
           sp.state === "output-available" &&
@@ -395,7 +395,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     }
   }, [messages]);
 
-  // Wysłanie postMessage do iframe z preview (bezpieczne — działa również gdy
+  // Wysłanie postMessage do iframe z preview (bezpieczne - działa również gdy
   // iframe nie istnieje, np. w trybie code-only).
   function sendIframeMessage(payload: unknown) {
     const iframe = document.querySelector(
@@ -404,7 +404,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     iframe?.contentWindow?.postMessage(payload, "*");
   }
 
-  // Zapamiętaj pozycję karetki w contenteditable — dzięki temu badge wstrzykiwany
+  // Zapamiętaj pozycję karetki w contenteditable - dzięki temu badge wstrzykiwany
   // przez attachElement trafi w miejsce, gdzie user ostatnio pisał.
   function saveCaret() {
     const sel = window.getSelection();
@@ -600,7 +600,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
         : "";
 
     if (imageAttachments.length > 0) {
-      // Multimodalne wiadomosci — text + obrazki (Claude Vision).
+      // Multimodalne wiadomosci - text + obrazki (Claude Vision).
       const parts: Array<
         | { type: "text"; text: string }
         | { type: "file"; mediaType: string; url: string }
@@ -665,7 +665,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
 
   const modelDef = getModel(model);
 
-  // ─── Per-message snapshots — populated whenever the assistant finishes a
+  // ─── Per-message snapshots - populated whenever the assistant finishes a
   //     run. Maps assistantMessageId → snapshotId so we can render a "Cofnij
   //     do tego momentu" button next to each AI reply.
   const [messageSnapshots, setMessageSnapshots] = useState<
@@ -699,10 +699,10 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     return () => {
       cancelled = true;
     };
-    // Refetch each time a stream finishes — that's when a new snapshot appears.
+    // Refetch each time a stream finishes - that's when a new snapshot appears.
   }, [projectId, isStreaming]);
 
-  // ─── "Kontynuuj generowanie" — wznawia przerwany run ───────────────────────
+  // ─── "Kontynuuj generowanie" - wznawia przerwany run ───────────────────────
   const continueGeneration = useCallback(() => {
     if (isStreaming) return;
     oneShotModeRef.current = "continue";
@@ -774,7 +774,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
           </div>
         )}
 
-        {/* Rork-style thinking panel — pokazywany tylko przy pierwszej generacji
+        {/* Rork-style thinking panel - pokazywany tylko przy pierwszej generacji
             nowego projektu (brak zapisanej historii) i tylko zanim AI zacznie
             pisac pliki / pokaze plan. */}
         {!hasStoredHistory &&
@@ -838,7 +838,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
             }}
             onPlanAction={(partIdx, action, finalSteps) => {
               if (action === "approve") {
-                // Mark as pending — consumed only after AI finishes (onFinish).
+                // Mark as pending - consumed only after AI finishes (onFinish).
                 pendingApprovalPartIdxRef.current = partIdx;
                 setPendingApprovalPartIdx(partIdx);
                 // Switch to build mode BEFORE sending so the transport body()
@@ -892,7 +892,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
           </div>
         )}
 
-        {/* Token cost summary — shown briefly after a job completes. */}
+        {/* Token cost summary - shown briefly after a job completes. */}
         {!isStreaming &&
           genProgress &&
           (genProgress.status === "completed" ||
@@ -926,7 +926,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
             <span className="flex items-center gap-2">
               <RotateCcw className="h-3.5 w-3.5 text-beige/70 group-hover:text-beige" />
               <span className="font-medium text-foreground">Kontynuuj generowanie</span>
-              <span className="text-muted-foreground">— dokończ brakujące pliki</span>
+              <span className="text-muted-foreground">- dokończ brakujące pliki</span>
             </span>
             <ArrowUp className="h-3.5 w-3.5 rotate-45 text-muted-foreground group-hover:text-beige" />
           </button>
@@ -1015,7 +1015,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
         )}
 
         <div className="rounded-xl border border-beige/10 bg-card/30 transition focus-within:border-beige/40">
-          {/* Contenteditable zamiast textarea — pozwala wstrzykiwać inline-badges
+          {/* Contenteditable zamiast textarea - pozwala wstrzykiwać inline-badges
               (wybrane elementy podglądu) bezpośrednio w treść wpisywaną przez usera. */}
           <div
             ref={editableRef}
@@ -1026,7 +1026,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
             aria-label="Treść wiadomości"
             data-placeholder={
               mode === "plan"
-                ? "Opisz pomysl — asystent przygotuje plan..."
+                ? "Opisz pomysl - asystent przygotuje plan..."
                 : mode === "discuss"
                   ? "Zapytaj o kod, architekturę, sugestie..."
                   : "Co dodać lub zmienić?"
@@ -1045,7 +1045,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
               }
             }}
             onPaste={(event) => {
-              // Strip formatting — wkleja czysty tekst.
+              // Strip formatting - wkleja czysty tekst.
               event.preventDefault();
               const text = event.clipboardData.getData("text/plain");
               document.execCommand("insertText", false, text);
@@ -1194,7 +1194,7 @@ function SelectModeButton({
       type="button"
       onClick={onToggle}
       aria-pressed={active}
-      title="Tryb wyboru elementu w podglądzie — kliknij dowolny element strony"
+      title="Tryb wyboru elementu w podglądzie - kliknij dowolny element strony"
       aria-label="Wybierz element w podglądzie"
       className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition ${
         active
@@ -1236,7 +1236,7 @@ function PlanModeButton({
         : "text-muted-foreground hover:bg-white/5 hover:text-foreground";
 
   const titleMap: Record<ChatMode, string> = {
-    build: "Przełącz w tryb planowania — AI pokaże plan zanim zacznie pisać kod",
+    build: "Przełącz w tryb planowania - AI pokaże plan zanim zacznie pisać kod",
     plan: "Aktywny: Planowanie. Kliknij → Chat (rozmowa bez edycji plików)",
     discuss: "Aktywny: Chat. Kliknij → tryb budowy",
   };
@@ -1410,7 +1410,7 @@ function Message({
 
         {(() => {
           // Collect tool actions (writeFile/patchFile/deleteFile/generateImage/fetchImage)
-          // into a single collapsible "actions taken" group — Bolt-style.
+          // into a single collapsible "actions taken" group - Bolt-style.
           const actions: Array<{
             verb: string;
             path?: string;
@@ -1426,7 +1426,7 @@ function Message({
             const tp = part as ToolPart;
             if (tp.output?.skipped) continue;
             let verb = part.type.replace("tool-", "");
-            if (part.type === "tool-writeFile") verb = "Utworzono";
+            if (part.type === "tool-writeFile") verb = "Utwórzono";
             else if (part.type === "tool-deleteFile") verb = "Usunięto";
             else if (part.type === "tool-patchFile") verb = "Edytowano";
             else if (part.type === "tool-fetchImage") verb = "Pobrano zdjęcie";

@@ -6,7 +6,7 @@ import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip"
 import { cn } from "@/lib/utils"
 
 /**
- * Tooltip primitives — wrapper na @base-ui/react/tooltip nadajacy stylistyke
+ * Tooltip primitives - wrapper na @base-ui/react/tooltip nadajacy stylistyke
  * spojna z shadcn/ui. API jest swiadomie zblizone do radix-ui/react-tooltip
  * (Provider/Tooltip/Trigger/Content) zeby uzycie w kodzie bylo intuicyjne.
  */

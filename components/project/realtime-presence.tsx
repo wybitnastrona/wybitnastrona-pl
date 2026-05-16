@@ -26,7 +26,7 @@ export function useRealtimePresence(projectId: string, userId: string, email?: s
       config: { presence: { key: userId } },
     });
 
-    // Deterministyczny kolor z emaila — ten sam user ma zawsze ten sam
+    // Deterministyczny kolor z emaila - ten sam user ma zawsze ten sam
     // odcien u wszystkich peerow.
     const myColor = emailToColor(email ?? userId);
 

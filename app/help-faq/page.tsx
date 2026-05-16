@@ -2,7 +2,7 @@ import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 
 export const metadata = {
-  title: "Pomoc i FAQ — wybitnastrona.pl",
+  title: "Pomoc i FAQ - wybitnastrona.pl",
   description: "Najczęściej zadawane pytania i centrum pomocy wybitnastrona.pl.",
 };
 
@@ -13,7 +13,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "Dlaczego moja strona ma 'Page not found' przy klikaniu w menu?",
-    a: "Sandpack (nasz silnik podglądu w przeglądarce) nie obsługuje tradycyjnego routingu URL. AI powinien używać routingu opartego na stanie React. Jeśli widzisz ten błąd, dodaj w czacie: 'Napraw nawigację — użyj useState zamiast react-router.' AI poprawi kod.",
+    a: "Sandpack (nasz silnik podglądu w przeglądarce) nie obsługuje tradycyjnego routingu URL. AI powinien używać routingu opartego na stanie React. Jeśli widzisz ten błąd, dodaj w czacie: 'Napraw nawigację - użyj useState zamiast react-router.' AI poprawi kod.",
   },
   {
     q: "Ile czasu trwa generowanie strony?",
@@ -45,7 +45,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "Czy moje projekty są widoczne publicznie?",
-    a: "W planie FREE wszystkie projekty są publiczne (mogą pojawić się w Showcase). W planie PRO możesz ustawić projekt jako prywatny — nikt poza Tobą nie będzie mógł go zobaczyć.",
+    a: "W planie FREE wszystkie projekty są publiczne (mogą pojawić się w Showcase). W planie PRO możesz ustawić projekt jako prywatny - nikt poza Tobą nie będzie mógł go zobaczyć.",
   },
   {
     q: "Podgląd nie ładuje się lub pokazuje błąd 'TIME_OUT'",
@@ -65,7 +65,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "Co zrobić gdy AI zrobi coś nie tak jak chciałem?",
-    a: "Użyj przycisku 'Cofnij do tego momentu' obok wiadomości AI w czacie — to przywraca stan projektu sprzed tej konkretnej generacji. Możesz też wpisać w czacie dokładnie co ma naprawić.",
+    a: "Użyj przycisku 'Cofnij do tego momentu' obok wiadomości AI w czacie - to przywraca stan projektu sprzed tej konkretnej generacji. Możesz też wpisać w czacie dokładnie co ma naprawić.",
   },
 ];
 

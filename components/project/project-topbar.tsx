@@ -107,7 +107,7 @@ export function ProjectTopbar({
       : null;
 
   // Pozwala innym komponentom (np. WorkspaceCanvas) otworzyc PublishDialog
-  // bez prop drilling — przez globalny event window.
+  // bez prop drilling - przez globalny event window.
   useEffect(() => {
     function openPublish() {
       setPublishOpen(true);
@@ -117,7 +117,7 @@ export function ProjectTopbar({
       window.removeEventListener("wybitna:request-publish", openPublish);
   }, []);
 
-  // Auto-open settings z URL (?settings=analytics) — uzywane przez redirect
+  // Auto-open settings z URL (?settings=analytics) - uzywane przez redirect
   // ze starej strony /project/[id]/analytics.
   useEffect(() => {
     const tab = searchParams.get("settings");
@@ -140,7 +140,7 @@ export function ProjectTopbar({
     }
   }, [searchParams]);
 
-  // Globalny event z WorkspaceCanvas — przyciski Baza/Stripe/Zasoby/Historia
+  // Globalny event z WorkspaceCanvas - przyciski Baza/Stripe/Zasoby/Historia
   // dispatchuja `wybitna:open-settings` z `detail.tab`. Otwieramy modal na
   // odpowiedniej zakladce. Pozwala uniknac prop drillingu w gleboki canvas.
   useEffect(() => {
@@ -187,7 +187,7 @@ export function ProjectTopbar({
 
   function handleZipDownload() {
     if (isPro === false) {
-      // Gentle nudge — przekieruj na /pricing.
+      // Gentle nudge - przekieruj na /pricing.
       const ok = window.confirm(
         "Pobieranie kodu jako ZIP jest dostepne w planie PRO. Przejsc do strony planow?",
       );
@@ -243,7 +243,7 @@ export function ProjectTopbar({
           className="text-foreground/80 hover:bg-white/5"
         >
           <Share2 className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Udostepnij</span>
+          <span className="hidden sm:inline">Udostępnij</span>
         </Button>
 
         <DropdownMenu>
@@ -319,11 +319,11 @@ export function ProjectTopbar({
           className="bg-beige text-beige-foreground hover:bg-beige/90"
         >
           <Globe className="h-3.5 w-3.5" />
-          {project.is_public ? "Zarzadzaj" : "Opublikuj"}
+          {project.is_public ? "Zarządzaj" : "Opublikuj"}
         </Button>
       </div>
 
-      {/* Dla projektow natywnych (iOS / Android / Watch / TV / Vision) zamiast
+      {/* Dla projektów natywnych (iOS / Android / Watch / TV / Vision) zamiast
           zwyklego PublishDialog otwieramy pelne flow submission. */}
       {isNativeProject(project.mode) ? (
         <NativePublishDialog
@@ -567,7 +567,7 @@ function GithubDialog({
               <p className="font-medium">Połącz konto GitHub</p>
               <p className="mt-1 text-xs">
                 Nie mamy tokenu z dostępem do <code>repo</code>. Zaloguj się
-                ponownie przez GitHub — token zostanie zapisany w sesji i Push
+                ponownie przez GitHub - token zostanie zapisany w sesji i Push
                 zadziała.
               </p>
             </div>
@@ -685,8 +685,8 @@ function PublishDialog({
   const shouldCheck =
     slugDraftValid && slugDraftNormalized !== (project.slug ?? "");
 
-  // Derived state — gdy nie ma warunkow do checku, status zawsze "idle"
-  // (server-state moze byc stale z poprzedniego draftu — ignorujemy).
+  // Derived state - gdy nie ma warunkow do checku, status zawsze "idle"
+  // (server-state może być stale z poprzedniego draftu - ignorujemy).
   const slugCheck: ServerCheck = shouldCheck
     ? serverCheck
     : { status: "idle" };
@@ -705,7 +705,7 @@ function PublishDialog({
         if (!r.ok) {
           setServerCheck({
             status: "taken",
-            reason: "Nie udalo sie sprawdzic — sprobuj ponownie.",
+            reason: "Nie udalo sie sprawdzic - sprobuj ponownie.",
           });
           return;
         }
@@ -773,7 +773,7 @@ function PublishDialog({
           error?: string;
           code?: string;
         };
-        setSlugError(err.error ?? "Nie udalo sie opublikowac. Sprobuj ponownie.");
+        setSlugError(err.error ?? "Nie udalo sie opublikowac. Spróbuj ponownie.");
       }
     } finally {
       setLoading(false);
@@ -820,7 +820,7 @@ function PublishDialog({
             {justPublished && (
               <div className="flex items-start gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">
                 <Sparkles className="mt-0.5 h-4 w-4 shrink-0" />
-                <p>Gotowe. Mozesz teraz udostepnic link lub podpiac wlasna domene.</p>
+                <p>Gotowe. Możesz teraz udostepnic link lub podpiac własna domene.</p>
               </div>
             )}
             <div className="flex items-center gap-2">
@@ -835,7 +835,7 @@ function PublishDialog({
                 size="icon-sm"
                 variant="outline"
                 onClick={() => window.open(url, "_blank")}
-                aria-label="Otworz w nowej karcie"
+                aria-label="Otwórz w nowej karcie"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
               </Button>
@@ -901,10 +901,10 @@ function PublishDialog({
             </div>
             <div className="rounded-lg border border-beige/15 bg-background/60 p-3 text-sm">
               <p className="font-medium text-foreground">
-                Wlasna domena lub zakup nowej
+                Własna domena lub zakup nowej
               </p>
               <p className="mt-1 text-muted-foreground">
-                Aby podpiac wlasna domene (np. twojasklep.pl) lub kupic
+                Aby podpiac własna domene (np. twojasklep.pl) lub kupic
                 ja przez wybitnastrona.pl, otworz panel domen.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
@@ -926,14 +926,14 @@ function PublishDialog({
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              Strona jest publicznie widoczna. Mozesz ja w kazdej chwili
+              Strona jest publicznie widoczna. Możesz ja w kazdej chwili
               wycofac.
             </p>
           </div>
         ) : (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Wybierz nazwe subdomeny lub zostaw puste — wygenerujemy losowy
+              Wybierz nazwe subdomeny lub zostaw puste - wygenerujemy losowy
               adres. Subdomena musi miec 3-32 znakow (a-z, 0-9, -).
             </p>
             <div>
@@ -1003,7 +1003,7 @@ function PublishDialog({
 }
 
 /**
- * SlugStatus — line podpowiedzi pod inputem subdomeny.
+ * SlugStatus - line podpowiedzi pod inputem subdomeny.
  * Pokazuje: checking spinner / available green / taken red / lokalny slugError.
  */
 function SlugStatus({
@@ -1034,7 +1034,7 @@ function SlugStatus({
   if (check.status === "available") {
     return (
       <p className="mt-2 text-xs text-emerald-300">
-        Subdomena dostępna — możesz publikować.
+        Subdomena dostępna - możesz publikować.
       </p>
     );
   }
@@ -1070,7 +1070,7 @@ function ShareDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="border-beige/20 bg-card sm:max-w-[480px]">
         <DialogHeader>
-          <DialogTitle>Udostepnij projekt</DialogTitle>
+          <DialogTitle>Udostępnij projekt</DialogTitle>
           <DialogDescription>
             {project.is_public
               ? "Skopiuj link i wyslij komu chcesz."
@@ -1109,7 +1109,7 @@ function ShareDialog({
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">
-            Otworz dialog Opublikuj, aby udostepnic projekt publicznie.
+            Otwórz dialog Opublikuj, aby udostepnic projekt publicznie.
           </p>
         )}
       </DialogContent>
@@ -1127,7 +1127,7 @@ function DomainsDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   project: Project;
-  /** `rootDomain` (wybitnastrona.pl) celowo pominiety — nie wystawiamy
+  /** `rootDomain` (wybitnastrona.pl) celowo pominiety - nie wystawiamy
    * subdomen pod tym hostem, tylko pod *.wybitny.website. */
   publishDomain: string;
   domainPartnerUrl: string;
@@ -1217,7 +1217,7 @@ function DomainsDialog({
     setBuyError(null);
     setBuying(true);
     try {
-      // Porkbun + Vercel attach + DB update — atomowy endpoint /register.
+      // Porkbun + Vercel attach + DB update - atomowy endpoint /register.
       const res = await fetch("/api/domains/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1324,7 +1324,7 @@ function DomainsDialog({
         <DialogHeader>
           <DialogTitle>Domeny i hosting</DialogTitle>
           <DialogDescription>
-            Zarzadzaj domenami dla tego projektu. Hosting podgladu jest
+            Zarządzaj domenami dla tego projektu. Hosting podgladu jest
             aktywny pod {publishDomain}.
           </DialogDescription>
         </DialogHeader>
@@ -1359,7 +1359,7 @@ function DomainsDialog({
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-medium text-foreground">
-                  Wlasna domena
+                  Własna domena
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   Podpniesz np. twojasklep.pl. Skonfiguruj rekord DNS
@@ -1499,7 +1499,7 @@ function DomainsDialog({
                   <span className="font-mono text-beige/80">
                     *.{publishDomain}
                   </span>{" "}
-                  — np. <span className="font-mono text-beige/80">twoja-strona.{publishDomain}</span>.
+                  - np. <span className="font-mono text-beige/80">twoja-strona.{publishDomain}</span>.
                 </li>
               </ol>
             </div>
@@ -1512,7 +1512,7 @@ function DomainsDialog({
                   Kup domenę przez wybitnastrona.pl
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Zakup w jednym kroku — domena zostanie automatycznie
+                  Zakup w jednym kroku - domena zostanie automatycznie
                   podpięta do tego projektu, bez ręcznej konfiguracji DNS.
                 </p>
               </div>
@@ -1579,7 +1579,7 @@ function DomainsDialog({
                     )}
                     {searchResult.available === false && (
                       <p className="mt-0.5 text-[11px] opacity-80">
-                        Niedostępna — spróbuj innej nazwy.
+                        Niedostępna - spróbuj innej nazwy.
                       </p>
                     )}
                     {searchResult.availabilityUnknown && (
@@ -1589,7 +1589,7 @@ function DomainsDialog({
                       </p>
                     )}
 
-                    {/* Rozbicie ceny — pokazujemy bazowa cene rejestratora +
+                    {/* Rozbicie ceny - pokazujemy bazowa cene rejestratora +
                         marze wybitnastrona.pl, transparentnie. */}
                     {typeof searchResult.basePrice === "number" && (
                       <div className="mt-2 space-y-0.5 rounded border border-current/10 bg-current/5 p-2 font-mono text-[10px] opacity-90">
@@ -1672,7 +1672,7 @@ function DomainsDialog({
               className="mt-3 inline-flex h-8 items-center gap-1.5 rounded-md border border-beige/20 px-3 text-xs font-medium text-beige/90 transition hover:border-beige/40 hover:bg-white/5"
             >
               <ExternalLink className="h-3.5 w-3.5" />
-              Partner — alternatywne miejsce zakupu
+              Partner - alternatywne miejsce zakupu
             </a>
           </section>
         </div>

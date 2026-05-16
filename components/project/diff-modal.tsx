@@ -52,7 +52,7 @@ export function DiffModal({ open, changes, onAccept, onReject }: Props) {
           <div>
             <h2 className="text-base font-medium">Proponowane zmiany</h2>
             <p className="text-xs text-muted-foreground">
-              {changes.length} plików — przejrzyj i zaakceptuj.
+              {changes.length} plików - przejrzyj i zaakceptuj.
             </p>
           </div>
           <button

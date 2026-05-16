@@ -39,7 +39,7 @@ export function ProjectWorkspace({
   // Starter vite-react ma teraz wiele widocznych plikow konfiguracji
   // (Bolt-style: package.json, vite.config, tsconfig.*, tailwind.config,
   // /.wybitna/*, /public/images/*). Te NIE liczą się jako "projekt ma pliki"
-  // — nas interesują tylko PLIKI WYGENEROWANE PRZEZ AI (sekcje, layout, pages).
+  // - nas interesują tylko PLIKI WYGENEROWANE PRZEZ AI (sekcje, layout, pages).
   // Bez tej heurystyki świeży projekt natychmiast widzi `hasFiles=true` i
   // wizard z pytaniami nie wystartuje.
   const AI_GENERATED_PATTERNS = [
@@ -115,7 +115,7 @@ export function ProjectWorkspace({
     window.addEventListener("mouseup", onUp);
   }, [chatWidth]);
 
-  // Anuluje tryb wyboru gdy uzytkownik nacisnie Escape lub klik in iframe nie
+  // Anuluje tryb wyboru gdy użytkownik nacisnie Escape lub klik in iframe nie
   // wybral elementu (workspace-canvas dispatchuje ten event).
   useEffect(() => {
     function onCancel() {
@@ -147,7 +147,7 @@ export function ProjectWorkspace({
 
   function handleWizardComplete(enrichedPrompt: string) {
     // ChatPanel is always mounted (just hidden), so chatRef.current is available
-    // synchronously here — no setTimeout needed. Setting startedRef inside
+    // synchronously here - no setTimeout needed. Setting startedRef inside
     // startWithPlanPrompt BEFORE setWizardActive prevents the auto-start
     // useEffect from firing a duplicate request when wizardBlocked flips.
     chatRef.current?.startWithPlanPrompt(enrichedPrompt);
@@ -172,7 +172,7 @@ export function ProjectWorkspace({
       {/*
         Mobile: single column, 2 rows (chat on top, canvas below).
         Desktop (lg+): chat | drag-handle | canvas side by side.
-        The <style> tag is a sibling — NOT inside the grid — so it doesn't
+        The <style> tag is a sibling - NOT inside the grid - so it doesn't
         consume a grid cell. The drag handle has display:none on mobile so it
         is also absent from the grid flow there.
       */}
@@ -216,7 +216,7 @@ export function ProjectWorkspace({
           />
         </div>
 
-        {/* Drag handle — display:none on mobile so it's absent from the grid */}
+        {/* Drag handle - display:none on mobile so it's absent from the grid */}
         <div
           className="relative hidden cursor-col-resize lg:block"
           onMouseDown={startResize}

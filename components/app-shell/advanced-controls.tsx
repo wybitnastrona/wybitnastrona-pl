@@ -60,14 +60,14 @@ export function AdvancedControls({
                 <div
                   key={mcp.id}
                   className="flex cursor-not-allowed items-center justify-between rounded-lg border border-beige/10 bg-background/30 px-3 py-2 opacity-50"
-                  title="Wkrotce"
+                  title="Wkrótce"
                 >
                   <div>
                     <p className="text-xs font-medium text-foreground">{mcp.label}</p>
                     <p className="text-[10px] text-muted-foreground">{mcp.description}</p>
                   </div>
                   <span className="rounded bg-beige/10 px-1.5 py-0.5 text-[8px] uppercase tracking-wider text-beige/60">
-                    Wkrotce
+                    Wkrótce
                   </span>
                 </div>
               ))}

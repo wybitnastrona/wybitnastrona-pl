@@ -1,11 +1,11 @@
 "use client";
 
 /**
- * Stripe Integration Panel — klient podpina swoje konto Stripe.
+ * Stripe Integration Panel - klient podpina swoje konto Stripe.
  *
  * Pozwala na:
  *  - Wpisanie klucza publicznego (pk_live_ lub pk_test_)
- *  - Wpisanie klucza prywatnego (sk_live_ — szyfrowany przed zapisem)
+ *  - Wpisanie klucza prywatnego (sk_live_ - szyfrowany przed zapisem)
  *  - Wpisanie Webhook Secret
  *  - Podglad statusu integracji
  *
@@ -91,7 +91,7 @@ export function StripePanel({ project }: Props) {
     };
   }, []);
 
-  // Po powrocie z OAuth Stripe — odswiez status (callback dodaje ?stripe_connected=1).
+  // Po powrocie z OAuth Stripe - odśwież status (callback dodaje ?stripe_connected=1).
   useEffect(() => {
     if (searchParams.get("stripe_connected") === "1") {
       router.refresh();
@@ -172,7 +172,7 @@ export function StripePanel({ project }: Props) {
   return (
     <div className="flex flex-col gap-6 p-4">
       {/* ────────────────────────────────────────────────────────────────────────
-          Stripe Connect (OAuth) — preferowana sciezka.
+          Stripe Connect (OAuth) - preferowana sciezka.
           Pozwala AI automatycznie tworzyc produkty + ceny na koncie usera.
          ──────────────────────────────────────────────────────────────────────── */}
       <section
@@ -283,7 +283,7 @@ export function StripePanel({ project }: Props) {
         </div>
       </section>
 
-      {/* Klucze ręczne — pozostają jako alternatywa */}
+      {/* Klucze ręczne - pozostają jako alternatywa */}
       <div className="flex items-center gap-2">
         <div className="h-px flex-1 bg-beige/10" />
         <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60">
@@ -331,7 +331,7 @@ export function StripePanel({ project }: Props) {
         <ul className="space-y-1.5 text-[12px] text-muted-foreground">
           <li className="flex items-start gap-2">
             <Zap className="mt-0.5 h-3 w-3 shrink-0 text-beige/70" />
-            AI wygeneruje kod z Twoimi kluczami Stripe — gotowy do przyjmowania płatności.
+            AI wygeneruje kod z Twoimi kluczami Stripe - gotowy do przyjmowania płatności.
           </li>
           <li className="flex items-start gap-2">
             <ShieldCheck className="mt-0.5 h-3 w-3 shrink-0 text-beige/70" />
@@ -375,7 +375,7 @@ export function StripePanel({ project }: Props) {
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="stripe-sk" className="flex items-center gap-1.5">
             Klucz prywatny (Secret Key)
-            <span className="text-[10px] text-muted-foreground">opcjonalny — do API backendu</span>
+            <span className="text-[10px] text-muted-foreground">opcjonalny - do API backendu</span>
           </Label>
           <div className="relative">
             <Input

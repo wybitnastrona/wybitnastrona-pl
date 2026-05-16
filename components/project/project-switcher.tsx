@@ -110,7 +110,7 @@ export function ProjectSwitcher({ currentProject }: Props) {
           </Link>
         </div>
 
-        {/* Projects list — only mounted while open so initial loading state
+        {/* Projects list - only mounted while open so initial loading state
             can be set during render without setState-in-effect. */}
         <div className="flex-1 overflow-y-auto px-2 py-2">
           {open && (
@@ -137,7 +137,7 @@ export function ProjectSwitcher({ currentProject }: Props) {
 
   return (
     <>
-      {/* Trigger button — zostaje w drzewie inline (w topbar) */}
+      {/* Trigger button - zostaje w drzewie inline (w topbar) */}
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -151,7 +151,7 @@ export function ProjectSwitcher({ currentProject }: Props) {
         <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60 transition group-hover:text-muted-foreground" />
       </button>
 
-      {/* Drawer w portalu — uciekamy ze stacking contextu header backdrop-blur */}
+      {/* Drawer w portalu - uciekamy ze stacking contextu header backdrop-blur */}
       {mounted ? createPortal(drawer, document.body) : null}
     </>
   );
@@ -183,7 +183,7 @@ function ProjectsList({
           if (!cancelled)
             setState({
               kind: "error",
-              message: `HTTP ${r.status} — spróbuj odświeżyć stronę.`,
+              message: `HTTP ${r.status} - spróbuj odświeżyć stronę.`,
             });
           return;
         }

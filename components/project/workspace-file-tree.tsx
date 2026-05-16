@@ -50,7 +50,7 @@ type Props = {
   files: ProjectFiles;
   activePath: string | null;
   onOpen: (path: string) => void;
-  /** Pliki zablokowane (read-only) — wyświetlamy z innym kolorem. */
+  /** Pliki zablokowane (read-only) - wyświetlamy z innym kolorem. */
   lockedPaths?: string[];
 } & HTMLAttributes<HTMLDivElement>;
 

@@ -8,7 +8,7 @@ export function AddOnsTab() {
       <header>
         <h2 className="text-lg font-medium text-foreground">Dodatki</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Funkcje premium, ktore mozesz aktywowac w kreatorze. Wkrotce.
+          Funkcje premium, ktore możesz aktywowac w kreatorze. Wkrótce.
         </p>
       </header>
 

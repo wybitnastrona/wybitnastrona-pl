@@ -34,13 +34,13 @@ function inferThumbnail(path: string, code: string): string | null {
       return null;
     }
   }
-  // Pozostale (bin/PNG zapisane jako binary blob) — pokaz nazwe.
+  // Pozostale (bin/PNG zapisane jako binary blob) - pokaz nazwe.
   void path;
   return null;
 }
 
 /**
- * Asset Manager — listuje pliki w /public/images/ (Vite serwuje z /images/).
+ * Asset Manager - listuje pliki w /public/images/ (Vite serwuje z /images/).
  * Pokazuje thumbnail (jezeli mozliwy), nazwe, sciezke publiczna i copy-to-clipboard.
  */
 export function AssetManager({ files }: Props) {
@@ -141,13 +141,13 @@ function EmptyState() {
         Folder /public/images/ jest pusty
       </h3>
       <p className="max-w-sm text-xs leading-relaxed text-muted-foreground">
-        AI moze tu zapisac statyczne grafiki (logo SVG, ikony manifestu).
+        AI może tu zapisac statyczne grafiki (logo SVG, ikony manifestu).
         Wstaw je do swojej strony przez{" "}
         <span className="font-mono text-beige/70">
           &lt;img src=&quot;/images/nazwa.svg&quot;&gt;
         </span>
         . Dla dynamicznych zdjec (hero, sekcje) uzywaj{" "}
-        <span className="font-mono text-beige/70">generateImage()</span> —
+        <span className="font-mono text-beige/70">generateImage()</span> -
         zwraca URL z Cloudinary.
       </p>
     </div>

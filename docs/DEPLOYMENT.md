@@ -241,7 +241,7 @@ STRIPE_PRICE_PRO_1500=price_...
 ### 8.4. Anty-abuse (revert custom slug)
 
 Webhook `customer.subscription.deleted` automatycznie wywołuje
-`revertCustomSlugsForUser` — wszystkie custom subdomeny usera (>2 znaki, nie
+`revertCustomSlugsForUser` - wszystkie custom subdomeny usera (>2 znaki, nie
 auto-slug nanoid) są cofane do auto-generated, a poprzedni slug ląduje w
 kolumnie `projects.custom_slug_archived` (dla potencjalnej reaktywacji).
 
@@ -250,19 +250,19 @@ kolumnie `projects.custom_slug_archived` (dla potencjalnej reaktywacji).
 Cloudinary jest naszym CDN-em do dwoch rodzajow obrazow:
 
 1. **AI-generated images** w wygenerowanych aplikacjach
-   (folder `wybitnastrona/projects/{projectId}`) — uzywane przez generator
+   (folder `wybitnastrona/projects/{projectId}`) - uzywane przez generator
    gdy AI dolacza obrazy do strony.
 2. **Screenshoty opublikowanych projektow** dla podgladu w dashboardzie
    (folder `wybitnastrona/screenshots`, `public_id = {projectId}`).
    Screenshot jest generowany **tylko raz po publikacji**
-   (fire-and-forget `/api/projects/[id]/screenshot`) — `public_id` jest
+   (fire-and-forget `/api/projects/[id]/screenshot`) - `public_id` jest
    stabilny, wiec ponowna publikacja **nadpisuje** poprzedni plik (nie ma
    problemu z orphanami).
 
 ### 9.1. Zaloz konto Cloudinary
 
 1. Zarejestruj sie na [cloudinary.com](https://cloudinary.com) (Free tier
-   daje 25 GB storage i 25 GB transferu / mc — wystarczy na start).
+   daje 25 GB storage i 25 GB transferu / mc - wystarczy na start).
 2. Wejdz w **Dashboard → Settings → Account** i skopiuj **Cloud name**.
 3. **Dashboard → API Keys** → wygeneruj nowy klucz, skopiuj `API Key`
    i `API Secret`.
@@ -286,16 +286,16 @@ dodaniu wystartuj nowy deployment.
 > **Bez tych zmiennych**: endpoint `/api/projects/[id]/screenshot` zwroci
 > 503, a screenshot po publikacji nie zostanie wygenerowany (dashboard
 > pokaze fallback iframe / pusta karta). Aplikacja jako calosc bedzie
-> nadal dzialala — to nie blokujaca zaleznosc.
+> nadal dzialala - to nie blokujaca zaleznosc.
 
 ### 9.3. Powiazane pliki w kodzie
 
-- `lib/cloudinary.ts` — `uploadImageToCloudinary(url, projectId)` oraz
+- `lib/cloudinary.ts` - `uploadImageToCloudinary(url, projectId)` oraz
   `uploadBufferToCloudinary(buffer, projectId)` (PNG z Puppeteera).
-- `app/api/projects/[id]/screenshot/route.ts` — Puppeteer + upload.
-- `app/api/projects/[id]/publish/route.ts` — fire-and-forget wywoluje
+- `app/api/projects/[id]/screenshot/route.ts` - Puppeteer + upload.
+- `app/api/projects/[id]/publish/route.ts` - fire-and-forget wywoluje
   screenshot po udanej publikacji.
-- `projects.preview_image_url` (migracja 0041) — przechowuje wynikowy URL
+- `projects.preview_image_url` (migracja 0041) - przechowuje wynikowy URL
   Cloudinary; dashboard czyta to pole bez ponownego generowania.
 
 ## 10. MCP Integracje (Supabase / Notion / Memory / Stitch)
@@ -305,8 +305,8 @@ UI w **Integracje** dropdown w CreationHero ORAZ w workspace projektu.
 
 | Provider | Status | Pola wymagane | Auto-config |
 | --- | --- | --- | --- |
-| Supabase | gotowe | `url`, `anon_key`, opcjonalnie `service_role_key` | tak — gdy user wkleil keys, AI dostaje hint w system promptcie i moze generowac /src/lib/supabase.ts |
-| Notion | gotowe | `integration_token`, opcjonalnie `database_id` | tak — AI moze proponowac fetch z Notion API |
+| Supabase | gotowe | `url`, `anon_key`, opcjonalnie `service_role_key` | tak - gdy user wkleil keys, AI dostaje hint w system promptcie i moze generowac /src/lib/supabase.ts |
+| Notion | gotowe | `integration_token`, opcjonalnie `database_id` | tak - AI moze proponowac fetch z Notion API |
 | Memory MCP | UI gotowe, runtime stub | (placeholder) | nie |
 | Stitch MCP | UI gotowe, runtime stub | (placeholder) | nie |
 
@@ -359,10 +359,10 @@ zamiast ładować Sandpack w przeglądarce. Sandpack pozostaje jako fallback gdy
 statyczny build nie jest jeszcze dostępny.
 
 Jeśli projekt nie ma skryptu `build` w `package.json` (np. projekty czysto
-Sandpackowe), deploy statyczny nie zostanie uruchomiony — Sandpack obsługuje
+Sandpackowe), deploy statyczny nie zostanie uruchomiony - Sandpack obsługuje
 publikację tak jak wcześniej.
 
-Bucket nie wymaga żadnych dodatkowych zmiennych środowiskowych — używa tych
+Bucket nie wymaga żadnych dodatkowych zmiennych środowiskowych - używa tych
 samych kluczy Supabase co reszta aplikacji.
 
 ## 13. Limity FREE

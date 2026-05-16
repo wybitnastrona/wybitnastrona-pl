@@ -3,9 +3,9 @@
 /**
  * Symulowany terminal projektu.
  *
- * MVP: symulowany shell (bez WebContainers) — reaguje na komendy AI
- * przekazywane przez kanał SSE `/api/projects/[id]/terminal-stream`
- * (do implementacji w przyszlosci) oraz na reczne wpisywanie przez uzytkownika.
+ * MVP: symulowany shell (bez WebContainers) - reaguje na komendy AI
+ * przekażywane przez kanał SSE `/api/projects/[id]/terminal-stream`
+ * (do implementacji w przyszlosci) oraz na reczne wpisywanie przez użytkownika.
  *
  * Podstawowe komendy sa obslugiwane lokalnie (help, clear, ls, echo).
  * Pozostale komendy wyswietlaja komunikat "niedostepne w trybie preview".
@@ -28,7 +28,7 @@ function mkLine(text: string, type: Line["type"]): Line {
 }
 
 const BANNER = [
-  mkLine("wybitnastrona.pl — terminal projektu", "info"),
+  mkLine("wybitnastrona.pl - terminal projektu", "info"),
   mkLine('Wpisz "help" aby zobaczyc dostepne komendy.', "info"),
   mkLine("─".repeat(50), "info"),
 ];
@@ -44,12 +44,12 @@ function simulate(cmd: string): string[] {
     case "help":
       return [
         "Dostepne komendy:",
-        "  help          — ta pomoc",
-        "  clear         — wyczysc terminal",
-        "  ls [sciezka]  — lista plikow",
-        "  echo <text>   — wyswietl tekst",
-        "  pwd           — biezacy katalog",
-        "  cat <plik>    — odczyt pliku (symulowany)",
+        "  help          - ta pomoc",
+        "  clear         - wyczysc terminal",
+        "  ls [sciezka]  - lista plikow",
+        "  echo <text>   - wyswietl tekst",
+        "  pwd           - biezacy katalog",
+        "  cat <plik>    - odczyt pliku (symulowany)",
         "",
         "Komendy takie jak npm, node, git nie sa dostepne w trybie podgladu.",
         "Aby uruchamiac prawdziwe komendy podlacz WebContainers (patrz docs/DEPLOYMENT.md).",
@@ -68,7 +68,7 @@ function simulate(cmd: string): string[] {
     case "cat":
       return [
         `Odczyt pliku "${args[0] ?? "?"}" nie jest dostepny w trybie podgladu.`,
-        "Pliki projektu mozesz przeglądac w zakladce Kod.",
+        "Pliki projektu możesz przeglądac w zakladce Kod.",
       ];
     case "npm":
     case "npx":

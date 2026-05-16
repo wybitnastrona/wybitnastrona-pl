@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Mic, Square, Loader2 } from "lucide-react";
 
 type Props = {
-  /** Wywolane gdy nagranie zakonczy sie i Whisper/SR zwroci transkrypcje. */
+  /** Wywolane gdy nagranie zakończy się i Whisper/SR zwroci transkrypcje. */
   onTranscript: (text: string) => void;
   className?: string;
   /** Wymus uzycie Web Speech API (free, ale gorsza jakosc). Domyslnie auto. */

@@ -18,7 +18,7 @@ export function CtaFooter() {
             href="/#hero"
             className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-beige px-5 text-sm font-medium text-beige-foreground transition hover:bg-beige/90"
           >
-            Sprobuj teraz
+            Spróbuj teraz
             <ArrowRight className="h-4 w-4" />
           </Link>
           <Link

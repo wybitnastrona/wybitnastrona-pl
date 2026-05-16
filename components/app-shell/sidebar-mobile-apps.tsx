@@ -3,7 +3,7 @@
 /**
  * Sidebar section: Twoje aplikacje natywne.
  *
- * Pokazuje liste projektow uzytkownika ktore maja przynajmniej jedna
+ * Pokazuje liste projektów użytkownika ktore maja przynajmniej jedna
  * submission (TestFlight / Play). Per projekt badge:
  *   - "Run on device"  -> submission.status === "uploaded" (w TestFlight)
  *   - "Submitted"      -> submission.status === "submitted" (w recenzji)
@@ -39,7 +39,7 @@ export function SidebarMobileApps() {
         .order("updated_at", { ascending: false })
         .limit(20);
       if (error || cancelled) return;
-      // Jeśli tabela nie istnieje (404) — obsługujemy gracefully
+      // Jeśli tabela nie istnieje (404) - obsługujemy gracefully
       if (error) {
         // Tabela project_submissions może nie istnieć w starszych deploymentach
         if (!cancelled) setApps([]);
@@ -91,7 +91,7 @@ export function SidebarMobileApps() {
   }, []);
 
   if (apps === null) return null; // pierwszy ladunek
-  if (apps.length === 0) return null; // brak — ukrywamy sekcje calkiem
+  if (apps.length === 0) return null; // brak - ukrywamy sekcje calkiem
 
   return (
     <div className="mt-4">

@@ -23,7 +23,7 @@ type Props = {
   approvalPending?: boolean;
   /**
    * Called when the user approves the plan (possibly after editing).
-   * Receives the final list of steps — may differ from the original if edited.
+   * Receives the final list of steps - may differ from the original if edited.
    */
   onApprove: (finalSteps: string[]) => void;
   onSkip: () => void;
@@ -33,7 +33,7 @@ export function PlanCard({ steps, consumed = false, approvalPending = false, onA
   const [isEditing, setIsEditing] = useState(false);
   // Editing buffer: one step per line
   const [editText, setEditText] = useState(() => steps.join("\n"));
-  // Live steps — updated when user saves edits
+  // Live steps - updated when user saves edits
   const [currentSteps, setCurrentSteps] = useState<string[]>(steps);
 
   function handleEditStart() {

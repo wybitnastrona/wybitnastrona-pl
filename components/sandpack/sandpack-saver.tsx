@@ -25,11 +25,11 @@ export function SandpackSaver({ projectId, onSaveStatus }: Props) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Przechowuj hash poprzedniego stanu, zeby nie zapisywac bez zmian.
   const prevHashRef = useRef<string>("");
-  /** Dopoki bundler nie jest "running", updateFile wywoluje dispatch w idle — kolejkujemy delty z chatu. */
+  /** Dopoki bundler nie jest "running", updateFile wywoluje dispatch w idle - kolejkujemy delty z chatu. */
   const pendingPartialRef = useRef<Map<string, string>>(new Map());
 
   // Faza 1.3: nasluchuj eventow `wybitna:partial-write` z chat-panela
-  // i pokazuj typewriter effect — kazdy delta nadpisuje plik w Sandpacku.
+  // i pokazuj typewriter effect - kazdy delta nadpisuje plik w Sandpacku.
   useEffect(() => {
     const handler = (e: Event) => {
       const ce = e as CustomEvent<{ path: string; content: string }>;

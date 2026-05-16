@@ -56,7 +56,7 @@ export function AuthModal({
           </div>
 
           <div className="flex flex-col gap-3">
-            {/* OAuth providers — Google + GitHub. GitHub is required for the
+            {/* OAuth providers - Google + GitHub. GitHub is required for the
                 "Push to GitHub" / "Deploy to Pages" features in workspace. */}
             <GoogleButton label="Kontynuuj z Google" />
             <GithubButton label="Kontynuuj z GitHub" />

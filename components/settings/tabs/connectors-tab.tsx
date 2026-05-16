@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * ConnectorsTab — zarządzanie integracji MCP (Model Context Protocol).
+ * ConnectorsTab - zarządzanie integracji MCP (Model Context Protocol).
  *
  * Umożliwia dodawanie i usuwanie kluczy API dla:
  *  - Notion (notatki, bazy danych)
@@ -262,7 +262,7 @@ function ConnectorForm({
   return (
     <div className="rounded-lg border border-beige/25 bg-card/60 p-3">
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-xs font-medium text-foreground">Konfiguracja — {connector.name}</p>
+        <p className="text-xs font-medium text-foreground">Konfiguracja - {connector.name}</p>
         <button type="button" onClick={onCancel} className="cursor-pointer text-muted-foreground hover:text-beige">
           <X className="h-3.5 w-3.5" />
         </button>

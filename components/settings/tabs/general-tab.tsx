@@ -30,7 +30,7 @@ export function GeneralTab() {
           </span>
         </Row>
         <Row
-          label="Pokazuj zuzycie tokenow w czacie"
+          label="Pokażuj zuzycie tokenow w czacie"
           description="Wyswietla licznik tokenow nad polem wpisu wiadomosci."
         >
           <Toggle checked={tokensInChat} onChange={setTokensInChat} />
@@ -46,7 +46,7 @@ export function GeneralTab() {
       <Section title="Czat">
         <Row
           label="Domyslny model"
-          description="Wybor modelu jezykowego dla nowych projektow."
+          description="Wybor modelu jezykowego dla nowych projektów."
         >
           <span className="text-sm text-muted-foreground">
             Standard (auto)
@@ -69,7 +69,7 @@ export function GeneralTab() {
           description="Adres uzywany do logowania i powiadomien."
         >
           <span className="font-mono text-xs text-muted-foreground">
-            {user?.email ?? "—"}
+            {user?.email ?? "-"}
           </span>
         </Row>
       </Section>

@@ -40,7 +40,7 @@ export function ShellSidebar() {
       <div className="px-3 py-3">
         <div className="flex h-9 items-center gap-2 rounded-md border border-beige/15 bg-card/40 px-2 text-xs text-muted-foreground">
           <Search className="h-3.5 w-3.5" />
-          <span>Szukaj projektow</span>
+          <span>Szukaj projektów</span>
           <span className="ml-auto rounded border border-beige/15 px-1 font-mono text-[10px]">
             Ctrl K
           </span>
@@ -75,7 +75,7 @@ export function ShellSidebar() {
               <Star className="h-4 w-4" />
               Ulubione
               <span className="ml-auto rounded-full border border-beige/15 px-1.5 py-0.5 text-[9px] uppercase tracking-wider">
-                Wkrotce
+                Wkrótce
               </span>
             </span>
           </li>
@@ -108,7 +108,7 @@ export function ShellSidebar() {
         </ul>
       </nav>
 
-      {/* Pasek kredytów — identyczny z SideNav (publiczne strony) */}
+      {/* Pasek kredytów - identyczny z SideNav (publiczne strony) */}
       {user && <CreditBar />}
 
       <div className="shrink-0 border-t border-beige/10 p-3">

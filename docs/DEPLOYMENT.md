@@ -342,7 +342,30 @@ Uruchom kolejno (od ostatniej istniejacej w panelu Supabase):
 Wszystkie pliki w `supabase/migrations/` mozesz wkleic do SQL Editor w
 Supabase Dashboard.
 
-## 12. Limity FREE
+## 12. Storage: statyczne buildy projektów
+
+Po kliknięciu **Publikuj** (gdy projekt jest otwarty w edytorze z WebContainerem),
+platforma automatycznie:
+
+1. Uruchamia `npm run build` wewnątrz WebContainera.
+2. Wczytuje pliki z katalogu `dist/` (lub `build/`, `out/`).
+3. Uploaduje je do Supabase Storage (`deployed-sites/{projectId}/…`).
+
+Bucket **`deployed-sites`** musi być utworzony przed pierwszym deployem.
+Najprościej: uruchom migację `0044` (jest w `supabase/APPLY_IN_DASHBOARD.sql`).
+
+`proxy.ts` (Edge) serwuje te pliki bezpośrednio z bucketa z nagłówkami COOP/COEP,
+zamiast ładować Sandpack w przeglądarce. Sandpack pozostaje jako fallback gdy
+statyczny build nie jest jeszcze dostępny.
+
+Jeśli projekt nie ma skryptu `build` w `package.json` (np. projekty czysto
+Sandpackowe), deploy statyczny nie zostanie uruchomiony — Sandpack obsługuje
+publikację tak jak wcześniej.
+
+Bucket nie wymaga żadnych dodatkowych zmiennych środowiskowych — używa tych
+samych kluczy Supabase co reszta aplikacji.
+
+## 13. Limity FREE
 
 W kodzie (`lib/ai-models.ts`):
 - `monthlyCredits: 1500`
@@ -354,7 +377,7 @@ subskrypcji PRO. Pasek postepu w SideNav (`/api/me/points` → `monthlyLimit`)
 zwraca `profiles.monthly_credits_limit` (PRO: ustawiane przez webhook
 `subscription.created|updated` na `product.points`; FREE: stale 1500).
 
-## 13. Program polecen
+## 14. Program polecen
 
 - Tabela `referrals` (migracja 0037).
 - `profiles.referral_code` (lazy generated przez RPC `ensure_referral_code`).

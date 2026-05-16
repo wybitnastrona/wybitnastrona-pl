@@ -32,6 +32,8 @@ export type Project = {
   preview_html?: string | null;
   /** Real Puppeteer screenshot URL (Supabase Storage). Preferred over preview_html. */
   preview_image_url?: string | null;
+  /** Timestamp ostatniego udanego builda statycznego. Gdy ustawiony, proxy.ts serwuje z deployed-sites bucket zamiast Sandpacka. */
+  static_deployed_at?: string | null;
   created_at: string;
   updated_at: string;
 };

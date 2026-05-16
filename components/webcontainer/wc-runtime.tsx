@@ -25,6 +25,8 @@ type Status =
   | "running"
   | "error";
 
+type DeployStatus = "idle" | "building" | "uploading" | "done" | "error";
+
 export function WCRuntime({
   projectId,
   files,
@@ -38,6 +40,7 @@ export function WCRuntime({
       ? wcManager.getServerUrl()
       : null,
   );
+  const [deployStatus, setDeployStatus] = useState<DeployStatus>("idle");
   const prevFilesRef = useRef<ProjectFiles | null>(null);
 
   useEffect(() => {
@@ -119,6 +122,73 @@ export function WCRuntime({
     };
   }, []);
 
+  // Nasłuchuje zdarzenia wybitna:deploy-static (emitowanego przez project-topbar
+  // po udanej publikacji). Uruchamia `npm run build` i uploaduje dist/ do Storage.
+  useEffect(() => {
+    async function handleDeploy(e: Event) {
+      const { projectId: targetId } = (
+        e as CustomEvent<{ projectId: string }>
+      ).detail;
+      if (targetId !== projectId) return;
+      if (!runCommand) return; // nie ma WebContainera, pomiń
+
+      setDeployStatus("building");
+      const logs: string[] = [];
+
+      const exitCode = await wcManager
+        .runBuild((line) => logs.push(line))
+        .catch(() => 1);
+
+      if (exitCode !== 0) {
+        console.warn("[deploy] npm run build failed. Logs:", logs.join("\n"));
+        setDeployStatus("error");
+        window.dispatchEvent(
+          new CustomEvent("wybitna:static-deploy-done", {
+            detail: { projectId, ok: false, error: "Build failed" },
+          }),
+        );
+        setTimeout(() => setDeployStatus("idle"), 4000);
+        return;
+      }
+
+      setDeployStatus("uploading");
+      const distFiles = await wcManager.readDistFiles().catch(() => ({}));
+
+      if (Object.keys(distFiles).length === 0) {
+        console.warn("[deploy] No files in dist/. Build may have failed.");
+        setDeployStatus("error");
+        setTimeout(() => setDeployStatus("idle"), 4000);
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/projects/${projectId}/deploy-static`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ files: distFiles }),
+        });
+        if (res.ok) {
+          setDeployStatus("done");
+          window.dispatchEvent(
+            new CustomEvent("wybitna:static-deploy-done", {
+              detail: { projectId, ok: true },
+            }),
+          );
+        } else {
+          setDeployStatus("error");
+        }
+      } catch {
+        setDeployStatus("error");
+      }
+      setTimeout(() => setDeployStatus("idle"), 5000);
+    }
+
+    window.addEventListener("wybitna:deploy-static", handleDeploy);
+    return () => {
+      window.removeEventListener("wybitna:deploy-static", handleDeploy);
+    };
+  }, [projectId, runCommand]);
+
   return (
     <div className="relative h-full w-full bg-white">
       {previewUrl ? (
@@ -135,6 +205,34 @@ export function WCRuntime({
             {statusLabel(status)}
           </div>
         )
+      )}
+
+      {/* Pasek postępu statycznego deployu — pojawia się nad iframe po publikacji */}
+      {deployStatus !== "idle" && (
+        <div
+          className={`pointer-events-none absolute bottom-3 left-1/2 z-50 -translate-x-1/2 rounded-full border px-3 py-1 text-[11px] font-medium shadow-lg backdrop-blur ${
+            deployStatus === "done"
+              ? "border-emerald-500/40 bg-emerald-950/80 text-emerald-300"
+              : deployStatus === "error"
+                ? "border-red-500/40 bg-red-950/80 text-red-300"
+                : "border-beige/20 bg-zinc-900/90 text-muted-foreground"
+          }`}
+        >
+          {deployStatus === "building" && (
+            <>
+              <Loader2 className="mr-1 inline h-3 w-3 animate-spin" />
+              Buduję projekt…
+            </>
+          )}
+          {deployStatus === "uploading" && (
+            <>
+              <Loader2 className="mr-1 inline h-3 w-3 animate-spin" />
+              Uploaduję do Storage…
+            </>
+          )}
+          {deployStatus === "done" && "Opublikowano wersję statyczną"}
+          {deployStatus === "error" && "Build nie powiódł się — Sandpack aktywny"}
+        </div>
       )}
     </div>
   );

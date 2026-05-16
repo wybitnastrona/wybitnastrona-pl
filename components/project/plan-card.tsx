@@ -1,12 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Edit2, ListTodo, Save, SkipForward, X } from "lucide-react";
+import { CheckCircle2, Edit2, ListTodo, Loader2, Save, SkipForward, X } from "lucide-react";
 
 type Props = {
   steps: string[];
   /** If true, the plan has already been acted on (Approved/Skipped). */
   consumed?: boolean;
+  /**
+   * True while the approval message is being sent / AI is starting.
+   * The Approve button becomes a spinner and both actions are disabled.
+   */
+  approvalPending?: boolean;
   /**
    * Called when the user approves the plan (possibly after editing).
    * Receives the final list of steps — may differ from the original if edited.
@@ -15,7 +20,7 @@ type Props = {
   onSkip: () => void;
 };
 
-export function PlanCard({ steps, consumed = false, onApprove, onSkip }: Props) {
+export function PlanCard({ steps, consumed = false, approvalPending = false, onApprove, onSkip }: Props) {
   const [isEditing, setIsEditing] = useState(false);
   // Editing buffer: one step per line
   const [editText, setEditText] = useState(() => steps.join("\n"));
@@ -97,17 +102,23 @@ export function PlanCard({ steps, consumed = false, onApprove, onSkip }: Props) 
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => onApprove(currentSteps)}
-            className="flex h-7 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-beige text-xs font-medium text-beige-foreground transition hover:bg-beige/90"
+            onClick={() => !approvalPending && onApprove(currentSteps)}
+            disabled={approvalPending}
+            className="flex h-7 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-beige text-xs font-medium text-beige-foreground transition hover:bg-beige/90 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <CheckCircle2 className="h-3.5 w-3.5" />
-            Zatwierdź i buduj
+            {approvalPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <CheckCircle2 className="h-3.5 w-3.5" />
+            )}
+            {approvalPending ? "Wysyłanie…" : "Zatwierdź i buduj"}
           </button>
 
           <button
             type="button"
             onClick={onSkip}
-            className="flex h-7 cursor-pointer items-center gap-1 rounded-lg border border-beige/20 px-2.5 text-xs text-muted-foreground transition hover:border-beige/40 hover:text-foreground"
+            disabled={approvalPending}
+            className="flex h-7 cursor-pointer items-center gap-1 rounded-lg border border-beige/20 px-2.5 text-xs text-muted-foreground transition hover:border-beige/40 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
           >
             <SkipForward className="h-3 w-3" />
             Pomiń

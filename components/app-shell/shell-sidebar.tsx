@@ -11,8 +11,9 @@ import {
   Star,
 } from "lucide-react";
 import { UserMenu } from "@/components/user-menu";
-import { CreditsPill } from "@/components/app-shell/credits-pill";
+import { CreditBar } from "@/components/side-nav";
 import { SidebarMobileApps } from "@/components/app-shell/sidebar-mobile-apps";
+import { useAuth } from "@/components/auth/auth-provider";
 
 const NAV = [
   { href: "/", label: "Start", icon: Home, exact: true },
@@ -21,9 +22,10 @@ const NAV = [
 
 export function ShellSidebar() {
   const pathname = usePathname();
+  const { user } = useAuth();
 
   return (
-    <aside className="hidden h-screen w-60 shrink-0 flex-col border-r border-beige/10 bg-background lg:flex">
+    <aside className="fixed left-0 top-0 z-30 hidden h-screen w-60 shrink-0 flex-col border-r border-beige/10 bg-background/95 backdrop-blur-md lg:flex">
       <div className="flex items-center justify-between gap-2 border-b border-beige/10 px-3 py-3">
         <Link href="/" className="flex items-center gap-2">
           <span className="flex h-7 w-7 items-center justify-center rounded-md bg-beige text-xs font-medium text-beige-foreground">
@@ -33,7 +35,6 @@ export function ShellSidebar() {
             wybitnastrona<span className="text-beige/60">.pl</span>
           </span>
         </Link>
-        <UserMenu variant="shell" />
       </div>
 
       <div className="px-3 py-3">
@@ -107,8 +108,13 @@ export function ShellSidebar() {
         </ul>
       </nav>
 
-      <div className="border-t border-beige/10 px-3 py-3">
-        <CreditsPill />
+      {/* Pasek kredytów — identyczny z SideNav (publiczne strony) */}
+      {user && <CreditBar />}
+
+      <div className="shrink-0 border-t border-beige/10 p-3">
+        <div className="flex items-center gap-2">
+          <UserMenu variant="shell" />
+        </div>
         <p className="mt-2 text-[11px] text-muted-foreground">
           (c) {new Date().getFullYear()} wybitnastrona.pl
         </p>

@@ -326,6 +326,48 @@ create unique index if not exists profiles_stripe_customer_idx
   where stripe_customer_id is not null;
 
 -- ============================================================
+-- MIGRACJA 0044: deployed-sites Storage bucket + static_deployed_at
+-- ============================================================
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'deployed-sites',
+  'deployed-sites',
+  true,
+  52428800,
+  array[
+    'text/html',
+    'application/javascript',
+    'text/css',
+    'application/json',
+    'image/svg+xml',
+    'image/png',
+    'image/jpeg',
+    'image/gif',
+    'image/webp',
+    'image/x-icon',
+    'font/woff',
+    'font/woff2',
+    'font/ttf',
+    'text/plain',
+    'application/octet-stream'
+  ]
+)
+on conflict (id) do nothing;
+
+create policy if not exists "deployed-sites: public read"
+  on storage.objects for select
+  using (bucket_id = 'deployed-sites');
+
+alter table public.projects
+  add column if not exists static_deployed_at timestamptz;
+
+comment on column public.projects.static_deployed_at is
+  'Timestamp ostatniego udanego builda statycznego (Vite dist/). '
+  'Gdy ustawiony, proxy.ts serwuje pliki z bucketa deployed-sites/{id}/. '
+  'Zerowany przy unpublish.';
+
+-- ============================================================
 -- KONIEC MIGRACJI
 -- ============================================================
 -- Po uruchomieniu odswiezcie strone wybitnastrona.pl

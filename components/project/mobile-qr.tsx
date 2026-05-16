@@ -65,6 +65,12 @@ function QrModal({
       ? window.matchMedia("(max-width: 640px)").matches
       : false,
   );
+  // Lokalny URL (WebContainer localhost) — wymaga tej samej sieci Wi-Fi.
+  // Opublikowane subdomeny (*.wybitny.website, custom domain) nie wymagają.
+  const isLocalUrl =
+    qrUrl.includes("localhost") ||
+    qrUrl.includes("127.0.0.1") ||
+    qrUrl.startsWith("exp://");
 
   // Trigger CSS transition po pierwszym renderze.
   useEffect(() => {
@@ -129,7 +135,9 @@ function QrModal({
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
             {isExpo
               ? "Zeskanuj kod aplikacją Expo Go (iOS/Android), aby zobaczyć podgląd projektu na żywo."
-              : "Zeskanuj kod aparatem telefonu — strona otworzy się w przeglądarce mobilnej."}
+              : isLocalUrl
+                ? "Zeskanuj kod aparatem — telefon musi być na tej samej sieci Wi-Fi co komputer."
+                : "Zeskanuj kod aparatem — strona otworzy się w przeglądarce mobilnej."}
           </p>
         </div>
 
@@ -137,13 +145,17 @@ function QrModal({
           <QRCodeSVG value={qrUrl} size={isMobile ? 200 : 240} level="M" />
         </div>
 
-        <div className="mt-5 flex items-center gap-2 rounded-xl border border-beige/10 bg-background/40 px-3 py-2 text-[11px] text-muted-foreground">
-          <Wifi className="h-3.5 w-3.5 shrink-0 text-beige/70" />
-          <span className="leading-relaxed">
-            Wymagana ta sama siec Wi-Fi co Twoj komputer (dla podglądu z
-            WebContainera).
-          </span>
-        </div>
+        {/* Komunikat o sieci Wi-Fi pokazujemy tylko dla lokalnych URL-i WebContainera
+            (np. localhost:3000). Dla opublikowanych subdomen hint nie jest potrzebny. */}
+        {isLocalUrl && (
+          <div className="mt-5 flex items-center gap-2 rounded-xl border border-beige/10 bg-background/40 px-3 py-2 text-[11px] text-muted-foreground">
+            <Wifi className="h-3.5 w-3.5 shrink-0 text-beige/70" />
+            <span className="leading-relaxed">
+              Wymagana ta sama sieć Wi-Fi co Twój komputer (podgląd działa
+              lokalnie w WebContainerze).
+            </span>
+          </div>
+        )}
 
         <p className="mt-3 truncate text-center font-mono text-[10px] text-muted-foreground">
           {qrUrl}

@@ -131,6 +131,83 @@ class WCManager {
     );
   }
 
+  /**
+   * Uruchamia `npm run build` i strumieniuje output do callbacka.
+   * Zwraca kod wyjścia (0 = sukces).
+   */
+  async runBuild(onOutput: (line: string) => void): Promise<number> {
+    const wc = await this.boot();
+    const proc = await wc.spawn("npm", ["run", "build"]);
+    proc.output.pipeTo(
+      new WritableStream({
+        write: (chunk) => onOutput(this.toLine(chunk)),
+      }),
+    );
+    return proc.exit;
+  }
+
+  /**
+   * Rekurencyjnie odczytuje pliki z katalogu wyjściowego buildu.
+   * Sprawdza kolejno: dist/ → build/ → out/.
+   * Zwraca mapę { "/index.html": "...", "/assets/main.js": "..." }.
+   * Pliki binarne są pomijane (readFile z 'utf-8' rzuca lub zwraca garbage).
+   */
+  async readDistFiles(): Promise<Record<string, string>> {
+    if (!this.container) return {};
+
+    let distDir: string | null = null;
+    for (const candidate of ["dist", "build", "out"]) {
+      try {
+        await this.container.fs.readdir(candidate);
+        distDir = candidate;
+        break;
+      } catch {
+        // katalog nie istnieje, spróbuj następny
+      }
+    }
+    if (!distDir) return {};
+
+    const result: Record<string, string> = {};
+    await this.readDirRecursive(distDir, distDir, result);
+    return result;
+  }
+
+  private async readDirRecursive(
+    baseDir: string,
+    currentDir: string,
+    result: Record<string, string>,
+  ): Promise<void> {
+    if (!this.container) return;
+
+    let entries: Array<{ name: string; isDirectory: () => boolean }>;
+    try {
+      entries = (await this.container.fs.readdir(currentDir, {
+        withFileTypes: true,
+      })) as Array<{ name: string; isDirectory: () => boolean }>;
+    } catch {
+      return;
+    }
+
+    for (const entry of entries) {
+      const fullPath = `${currentDir}/${entry.name}`;
+      if (entry.isDirectory()) {
+        await this.readDirRecursive(baseDir, fullPath, result);
+      } else {
+        try {
+          const content = (await this.container.fs.readFile(
+            fullPath,
+            "utf-8",
+          )) as string;
+          // Ścieżka względna zaczynająca się od "/" (bez baseDir prefix)
+          const relPath = "/" + fullPath.slice(baseDir.length + 1);
+          result[relPath] = content;
+        } catch {
+          // Plik binarny lub nieczytelny — pomiń
+        }
+      }
+    }
+  }
+
   async writeFile(path: string, content: string): Promise<void> {
     if (!this.container) return;
     const norm = path.startsWith("/") ? path.slice(1) : path;

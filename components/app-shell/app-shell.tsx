@@ -19,7 +19,8 @@ export async function AppShell({ projects, userTier = "free" }: AppShellProps) {
   return (
     <div className="flex min-h-screen w-full bg-background">
       <ShellSidebar />
-      <main className="flex min-h-screen flex-1 flex-col">
+      {/* lg:pl-60 kompensuje fixed sidebar (w-60 = 240px) */}
+      <main className="flex min-h-screen flex-1 flex-col lg:pl-60">
         <ShellMobileHeader />
         <LowPointsBanner />
         <CreationHero userTier={userTier} />

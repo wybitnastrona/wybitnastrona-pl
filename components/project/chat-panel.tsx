@@ -157,6 +157,11 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
   const [buyCreditsOpen, setBuyCreditsOpen] = useState(false);
   // Track which plan cards have been acted on (approved/skipped)
   const [consumedPlans, setConsumedPlans] = useState<Set<number>>(new Set());
+  // Pending approval: index of the plan part awaiting AI response.
+  // While set, the Approve button shows a spinner and is disabled.
+  // Cleared on AI finish or error.
+  const [pendingApprovalPartIdx, setPendingApprovalPartIdx] = useState<number | null>(null);
+  const pendingApprovalPartIdxRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const startedRef = useRef(false);
@@ -210,9 +215,25 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
       // Sygnal dla edytora i overlay: AI zakonczylo streaming.
       // Edytor czysci "live z AI" wskaznik, overlay znika.
       window.dispatchEvent(new CustomEvent("wybitna:partial-write-end"));
+      // Mark pending plan as consumed now that AI responded successfully.
+      if (pendingApprovalPartIdxRef.current !== null) {
+        setConsumedPlans((prev) =>
+          new Set([...prev, pendingApprovalPartIdxRef.current!]),
+        );
+        pendingApprovalPartIdxRef.current = null;
+        setPendingApprovalPartIdx(null);
+      }
       router.refresh();
     },
   });
+
+  // Clear pending approval on error so the user can retry.
+  useEffect(() => {
+    if (error && pendingApprovalPartIdxRef.current !== null) {
+      pendingApprovalPartIdxRef.current = null;
+      setPendingApprovalPartIdx(null);
+    }
+  }, [error]);
 
   // Persystencja wiadomosci czatu w bazie po kazdej zakonczonej iteracji AI.
   // Wywolywana tylko po zakonczeniu streamu (status zmienia sie na "ready"
@@ -681,6 +702,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
             message={message}
             isStreaming={isStreaming && message.id === lastAssistantId}
             consumedPlans={consumedPlans}
+            pendingApprovalPartIdx={pendingApprovalPartIdx}
             canRevert={message.role === "assistant" && !!snapshotId}
             isReverting={
               !!triggeringUserId && revertingMessageId === triggeringUserId
@@ -698,7 +720,9 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
             }}
             onPlanAction={(partIdx, action, finalSteps) => {
               if (action === "approve") {
-                setConsumedPlans((prev) => new Set([...prev, partIdx]));
+                // Mark as pending — consumed only after AI finishes (onFinish).
+                pendingApprovalPartIdxRef.current = partIdx;
+                setPendingApprovalPartIdx(partIdx);
                 // Switch to build mode BEFORE sending so the transport body()
                 // reads "build" from modeRef at request time.
                 setModeSync("build");
@@ -1150,6 +1174,7 @@ function Message({
   message,
   isStreaming,
   consumedPlans,
+  pendingApprovalPartIdx,
   canRevert,
   isReverting,
   onRevert,
@@ -1161,6 +1186,7 @@ function Message({
   message: UIMessage;
   isStreaming: boolean;
   consumedPlans: Set<number>;
+  pendingApprovalPartIdx: number | null;
   canRevert: boolean;
   isReverting: boolean;
   onRevert: () => void;
@@ -1265,6 +1291,7 @@ function Message({
                 key={idx}
                 steps={steps}
                 consumed={consumedPlans.has(idx)}
+                approvalPending={pendingApprovalPartIdx === idx}
                 onApprove={(finalSteps) => onPlanAction(idx, "approve", finalSteps)}
                 onSkip={() => onPlanAction(idx, "skip")}
               />

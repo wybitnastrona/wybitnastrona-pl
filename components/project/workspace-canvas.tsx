@@ -19,6 +19,7 @@ import {
   Pencil,
   PictureInPicture2,
   RotateCw,
+  Settings,
 } from "lucide-react";
 import { AppleIcon, AndroidIcon } from "@/components/brand-icons";
 import { DatabasePanel } from "@/components/project/database-panel";
@@ -636,12 +637,28 @@ function CanvasTopbar({
           />
         )}
         <MoreMenu isCodeOnly={isCodeOnly} />
+        {/* Przycisk Ustawień — przeniesiony tutaj z topbara, na prawo od "Więcej" */}
+        <button
+          type="button"
+          title="Ustawienia projektu"
+          aria-label="Ustawienia projektu"
+          onClick={() =>
+            window.dispatchEvent(
+              new CustomEvent("wybitna:open-settings", {
+                detail: { tab: "general" },
+              }),
+            )
+          }
+          className="flex h-6 cursor-pointer items-center justify-center rounded px-1.5 text-xs transition text-muted-foreground hover:bg-white/5 hover:text-beige"
+        >
+          <Settings className="h-3.5 w-3.5" />
+        </button>
       </div>
 
-      {/* URL bar — tylko dla web */}
+      {/* URL bar — tylko dla web, zwężony do 50% żeby nie wypychał toolbara */}
       {!isCodeOnly && (
-        <div className="mx-1 hidden h-7 flex-1 items-center gap-2 rounded-md border border-beige/15 bg-card/40 px-2 text-xs text-muted-foreground sm:flex">
-          <span className="truncate font-mono">{displayUrl}</span>
+        <div className="mx-1 hidden h-7 max-w-[50%] min-w-0 shrink items-center gap-2 rounded-md border border-beige/15 bg-card/40 px-2 text-xs text-muted-foreground sm:flex">
+          <span className="min-w-0 flex-1 truncate font-mono">{displayUrl}</span>
           <button
             type="button"
             onClick={() => window.location.reload()}

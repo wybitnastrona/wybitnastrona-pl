@@ -32,7 +32,6 @@ export function UserMenu({ variant = "navbar" }: UserMenuProps) {
 
   const email = user.email ?? "";
   const initial = emailToInitial(email);
-  const isShell = variant === "shell";
   const avatarBg = emailToColor(email);
   const avatarStyle = {
     backgroundColor: avatarBg,
@@ -42,29 +41,16 @@ export function UserMenu({ variant = "navbar" }: UserMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className={
-          isShell
-            ? "flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium transition hover:opacity-90"
-            : "flex h-9 cursor-pointer items-center gap-2 rounded-full border border-beige/20 bg-card px-2 pr-3 text-sm text-foreground transition hover:border-beige/40"
-        }
-        style={isShell ? avatarStyle : undefined}
+        className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-xs font-medium transition hover:opacity-90"
+        style={avatarStyle}
         aria-label="Menu konta"
       >
         <span
-          className={
-            isShell
-              ? "flex h-7 w-7 items-center justify-center text-sm font-medium"
-              : "flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium"
-          }
-          style={isShell ? { color: AVATAR_FOREGROUND } : avatarStyle}
+          className="flex h-7 w-7 items-center justify-center text-sm font-medium"
+          style={{ color: AVATAR_FOREGROUND }}
         >
           {initial}
         </span>
-        {!isShell && (
-          <span className="hidden max-w-[140px] truncate text-muted-foreground md:inline">
-            {email}
-          </span>
-        )}
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"

@@ -238,18 +238,6 @@ export function ProjectTopbar({
         <Button
           type="button"
           variant="ghost"
-          size="icon-sm"
-          onClick={() => openSettings("general")}
-          className="text-foreground/80 hover:bg-white/5"
-          aria-label="Ustawienia projektu"
-          title="Ustawienia projektu"
-        >
-          <Settings className="h-3.5 w-3.5" />
-        </Button>
-
-        <Button
-          type="button"
-          variant="ghost"
           size="sm"
           onClick={() => setShareOpen(true)}
           className="text-foreground/80 hover:bg-white/5"
@@ -774,6 +762,12 @@ function PublishDialog({
         setIsPublic(true);
         setJustPublished(true);
         router.refresh();
+        // Uruchom build statyczny w WebContainerze (jeśli aktywny)
+        window.dispatchEvent(
+          new CustomEvent("wybitna:deploy-static", {
+            detail: { projectId: project.id },
+          }),
+        );
       } else {
         const err = (await res.json().catch(() => ({}))) as {
           error?: string;

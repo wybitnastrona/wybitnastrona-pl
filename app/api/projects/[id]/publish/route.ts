@@ -83,7 +83,7 @@ export async function POST(req: Request, { params }: { params: Params }) {
 }
 
 export async function DELETE(
-  _req: Request,
+  req: Request,
   { params }: { params: Params },
 ) {
   const { id } = await params;
@@ -98,6 +98,19 @@ export async function DELETE(
 
   try {
     await unpublishProject(id);
+
+    // Fire-and-forget: wyczyść statyczny build z Storage.
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+    if (appUrl) {
+      const cookie = req.headers.get("cookie");
+      void fetch(`${appUrl}/api/projects/${id}/deploy-static`, {
+        method: "DELETE",
+        headers: cookie ? { cookie } : undefined,
+      }).catch((e) => {
+        console.warn("[unpublish] deploy-static cleanup failed:", e);
+      });
+    }
+
     return NextResponse.json({ ok: true });
   } catch (err) {
     return NextResponse.json(

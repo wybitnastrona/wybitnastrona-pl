@@ -6,19 +6,18 @@
  * Pokazuje:
  *  - Karty z sumami per typ eventu (view / prompt / publish / ...).
  *  - Bar chart "Aktywnosc dziennie" z stackowanymi kolorami per typ.
- *  - Selektor zakresu czasu Day / Week / Month.
+ *  - Selektor zakresu czasu 7d / 14d / 30d.
  *
- * Source danych: GET /api/projects/[id]/stats?days=1|7|30
+ * Wykres zawsze pokazuje PELNA siatkę kubełków (np. 30 dla 30d, 28 dla 7d).
+ * Kubełki bez danych mają wysokość 0 ale tooltip ze znacznikiem czasu.
+ * Source danych: GET /api/projects/[id]/stats?days=1|7|30&bucket_hours=6|12|24
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 
-type Event = { event_type: string; count: number; day: string };
+type Event = { event_type: string; count: number; day: string; bucket?: string };
 
-// Granularnosc analytics — 3 presety pokrywaja typowe okna analizy
-// (krotkie = czesty bucket, dlugie = dzienny bucket). bucket=24h
-// dla 1d daje pojedynczy slupek czyli dziala jak agregat.
 type Range = "7d" | "14d" | "30d";
 
 const RANGE_PRESETS: Record<
@@ -51,11 +50,57 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 type Props = {
-  /** Jezeli podany, dashboard sam fetchuje pod /api/projects/{id}/stats. */
   projectId?: string;
-  /** Statyczne dane (kompatybilnosc z poprzednim API). */
   events?: Event[];
 };
+
+type DayBucket = {
+  label: string;
+  counts: Record<string, number>;
+  total: number;
+};
+
+/**
+ * Builds a full, evenly-spaced array of buckets for the given range.
+ * Each bucket aligns with Postgres `date_bin(..., 'epoch')`:
+ *   bin(t) = floor(epoch_ms / stepMs) * stepMs
+ *
+ * We generate numBuckets ending at the current moment's bin, then merge
+ * actual event data. Buckets with no events get total=0 but still render
+ * with a hover tooltip so the chart always fills the full time window.
+ */
+function buildFullGrid(
+  data: Event[],
+  days: number,
+  bucketHours: number,
+): DayBucket[] {
+  const stepMs = bucketHours * 3600 * 1000;
+  const numBuckets = Math.round((days * 24) / bucketHours);
+
+  const nowBin = Math.floor(Date.now() / stepMs) * stepMs;
+  const startBin = nowBin - (numBuckets - 1) * stepMs;
+
+  // Build label map from actual data (key = "YYYY-MM-DD HH:MM")
+  const dataMap = new Map<string, Record<string, number>>();
+  for (const e of data) {
+    const key = e.day; // already formatted as "YYYY-MM-DD HH:MM" from API
+    if (!dataMap.has(key)) dataMap.set(key, {});
+    const bucket = dataMap.get(key)!;
+    bucket[e.event_type] = (bucket[e.event_type] ?? 0) + Number(e.count);
+  }
+
+  const buckets: DayBucket[] = [];
+  for (let i = 0; i < numBuckets; i++) {
+    const t = startBin + i * stepMs;
+    const iso = new Date(t).toISOString();
+    const label = iso.slice(0, 16).replace("T", " ");
+
+    const counts = dataMap.get(label) ?? {};
+    const total = Object.values(counts).reduce((a, b) => a + b, 0);
+    buckets.push({ label, counts, total });
+  }
+  return buckets;
+}
 
 export function AnalyticsDashboard({ projectId, events }: Props) {
   const [range, setRange] = useState<Range>("30d");
@@ -87,7 +132,7 @@ export function AnalyticsDashboard({ projectId, events }: Props) {
     if (projectId) void load(range);
   }, [projectId, range, load]);
 
-  // Sumy per typ
+  // Totals per type for summary tiles
   const totals = useMemo(() => {
     const t: Record<string, number> = {};
     for (const e of data) {
@@ -96,35 +141,24 @@ export function AnalyticsDashboard({ projectId, events }: Props) {
     return t;
   }, [data]);
 
-  // Dzienne sumy (stack chart)
-  type DayBucket = { day: string; counts: Record<string, number>; total: number };
-  const byDay = useMemo<DayBucket[]>(() => {
-    const map = new Map<string, Record<string, number>>();
-    for (const e of data) {
-      if (!map.has(e.day)) map.set(e.day, {});
-      const day = map.get(e.day)!;
-      day[e.event_type] = (day[e.event_type] ?? 0) + Number(e.count);
-    }
-    const arr = Array.from(map.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([day, counts]) => {
-        const total = Object.values(counts).reduce((a, b) => a + b, 0);
-        return { day, counts, total };
-      });
-    return arr;
-  }, [data]);
+  const preset = RANGE_PRESETS[range];
+
+  // Full grid of buckets — always numBuckets long
+  const grid = useMemo(
+    () => buildFullGrid(data, preset.days, preset.bucketHours),
+    [data, preset.days, preset.bucketHours],
+  );
 
   const maxValue = useMemo(() => {
-    let max = 0;
-    for (const d of byDay) if (d.total > max) max = d.total;
-    return max || 1;
-  }, [byDay]);
+    const m = Math.max(...grid.map((b) => b.total));
+    return m > 0 ? m : 1;
+  }, [grid]);
 
   const hasAny = data.length > 0;
 
   return (
     <div className="space-y-6">
-      {/* Header: title + range selector (Bolt-style top-right tabs) */}
+      {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="text-base font-medium text-foreground">Analytics</h2>
@@ -188,32 +222,58 @@ export function AnalyticsDashboard({ projectId, events }: Props) {
           </div>
         ) : (
           <>
-            <div className="flex h-48 items-end gap-1">
-              {byDay.map((d) => {
-                const heightPct = (d.total / maxValue) * 100;
-                // Stack: kazdy typ jako oddzielny kolorowy segment.
-                const segments = Object.entries(d.counts).filter(
+            {/* Full-grid bar chart — wąskie słupki, zawsze pełna liczba kubełków */}
+            <div className="flex h-48 items-end gap-px overflow-hidden">
+              {grid.map((bucket, i) => {
+                const heightPct = (bucket.total / maxValue) * 100;
+                const segments = Object.entries(bucket.counts).filter(
                   ([, v]) => v > 0,
                 );
+                const isEmpty = bucket.total === 0;
+
+                // Formatuj etykietę: tylko godzina lub DD.MM
+                const labelShort =
+                  preset.bucketHours < 24
+                    ? bucket.label.slice(11, 16) // "HH:MM"
+                    : bucket.label.slice(5, 10).replace("-", "."); // "MM.DD"
+
                 return (
                   <div
-                    key={d.day}
-                    className="group relative flex flex-1 flex-col-reverse"
-                    style={{ height: `${heightPct}%`, minHeight: "2px" }}
-                    title={`${d.day}: ${d.total}`}
+                    key={i}
+                    className="group relative flex min-w-0 flex-1 flex-col-reverse"
+                    style={{ height: "100%" }}
+                    title={`${bucket.label}: ${bucket.total}`}
                   >
-                    {segments.map(([type, count]) => (
+                    {/* Actual bar */}
+                    {!isEmpty && (
                       <div
-                        key={type}
-                        style={{
-                          backgroundColor: TYPE_COLORS[type] ?? "#888",
-                          flexBasis: `${(count / d.total) * 100}%`,
-                        }}
-                        className="first:rounded-t-sm"
-                      />
-                    ))}
-                    <div className="pointer-events-none absolute -top-7 left-1/2 z-10 hidden -translate-x-1/2 whitespace-nowrap rounded bg-card-hover px-2 py-1 text-[10px] text-foreground shadow-md group-hover:block">
-                      {d.day}: {d.total}
+                        className="absolute bottom-0 left-0 right-0 flex flex-col-reverse overflow-hidden rounded-t-[1px]"
+                        style={{ height: `${heightPct}%` }}
+                      >
+                        {segments.map(([type, count]) => (
+                          <div
+                            key={type}
+                            style={{
+                              backgroundColor: TYPE_COLORS[type] ?? "#888",
+                              flexBasis: `${(count / bucket.total) * 100}%`,
+                              flexShrink: 0,
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Empty bucket placeholder — very subtle */}
+                    {isEmpty && (
+                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100">
+                        <div className="h-full w-full rounded-sm bg-beige/5" />
+                      </div>
+                    )}
+
+                    {/* Tooltip */}
+                    <div className="pointer-events-none absolute -top-8 left-1/2 z-10 hidden -translate-x-1/2 whitespace-nowrap rounded bg-card px-2 py-1 text-[10px] text-foreground shadow-md group-hover:block">
+                      {bucket.label}
+                      {bucket.total > 0 && `: ${bucket.total}`}
                     </div>
                   </div>
                 );

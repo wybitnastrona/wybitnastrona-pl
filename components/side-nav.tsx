@@ -231,7 +231,7 @@ export function SideNav() {
  * Defensywnie: gdy saldo > limit (rzadkie, np. po dokupieniu pakietu), pasek
  * pozostaje pelny + zielony (kredytow jest w nadmiarze).
  */
-function CreditBar({ onUpgradeClick }: { onUpgradeClick?: () => void } = {}) {
+export function CreditBar({ onUpgradeClick }: { onUpgradeClick?: () => void } = {}) {
   const [points, setPoints] = useState<number | null>(null);
   const [limit, setLimit] = useState<number | null>(null);
 

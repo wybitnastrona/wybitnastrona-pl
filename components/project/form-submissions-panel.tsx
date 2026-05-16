@@ -93,12 +93,13 @@ export function FormSubmissionsPanel({ project, onBack }: Props) {
   const isExternal = data?.source === "external";
 
   const fileBaseName = useMemo(() => {
-    const slug =
-      project.slug ?? (project.title || "projekt")
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "")
-        .slice(0, 40) || "projekt";
+    const rawSlug = project.slug || (project.title || "projekt")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 40);
+    
+    const slug = rawSlug || "projekt";
     const d = new Date();
     const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     return `formularze_${slug}_${date}`;

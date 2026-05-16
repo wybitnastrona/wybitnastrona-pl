@@ -35,7 +35,7 @@ ANTHROPIC_API_KEY=sk-ant-...
 NEXT_PUBLIC_APP_URL=https://wybitnastrona.pl
 NEXT_PUBLIC_ROOT_DOMAIN=wybitnastrona.pl
 
-# Domena publikowanych stron (jak bolt.host)
+# Domena publikowanych stron (jak wybitny.website)
 NEXT_PUBLIC_PUBLISH_DOMAIN=wybitny.website
 
 # Partner do zakupu domen (link otwiera nowa karte)
@@ -321,7 +321,7 @@ MVP: w workspace projektu user wkleja `STRIPE_SECRET_KEY` jako env var dla
 wygenerowanej strony. AI generuje wtedy `/api/checkout/route.ts` z poprawnym
 template'em.
 
-## 11. Migracje wymagane dla refaktoru Bolt-style v2
+## 11. Migracje wymagane dla refaktoru wybitnastrona.pl v2
 
 Uruchom kolejno (od ostatniej istniejacej w panelu Supabase):
 

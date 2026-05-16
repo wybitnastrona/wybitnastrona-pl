@@ -38,7 +38,10 @@ values (
 on conflict (id) do nothing;
 
 -- ─── RLS: publiczny odczyt (bucket jest public, ale dodajemy policy dla pewności) ─
-create policy if not exists "deployed-sites: public read"
+-- PostgreSQL nie obsługuje "CREATE POLICY IF NOT EXISTS" — używamy
+-- idempotentnego wzorca drop+create.
+drop policy if exists "deployed-sites: public read" on storage.objects;
+create policy "deployed-sites: public read"
   on storage.objects for select
   using (bucket_id = 'deployed-sites');
 

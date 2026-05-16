@@ -1,6 +1,6 @@
 # wybitnastrona.pl — AI Website Builder
 
-Klon bolt.new w paletcie czerni i beżu, z polskim UI. Stack:
+Kreator stron wybitnastrona.pl — AI Website Builder w paletcie czerni i beżu, z polskim UI. Stack:
 
 - **Next.js 16** (App Router, Turbopack, **`proxy.ts`** — rewrite subdomen + nagłówki COOP/COEP)
 - **Tailwind CSS v4** + **shadcn/ui** + **Lucide**
@@ -11,7 +11,7 @@ Klon bolt.new w paletcie czerni i beżu, z polskim UI. Stack:
 
 ## Funkcje
 
-- Hero w stylu bolt.new + sugestie startowe
+- Hero wybitnastrona.pl + sugestie startowe
 - Generator AI w `/project/[id]` (split view: chat + Sandpack code/preview)
 - Dashboard z listą projektów
 - Publish na subdomenę przez `proxy.ts` (rewrite do `/sites/[slug]`)

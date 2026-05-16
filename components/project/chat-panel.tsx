@@ -1333,7 +1333,7 @@ function Message({
         <span className="inline-flex h-4 w-4 items-center justify-center">
           <Sparkles className="h-3 w-3 text-beige/80" />
         </span>
-        <span>bolt</span>
+        <span>Wybitny programista</span>
         <div className="ml-auto flex items-center gap-1">
           {canRevert && !isStreaming && (
             <button

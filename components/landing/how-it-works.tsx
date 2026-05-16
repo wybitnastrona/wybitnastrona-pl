@@ -36,8 +36,8 @@ export function HowItWorks() {
             Trzy kroki do gotowej strony
           </h2>
           <p className="mt-3 text-muted-foreground">
-            Bez znajomosci kodu, bez kombinowania z hostingiem. Dzialasz tak
-            samo prosto jak w bolt.new.
+            Bez znajomosci kodu, bez kombinowania z hostingiem. Wszystko w
+            jednym miejscu — opisujesz, my budujemy i publikujemy.
           </p>
         </div>
 

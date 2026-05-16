@@ -355,7 +355,8 @@ values (
 )
 on conflict (id) do nothing;
 
-create policy if not exists "deployed-sites: public read"
+drop policy if exists "deployed-sites: public read" on storage.objects;
+create policy "deployed-sites: public read"
   on storage.objects for select
   using (bucket_id = 'deployed-sites');
 

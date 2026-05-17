@@ -425,14 +425,14 @@ export async function proxy(request: NextRequest) {
   if (isInternalHost(host, roots)) {
     const res = NextResponse.next();
     if (url.pathname.startsWith("/project/")) {
-      // WAŻNE (item 6): NIE ustawiamy tutaj Cross-Origin-Embedder-Policy.
-      // COEP=require-corp blokuje Stripe.js, Resend, Google Fonts, Cloudinary
-      // i wszystkie inne zewnętrzne zasoby bez nagłówka CORP. WebContainer
-      // wymaga COEP tylko w iframe podglądu, który ładuje się z subdomeny
-      // gdzie nagłówki ustawia branża "1. Subdomeny publikacji".
-      // COOP=same-origin pozostaje (popup safety), CORP cross-origin też -
-      // ale bez COEP cała platforma działa z integracjami.
+      // WebContainer wymaga self.crossOriginIsolated = true na stronie-rodzicu,
+      // co oznacza COOP + COEP. Bez COEP SharedArrayBuffer jest niedostępny
+      // i WebContainer rzuca DataCloneError przy postMessage do Workera.
+      // Stripe.js (js.stripe.com) wysyła CORP: cross-origin, więc jest kompatybilny
+      // z COEP=require-corp. Google Fonts, Cloudinary itp. załadowane z CDN
+      // z CORP: cross-origin również działają poprawnie.
       res.headers.set("Cross-Origin-Opener-Policy", "same-origin");
+      res.headers.set("Cross-Origin-Embedder-Policy", "require-corp");
       res.headers.set("Cross-Origin-Resource-Policy", "cross-origin");
     }
     return res;

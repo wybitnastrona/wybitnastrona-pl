@@ -261,14 +261,19 @@ alter table public.payments enable row level security;
 drop policy if exists "owner_select_payments" on public.payments;
 create policy "owner_select_payments" on public.payments for select using (auth.uid() = user_id);
 
--- 14) stripe_events (idempotency)
+-- 14) stripe_events (idempotency) — kanoniczny schemat ze supabase/migrations/0012
+-- WAŻNE: webhook (app/api/stripe/webhook/route.ts) wykonuje
+-- `insert({ event_id, type })` i polega na UNIQUE constraint na event_id
+-- żeby wykryć retry/duplicate. Klucz to event_id (tekst od Stripe), nie UUID.
+-- RLS OFF: webhook używa service role; tabela nie jest dostępna z anon/authenticated.
 create table if not exists public.stripe_events (
-  id uuid primary key default gen_random_uuid(),
-  event_id text unique not null,
-  type text,
-  created_at timestamptz not null default now()
+  event_id text primary key,
+  type text not null,
+  received_at timestamptz not null default now()
 );
-alter table public.stripe_events enable row level security;
+create index if not exists stripe_events_received_at_idx
+  on public.stripe_events (received_at desc);
+alter table public.stripe_events disable row level security;
 
 -- 15) pgvector + match_knowledge (RAG dla pliku knowledge base)
 -- UWAGA: jesli "could not open extension control file" — wlacz pgvector w Dashboard:

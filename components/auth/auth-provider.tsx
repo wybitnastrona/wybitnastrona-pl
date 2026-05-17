@@ -60,14 +60,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (action) {
             action();
           }
-        } else if (event === "SIGNED_OUT") {
-          // Po wylogowaniu - pokaż modal logowania automatycznie,
-          // żeby użytkownik mógł od razu się przelogować bez odświeżania.
-          // Dispatch event pozwala innym komponentom (sidebar/topbar) zareagować.
-          if (typeof window !== "undefined") {
-            window.dispatchEvent(new CustomEvent("wybitna:signed-out"));
-          }
         }
+        // Po SIGNED_OUT komponenty re-renderują się przez useAuth context
+        // (nextUser === null), nie potrzeba dodatkowego custom eventu.
       },
     );
 

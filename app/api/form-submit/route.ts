@@ -17,7 +17,8 @@ function getServiceClient() {
  * Item 80: buduje listę dozwolonych originów dla danego projektu.
  * Zwracamy:
  *  - subdomena publikacji `{slug}.wybitny.website`
- *  - wszystkie zweryfikowane custom domains z tabeli `project_domains`
+ *  - zweryfikowana custom domain z `projects.custom_domain`
+ *    (gdy `projects.custom_domain_verified_at IS NOT NULL`)
  *  - localhost (dev)
  */
 async function getAllowedOrigins(

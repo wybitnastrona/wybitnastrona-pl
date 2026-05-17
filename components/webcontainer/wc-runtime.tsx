@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import { wcManager } from "./wc-manager";
 import type { ProjectFiles } from "@/lib/types/project";
 import { sanitizeProjectPackageJson } from "@/lib/sandpack/merge-preview-files";
+import { getContentType } from "@/lib/static-deploy";
 
 type Props = {
   projectId: string;
@@ -25,7 +26,37 @@ type Status =
   | "running"
   | "error";
 
-type DeployStatus = "idle" | "building" | "uploading" | "done" | "error";
+type DeployStatus =
+  | "idle"
+  | "building"
+  | "preparing"
+  | "uploading"
+  | "uploading-large"
+  | "finalizing"
+  | "done"
+  | "error";
+
+type DeployProgress = { done: number; total: number };
+
+/**
+ * Limity pipeline'u uploadu bezpośrednio do Supabase Storage.
+ * Vercel payload limit (4.5 MB) zostaje OMINIĘTY — pliki idą wprost z
+ * przeglądarki do Storage przez pre-signed URLs, więc cap'em jest tylko
+ * heap przeglądarki i bucket policy. 50 MB = bezpieczne ceiling dla
+ * typowego buildu (full-stack landing page + obrazy lokalne).
+ */
+const MAX_MB = 50;
+const WARN_MB = 35;
+
+/** Liczba równoległych PUT-ów do Storage. Za duża wartość → throttling. */
+const UPLOAD_CONCURRENCY = 5;
+
+type SignedUpload = {
+  path: string;
+  signedUrl: string;
+  token: string;
+  contentType: string;
+};
 
 export function WCRuntime({
   projectId,
@@ -41,6 +72,10 @@ export function WCRuntime({
       : null,
   );
   const [deployStatus, setDeployStatus] = useState<DeployStatus>("idle");
+  const [deployProgress, setDeployProgress] = useState<DeployProgress>({
+    done: 0,
+    total: 0,
+  });
   const prevFilesRef = useRef<ProjectFiles | null>(null);
 
   useEffect(() => {
@@ -123,7 +158,14 @@ export function WCRuntime({
   }, []);
 
   // Nasłuchuje zdarzenia wybitna:deploy-static (emitowanego przez project-topbar
-  // po udanej publikacji). Uruchamia `npm run build` i uploaduje dist/ do Storage.
+  // po udanej publikacji). Pipeline:
+  //   1) `npm run build` w WebContainer
+  //   2) `listDistFiles()` zwraca listę ścieżek
+  //   3) POST /prepare → signed upload URLs dla każdej ścieżki
+  //   4) Batchowany PUT bytes wprost z przeglądarki do Supabase Storage
+  //   5) POST /finalize → weryfikacja index.html + ustaw static_deployed_at
+  // Vercel payload limit (4.5 MB) jest OMINIĘTY — JSON przez API ma tylko
+  // listę ścieżek, raw bytes lecą wprost do Storage signed URL.
   useEffect(() => {
     async function handleDeploy(e: Event) {
       const { projectId: targetId } = (
@@ -132,7 +174,9 @@ export function WCRuntime({
       if (targetId !== projectId) return;
       if (!runCommand) return; // nie ma WebContainera, pomiń
 
+      // === 1. Build ============================================
       setDeployStatus("building");
+      setDeployProgress({ done: 0, total: 0 });
       const logs: string[] = [];
 
       const exitCode = await wcManager
@@ -141,91 +185,200 @@ export function WCRuntime({
 
       if (exitCode !== 0) {
         console.warn("[deploy] npm run build failed. Logs:", logs.join("\n"));
-        setDeployStatus("error");
-        window.dispatchEvent(
-          new CustomEvent("wybitna:static-deploy-done", {
-            detail: { projectId, ok: false, error: "Build failed" },
-          }),
-        );
-        setTimeout(() => setDeployStatus("idle"), 4000);
+        finishWithError("Build failed");
         return;
       }
 
-      setDeployStatus("uploading");
-      const distFiles = await wcManager.readDistFiles().catch(() => ({}));
+      // === 2. Lista plików + pre-load bytes =====================
+      setDeployStatus("preparing");
+      const paths = await wcManager.listDistFiles().catch(() => [] as string[]);
 
-      if (Object.keys(distFiles).length === 0) {
+      if (paths.length === 0) {
         console.warn("[deploy] No files in dist/. Build may have failed.");
-        setDeployStatus("error");
-        setTimeout(() => setDeployStatus("idle"), 4000);
+        finishWithError(
+          "Brak plików w katalogu wyjściowym — build mógł paść.",
+        );
         return;
       }
 
-      // Item 13: payload size guard. Vercel hobby limit dla POST = 4.5 MB.
-      // Liczymy rozmiar zserializowanego body przed wysyłką - jeśli przekracza
-      // 4 MB, przerywamy z czytelnym komunikatem zamiast czekać na 413
-      // od serwera.
-      const payload = JSON.stringify({ files: distFiles });
-      const sizeMb = payload.length / (1024 * 1024);
-      const MAX_MB = 4;
+      // Pre-load bytes do mapy w pamięci. Pozwala policzyć łączny rozmiar
+      // (size guard) i przekazać surowe Uint8Array do PUT bez ponownego I/O
+      // z WebContainera. Max ~50 MB w heapie — akceptowalne.
+      const bytesMap = new Map<string, Uint8Array>();
+      let totalBytes = 0;
+      for (const p of paths) {
+        const buf = await wcManager.readDistFileBytes(p);
+        if (!buf) continue;
+        bytesMap.set(p, buf);
+        totalBytes += buf.byteLength;
+      }
+
+      const sizeMb = totalBytes / (1024 * 1024);
       if (sizeMb > MAX_MB) {
         console.warn(
-          `[deploy] payload ${sizeMb.toFixed(2)}MB > ${MAX_MB}MB limit`,
+          `[deploy] total size ${sizeMb.toFixed(2)}MB > ${MAX_MB}MB limit`,
         );
-        setDeployStatus("error");
-        window.dispatchEvent(
-          new CustomEvent("wybitna:static-deploy-done", {
-            detail: {
-              projectId,
-              ok: false,
-              error: `Strona jest za duża (${sizeMb.toFixed(1)}MB > ${MAX_MB}MB). Zmniejsz zasoby w /public/ lub użyj zewnętrznego CDN dla zdjęć.`,
-            },
-          }),
+        finishWithError(
+          `Strona jest za duża (${sizeMb.toFixed(1)}MB > ${MAX_MB}MB). Użyj narzędzia generateImage (Cloudinary CDN) zamiast wgrywać obrazy do /public/, lub osadź duże assety z zewnętrznego CDN.`,
+          6000,
         );
-        setTimeout(() => setDeployStatus("idle"), 6000);
+        return;
+      }
+      const isLarge = sizeMb > WARN_MB;
+
+      // === 3. POST /prepare → signed upload URLs ================
+      const realPaths = Array.from(bytesMap.keys());
+      let uploads: SignedUpload[] = [];
+      try {
+        const prepRes = await fetch(
+          `/api/projects/${projectId}/deploy-static/prepare`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ paths: realPaths }),
+          },
+        );
+        if (!prepRes.ok) {
+          const data = (await prepRes.json().catch(() => null)) as {
+            error?: string;
+          } | null;
+          finishWithError(
+            data?.error ?? `Prepare failed (HTTP ${prepRes.status}).`,
+          );
+          return;
+        }
+        const prepData = (await prepRes.json()) as { uploads?: SignedUpload[] };
+        uploads = prepData.uploads ?? [];
+      } catch (err) {
+        console.warn("[deploy] prepare fetch failed", err);
+        finishWithError("Nie udało się przygotować signed URL-i.");
         return;
       }
 
-      try {
-        const res = await fetch(`/api/projects/${projectId}/deploy-static`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: payload,
-        });
-        if (res.ok) {
-          const data = (await res
-            .json()
-            .catch(() => null)) as { ok?: boolean; errors?: string[] } | null;
-          // Item 20: serwer zwraca ok:false jeśli choć jeden plik nie przeszedł.
-          if (data?.ok === false) {
-            setDeployStatus("error");
-            window.dispatchEvent(
-              new CustomEvent("wybitna:static-deploy-done", {
-                detail: {
-                  projectId,
-                  ok: false,
-                  error:
-                    data.errors?.[0] ??
-                    "Nie udało się wgrać wszystkich plików.",
-                },
-              }),
-            );
-          } else {
-            setDeployStatus("done");
-            window.dispatchEvent(
-              new CustomEvent("wybitna:static-deploy-done", {
-                detail: { projectId, ok: true },
-              }),
-            );
+      if (uploads.length === 0) {
+        finishWithError("Serwer nie zwrócił żadnego signed URL.");
+        return;
+      }
+
+      // === 4. Batchowany PUT bytes do Storage ===================
+      setDeployStatus(isLarge ? "uploading-large" : "uploading");
+      setDeployProgress({ done: 0, total: uploads.length });
+
+      const failed: Array<{ path: string; reason: string }> = [];
+      let doneCounter = 0;
+
+      // Worker-pool: stały rozmiar `UPLOAD_CONCURRENCY` workerów ciągnących
+      // taski z FIFO queue. Pewniejsze niż chunked Promise.all bo gdy jeden
+      // PUT jest wolny, inni nie czekają na koniec batcha.
+      const queue: SignedUpload[] = [...uploads];
+      async function worker() {
+        while (queue.length > 0) {
+          const item = queue.shift();
+          if (!item) return;
+          const bytes = bytesMap.get(item.path);
+          if (!bytes) {
+            failed.push({
+              path: item.path,
+              reason: "Brak bytes w pamięci klienta",
+            });
+            doneCounter++;
+            setDeployProgress({ done: doneCounter, total: uploads.length });
+            continue;
           }
-        } else {
-          setDeployStatus("error");
+          try {
+            // Supabase signed upload URL akceptuje PUT z body=blob.
+            // `x-upsert: true` pozwala nadpisać istniejący plik (orphan
+            // cleanup w /prepare i tak czyści, ale to dodatkowy safety net
+            // np. przy retry).
+            const ct = item.contentType || getContentType(item.path);
+            const blob = new Blob([new Uint8Array(bytes)], { type: ct });
+            const putRes = await fetch(item.signedUrl, {
+              method: "PUT",
+              headers: {
+                "Content-Type": ct,
+                "x-upsert": "true",
+                "cache-control": "max-age=300",
+              },
+              body: blob,
+            });
+            if (!putRes.ok) {
+              const msg = await putRes.text().catch(() => "");
+              failed.push({
+                path: item.path,
+                reason: `HTTP ${putRes.status} ${msg.slice(0, 120)}`,
+              });
+            }
+          } catch (err) {
+            failed.push({
+              path: item.path,
+              reason: err instanceof Error ? err.message : "fetch error",
+            });
+          } finally {
+            doneCounter++;
+            setDeployProgress({ done: doneCounter, total: uploads.length });
+          }
         }
-      } catch {
+      }
+
+      await Promise.all(
+        Array.from({ length: Math.min(UPLOAD_CONCURRENCY, uploads.length) }, () =>
+          worker(),
+        ),
+      );
+
+      if (failed.length > 0) {
+        console.warn("[deploy] some uploads failed", failed);
+        // Każdy zostawia choć trochę plików w Storage, ale nie ustawiamy
+        // static_deployed_at - frontend strony domeny pokaże poprzednią
+        // wersję (jeśli była) lub `siteNotPublished()` z proxy.ts.
+        finishWithError(
+          `Nie udało się wgrać ${failed.length}/${uploads.length} plików. Pierwszy błąd: ${failed[0].path} → ${failed[0].reason}`,
+          6000,
+        );
+        return;
+      }
+
+      // === 5. POST /finalize ====================================
+      setDeployStatus("finalizing");
+      try {
+        const finRes = await fetch(
+          `/api/projects/${projectId}/deploy-static/finalize`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ uploadedCount: uploads.length, errors: [] }),
+          },
+        );
+        if (!finRes.ok) {
+          const data = (await finRes.json().catch(() => null)) as {
+            error?: string;
+          } | null;
+          finishWithError(data?.error ?? `Finalize failed (HTTP ${finRes.status}).`);
+          return;
+        }
+      } catch (err) {
+        console.warn("[deploy] finalize fetch failed", err);
+        finishWithError("Nie udało się sfinalizować wdrożenia.");
+        return;
+      }
+
+      // === 6. Sukces ============================================
+      setDeployStatus("done");
+      window.dispatchEvent(
+        new CustomEvent("wybitna:static-deploy-done", {
+          detail: { projectId, ok: true },
+        }),
+      );
+      setTimeout(() => setDeployStatus("idle"), 5000);
+
+      function finishWithError(message: string, hideAfterMs = 4000) {
         setDeployStatus("error");
-      } finally {
-        // Item 93: zawsze odblokowujemy stan po cyklu, nawet gdy fetch rzucił.
-        setTimeout(() => setDeployStatus("idle"), 5000);
+        window.dispatchEvent(
+          new CustomEvent("wybitna:static-deploy-done", {
+            detail: { projectId, ok: false, error: message },
+          }),
+        );
+        setTimeout(() => setDeployStatus("idle"), hideAfterMs);
       }
     }
 
@@ -261,7 +414,9 @@ export function WCRuntime({
               ? "border-emerald-500/40 bg-emerald-950/80 text-emerald-300"
               : deployStatus === "error"
                 ? "border-red-500/40 bg-red-950/80 text-red-300"
-                : "border-beige/20 bg-zinc-900/90 text-muted-foreground"
+                : deployStatus === "uploading-large"
+                  ? "border-amber-500/40 bg-amber-950/80 text-amber-200"
+                  : "border-beige/20 bg-zinc-900/90 text-muted-foreground"
           }`}
         >
           {deployStatus === "building" && (
@@ -270,14 +425,36 @@ export function WCRuntime({
               Buduję projekt…
             </>
           )}
+          {deployStatus === "preparing" && (
+            <>
+              <Loader2 className="mr-1 inline h-3 w-3 animate-spin" />
+              Przygotowuję upload (signed URLs)…
+            </>
+          )}
           {deployStatus === "uploading" && (
             <>
               <Loader2 className="mr-1 inline h-3 w-3 animate-spin" />
-              Uploaduję do Storage…
+              {deployProgress.total > 0
+                ? `Wgrywanie plików bezpośrednio do magazynu: ${deployProgress.done} / ${deployProgress.total}`
+                : "Uploaduję do Storage…"}
+            </>
+          )}
+          {deployStatus === "uploading-large" && (
+            <>
+              <Loader2 className="mr-1 inline h-3 w-3 animate-spin" />
+              {deployProgress.total > 0
+                ? `Duża strona — wgrywam: ${deployProgress.done} / ${deployProgress.total} plików…`
+                : "Duża strona - uploaduję…"}
+            </>
+          )}
+          {deployStatus === "finalizing" && (
+            <>
+              <Loader2 className="mr-1 inline h-3 w-3 animate-spin" />
+              Finalizuję wdrożenie…
             </>
           )}
           {deployStatus === "done" && "Opublikowano wersję statyczną"}
-          {deployStatus === "error" && "Build nie powiódł się - Sandpack aktywny"}
+          {deployStatus === "error" && "Wdrożenie nie powiodło się — sprawdź konsolę"}
         </div>
       )}
     </div>

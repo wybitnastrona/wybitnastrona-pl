@@ -47,27 +47,37 @@ export function PricingClient() {
   // Item 21: `cancelAtPeriodEnd` - PRO user anulował, ale jest jeszcze
   // w opłaconym okresie. Pokazujemy mu wtedy informację o karencji.
   const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState(false);
+  // Aktualny tier (productId) — pozwala odróżnić "Aktywuj PRO" (nowy klient)
+  // od "Zmień plan" (upgrade z proratą Stripe) od "Twój aktualny plan" (disabled).
+  const [currentProductId, setCurrentProductId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) {
       setIsPro(false);
       setCancelAtPeriodEnd(false);
+      setCurrentProductId(null);
       return;
     }
     let cancelled = false;
     fetch("/api/me/points", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("nope"))))
       .then(
-        (data: { isPro?: boolean; cancelAtPeriodEnd?: boolean }) => {
+        (data: {
+          isPro?: boolean;
+          cancelAtPeriodEnd?: boolean;
+          currentProductId?: string | null;
+        }) => {
           if (cancelled) return;
           setIsPro(Boolean(data.isPro));
           setCancelAtPeriodEnd(Boolean(data.cancelAtPeriodEnd));
+          setCurrentProductId(data.currentProductId ?? null);
         },
       )
       .catch(() => {
         if (!cancelled) {
           setIsPro(false);
           setCancelAtPeriodEnd(false);
+          setCurrentProductId(null);
         }
       });
     return () => {
@@ -93,8 +103,38 @@ export function PricingClient() {
       openAuth({ mode: "login" });
       return;
     }
+    // Gdy user jest już PRO i wybiera INNY tier - używamy stripe/upgrade z proratą
+    // (zamiast nowego Checkout Session). Stripe automatycznie liczy zwrot za
+    // niewykorzystany czas obecnego planu i nalicza różnicę na nowym tier.
+    const isUpgrade = isPro && currentProductId && currentProductId !== selectedTier.id;
+
     setBusy(selectedTier.id);
     try {
+      if (isUpgrade) {
+        const res = await fetch("/api/stripe/upgrade", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ newProductId: selectedTier.id }),
+        });
+        const data = (await res.json()) as {
+          ok?: boolean;
+          error?: string;
+          message?: string;
+        };
+        if (data.ok) {
+          // Subskrypcja zaktualizowana - refresh stanu z /api/me/points.
+          setCurrentProductId(selectedTier.id);
+          setBusy(null);
+          alert(
+            "Plan zaktualizowany. Stripe zaktualizuje fakturę z proratą za niewykorzystany czas.",
+          );
+        } else {
+          alert(data.message ?? data.error ?? "Nie udalo sie zaktualizowac planu");
+          setBusy(null);
+        }
+        return;
+      }
+
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -140,6 +180,7 @@ export function PricingClient() {
             perCredit={perCredit}
             isPro={isPro}
             cancelAtPeriodEnd={cancelAtPeriodEnd}
+            currentProductId={currentProductId}
           />
         </div>
 
@@ -200,6 +241,7 @@ function ProSliderCard({
   perCredit,
   isPro,
   cancelAtPeriodEnd,
+  currentProductId,
 }: {
   tierIndex: number;
   onTierIndexChange: (i: number) => void;
@@ -208,12 +250,19 @@ function ProSliderCard({
   perCredit: number;
   isPro: boolean;
   cancelAtPeriodEnd?: boolean;
+  currentProductId?: string | null;
 }) {
   // Trzymamy zmienną mimo że na razie nie jest renderowana - prop drilling dla
   // potencjalnych przyszłych rozszerzeń (badge "Anulowane" na karcie).
   void cancelAtPeriodEnd;
   const tier = PRO_TIERS[tierIndex] ?? PRO_TIERS[0];
   const isRecommended = tier.id === RECOMMENDED_PRO_TIER_ID;
+  // Trzy stany przycisku:
+  //  1) isCurrentTier - dokładnie ten plan jest aktywny → disabled "Twój aktualny plan"
+  //  2) isPro && !isCurrentTier → "Zmień na X zł / mc" (proration przez stripe/upgrade)
+  //  3) !isPro → "Aktywuj PRO" (Checkout)
+  const isCurrentTier = isPro && currentProductId === tier.id;
+  const isPlanChange = isPro && currentProductId && !isCurrentTier;
   return (
     <div className="relative flex flex-col gap-5 rounded-2xl border border-beige/50 bg-card p-6 shadow-2xl shadow-beige/5">
       {isRecommended && (
@@ -280,11 +329,15 @@ function ProSliderCard({
       <button
         type="button"
         onClick={onBuy}
-        disabled={busy}
-        className="mt-auto inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-lg bg-beige px-4 text-sm font-medium text-beige-foreground transition hover:bg-beige/90 disabled:opacity-60"
+        disabled={busy || isCurrentTier}
+        className="mt-auto inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-lg bg-beige px-4 text-sm font-medium text-beige-foreground transition hover:bg-beige/90 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-        Aktywuj PRO - {tier.pln} zł / mc
+        {isCurrentTier
+          ? "Twój aktualny plan"
+          : isPlanChange
+            ? `Zmień plan na ${tier.pln} zł / mc`
+            : `Aktywuj PRO - ${tier.pln} zł / mc`}
       </button>
     </div>
   );

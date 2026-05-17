@@ -112,6 +112,32 @@ export function WorkspaceCanvas({
       ? "code"
       : "preview";
   const [view, setView] = useState<WorkspaceView>(initialView);
+
+  // Listener `wybitna:open-canvas-view` - chat panel emituje to z menu załączników
+  // (np. po kliknięciu "Otwórz Stripe Connect"). e.detail.view to nazwa zakładki.
+  useEffect(() => {
+    function onOpenView(e: Event) {
+      const detail = (e as CustomEvent<{ view?: WorkspaceView }>).detail;
+      const next = detail?.view;
+      if (!next) return;
+      const allowed: WorkspaceView[] = [
+        "preview",
+        "code",
+        "database",
+        "snapshots",
+        "stripe",
+        "assets",
+      ];
+      if (allowed.includes(next)) {
+        setView(next);
+      }
+    }
+    window.addEventListener("wybitna:open-canvas-view", onOpenView);
+    return () => {
+      window.removeEventListener("wybitna:open-canvas-view", onOpenView);
+    };
+  }, []);
+
   const [lockDialogOpen, setLockDialogOpen] = useState(false);
   const [editTextMode, setEditTextMode] = useState(false);
   const [floatingOpen, setFloatingOpen] = useState(false);

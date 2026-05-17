@@ -95,6 +95,13 @@ export function ProjectTopbar({
   const [settingsTab, setSettingsTab] =
     useState<ProjectSettingsTabId>("general");
   const [isPro, setIsPro] = useState<boolean | null>(null);
+  // Toast po zakończeniu statycznego deployu (success / error) - WCRuntime
+  // emituje wybitna:static-deploy-done z detail.ok i opcj. detail.error.
+  const [deployToast, setDeployToast] = useState<
+    | null
+    | { kind: "success" }
+    | { kind: "error"; message: string }
+  >(null);
 
   function openSettings(tab: ProjectSettingsTabId = "general") {
     setSettingsTab(tab);
@@ -169,6 +176,30 @@ export function ProjectTopbar({
       window.removeEventListener("wybitna:open-settings", onOpen);
   }, []);
 
+  // Listener `wybitna:static-deploy-done` - WCRuntime emituje to po zakończeniu
+  // statycznego deployu. Pokazujemy toast 5s ponad topbarem.
+  useEffect(() => {
+    function onDeployDone(e: Event) {
+      const detail = (
+        e as CustomEvent<{ projectId?: string; ok?: boolean; error?: string }>
+      ).detail;
+      if (!detail || detail.projectId !== project.id) return;
+      if (detail.ok) {
+        setDeployToast({ kind: "success" });
+      } else {
+        setDeployToast({
+          kind: "error",
+          message: detail.error ?? "Nie udało się opublikować statycznie.",
+        });
+      }
+      const timer = setTimeout(() => setDeployToast(null), 5000);
+      return () => clearTimeout(timer);
+    }
+    window.addEventListener("wybitna:static-deploy-done", onDeployDone);
+    return () =>
+      window.removeEventListener("wybitna:static-deploy-done", onDeployDone);
+  }, [project.id]);
+
   // Status PRO sluzy do gatowania ZIP exportu (klient-side hint).
   useEffect(() => {
     let cancelled = false;
@@ -198,7 +229,22 @@ export function ProjectTopbar({
   }
 
   return (
-    <header className="flex h-14 items-center justify-between gap-3 border-b border-beige/10 bg-background/80 px-4 backdrop-blur">
+    <header className="relative flex h-14 items-center justify-between gap-3 border-b border-beige/10 bg-background/80 px-4 backdrop-blur">
+      {deployToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={`pointer-events-none absolute left-1/2 top-full z-50 mt-2 -translate-x-1/2 rounded-full border px-4 py-1.5 text-xs font-medium shadow-lg backdrop-blur ${
+            deployToast.kind === "success"
+              ? "border-emerald-500/40 bg-emerald-950/90 text-emerald-200"
+              : "border-red-500/40 bg-red-950/90 text-red-200"
+          }`}
+        >
+          {deployToast.kind === "success"
+            ? "Strona opublikowana statycznie"
+            : `Błąd publikacji: ${deployToast.message}`}
+        </div>
+      )}
       <div className="flex min-w-0 items-center gap-2">
         <Link
           href="/dashboard"

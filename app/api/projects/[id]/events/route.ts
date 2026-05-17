@@ -52,25 +52,3 @@ export async function POST(req: Request, { params }: { params: Params }) {
   return NextResponse.json({ ok: true });
 }
 
-/**
- * Agreguje statystyki dla wlasciciela projektu.
- */
-export async function GET(req: Request, { params }: { params: Params }) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { searchParams } = new URL(req.url);
-  const days = Math.min(Number(searchParams.get("days") ?? 30), 365);
-
-  const { data, error } = await supabase.rpc("get_project_stats", {
-    p_project_id: id,
-    p_days: days,
-  });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  return NextResponse.json({ events: data ?? [] });
-}

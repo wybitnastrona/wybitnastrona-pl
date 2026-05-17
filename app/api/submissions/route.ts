@@ -9,9 +9,6 @@ export const runtime = "nodejs";
  *
  * POST /api/submissions
  *   Tworzy draft submission. Body: { project_id, platform, ... }
- *
- * PATCH /api/submissions
- *   Aktualizuje istniejacy draft. Body: { id, ...fields }
  */
 
 export async function GET(req: Request) {
@@ -102,50 +99,3 @@ export async function POST(req: Request) {
   return NextResponse.json({ id: data.id });
 }
 
-export async function PATCH(req: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  let body: Record<string, unknown>;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
-
-  const id = body.id as string | undefined;
-  if (!id)
-    return NextResponse.json({ error: "Missing id" }, { status: 400 });
-
-  // Sanitize allowed fields.
-  const allowed = [
-    "app_name",
-    "bundle_id",
-    "version",
-    "build_number",
-    "category",
-    "description",
-    "keywords",
-    "privacy_policy_url",
-    "marketing_url",
-    "asc_app_id",
-    "status",
-  ] as const;
-  const updates: Record<string, unknown> = {};
-  for (const k of allowed) {
-    if (k in body) updates[k] = body[k];
-  }
-
-  const { error } = await supabase
-    .from("project_submissions")
-    .update(updates)
-    .eq("id", id)
-    .eq("user_id", user.id);
-
-  if (error)
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ id });
-}

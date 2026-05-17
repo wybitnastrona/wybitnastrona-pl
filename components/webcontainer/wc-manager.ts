@@ -152,24 +152,98 @@ class WCManager {
    * Zwraca mapę { "/index.html": "...", "/assets/main.js": "..." }.
    * Pliki binarne są pomijane (readFile z 'utf-8' rzuca lub zwraca garbage).
    */
+  /**
+   * @deprecated Stara wersja, zwracała tylko pliki tekstowe (UTF-8) i pomijała
+   * binarki (PNG, fonty itd.). Zostaje dla kompatybilności, ale nowy pipeline
+   * deployu używa `listDistFiles` + `readDistFileBytes`.
+   */
   async readDistFiles(): Promise<Record<string, string>> {
     if (!this.container) return {};
 
-    let distDir: string | null = null;
-    for (const candidate of ["dist", "build", "out"]) {
-      try {
-        await this.container.fs.readdir(candidate);
-        distDir = candidate;
-        break;
-      } catch {
-        // katalog nie istnieje, spróbuj następny
-      }
-    }
+    const distDir = await this.detectDistDir();
     if (!distDir) return {};
 
     const result: Record<string, string> = {};
     await this.readDirRecursive(distDir, distDir, result);
     return result;
+  }
+
+  /**
+   * Wykrywa katalog wyjściowy buildu (dist/build/out) i zwraca jego nazwę.
+   * Zwraca null jeśli żaden z trzech nie istnieje.
+   */
+  private async detectDistDir(): Promise<string | null> {
+    if (!this.container) return null;
+    for (const candidate of ["dist", "build", "out"]) {
+      try {
+        await this.container.fs.readdir(candidate);
+        return candidate;
+      } catch {
+        // katalog nie istnieje, spróbuj następny
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Zwraca listę wszystkich plików (z relatywną ścieżką, BEZ leading slash)
+   * w katalogu wyjściowym buildu. Obsługuje binarki — odróżnia plik od katalogu
+   * przez `isDirectory()`, sam content nie jest czytany.
+   *
+   * Używane przez pipeline deployu z pre-signed URL: najpierw lista ścieżek
+   * leci do /api/.../prepare, serwer generuje signed upload URL dla każdej,
+   * potem klient czyta `readDistFileBytes` per plik i PUT'uje raw bytes.
+   */
+  async listDistFiles(): Promise<string[]> {
+    if (!this.container) return [];
+    const distDir = await this.detectDistDir();
+    if (!distDir) return [];
+    const result: string[] = [];
+    await this.listDirRecursive(distDir, distDir, result);
+    return result;
+  }
+
+  /**
+   * Czyta surowe bajty pliku z katalogu buildu. Zwraca `Uint8Array` (działa dla
+   * binarek). `relPath` to ścieżka względna w stylu "index.html" lub
+   * "assets/main-abc.js" - zwracana wcześniej przez `listDistFiles`.
+   */
+  async readDistFileBytes(relPath: string): Promise<Uint8Array | null> {
+    if (!this.container) return null;
+    const distDir = await this.detectDistDir();
+    if (!distDir) return null;
+    const fullPath = `${distDir}/${relPath}`;
+    try {
+      // Bez encoding -> readFile zwraca Uint8Array (zarówno UTF-8 jak i binarki).
+      return (await this.container.fs.readFile(fullPath)) as Uint8Array;
+    } catch {
+      return null;
+    }
+  }
+
+  private async listDirRecursive(
+    baseDir: string,
+    currentDir: string,
+    result: string[],
+  ): Promise<void> {
+    if (!this.container) return;
+    let entries: Array<{ name: string; isDirectory: () => boolean }>;
+    try {
+      entries = (await this.container.fs.readdir(currentDir, {
+        withFileTypes: true,
+      })) as Array<{ name: string; isDirectory: () => boolean }>;
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const fullPath = `${currentDir}/${entry.name}`;
+      if (entry.isDirectory()) {
+        await this.listDirRecursive(baseDir, fullPath, result);
+      } else {
+        const relPath = fullPath.slice(baseDir.length + 1);
+        result.push(relPath);
+      }
+    }
   }
 
   private async readDirRecursive(

@@ -333,7 +333,8 @@ export function SandpackContextFileExplorer({
         body: JSON.stringify({ lockedFiles: lockable }),
       });
       if (!res.ok) throw new Error();
-      window.dispatchEvent(new CustomEvent("wybitna:locked-files-changed"));
+      // Chat panel pobiera locked files świeżo na każdą generację, więc nie
+      // potrzebujemy globalnego eventu invalidacji.
     } catch {
       window.alert("Nie udało się zablokować plików.");
     }

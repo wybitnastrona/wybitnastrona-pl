@@ -9,6 +9,12 @@
     },
     "app/api/projects/[id]/deploy-static/route.ts": {
       "maxDuration": 60
+    },
+    "app/api/projects/[id]/deploy-static/prepare/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/projects/[id]/deploy-static/finalize/route.ts": {
+      "maxDuration": 30
     }
   },
   "crons": [

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { FREE_TIER_LIMITS } from "@/lib/ai-models";
+import { getProductByPriceId } from "@/lib/stripe-products";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,7 @@ const FREE_RESPONSE = {
   tier: "free",
   isPro: false,
   cancelAtPeriodEnd: false,
+  currentProductId: null as string | null,
 };
 
 /**
@@ -43,7 +45,7 @@ export async function GET() {
   const fullWithCancel = await supabase
     .from("profiles")
     .select(
-      "points, tier, stripe_subscription_status, monthly_credits_limit, stripe_cancel_at_period_end",
+      "points, tier, stripe_subscription_status, stripe_subscription_price_id, monthly_credits_limit, stripe_cancel_at_period_end",
     )
     .eq("id", user.id)
     .maybeSingle();
@@ -55,7 +57,9 @@ export async function GET() {
   // Proba 1b: bez stripe_cancel_at_period_end (przed migracja 0048)
   const full = await supabase
     .from("profiles")
-    .select("points, tier, stripe_subscription_status, monthly_credits_limit")
+    .select(
+      "points, tier, stripe_subscription_status, stripe_subscription_price_id, monthly_credits_limit",
+    )
     .eq("id", user.id)
     .maybeSingle();
 
@@ -97,6 +101,7 @@ function buildResponse(row: {
   points?: number | null;
   tier?: string | null;
   stripe_subscription_status?: string | null;
+  stripe_subscription_price_id?: string | null;
   monthly_credits_limit?: number | null;
   stripe_cancel_at_period_end?: boolean | null;
 }) {
@@ -110,11 +115,20 @@ function buildResponse(row: {
     FREE_TIER_LIMITS.monthlyCredits;
   const cancelAtPeriodEnd = Boolean(row.stripe_cancel_at_period_end);
 
+  // Mapowanie price_id → productId pozwala PricingClient pokazać który tier
+  // jest aktualnie aktywny i wywołać /api/stripe/upgrade z proratą zamiast
+  // pełnego Checkout Session przy zmianie planu.
+  const priceId = row.stripe_subscription_price_id as string | null;
+  const currentProductId = priceId
+    ? (getProductByPriceId(priceId)?.id ?? null)
+    : null;
+
   return NextResponse.json({
     points,
     monthlyLimit,
     tier,
     isPro,
     cancelAtPeriodEnd,
+    currentProductId,
   });
 }

@@ -109,13 +109,13 @@ export async function POST(_req: Request, { params }: { params: Params }) {
     // Daj Sandpackowi/React czas na zrenderowanie animacji.
     await new Promise((r) => setTimeout(r, 1500));
 
-    // Item 52: page.screenshot ma własny timeout (20s). page.goto timeout=45s
-    // jest dla całego ładowania - sam render PNG nie powinien trwać dłużej
-    // niż kilka sekund.
+    // Item 52: ustawiamy domyślny timeout strony na 20s przed screenshotem.
+    // page.goto timeout=45s jest dla całego ładowania - sam render PNG
+    // nie powinien trwać dłużej niż kilka sekund.
+    page.setDefaultTimeout(20_000);
     const png = Buffer.from(await page.screenshot({
       type: "png",
       fullPage: false,
-      timeout: 20_000,
     }) as Uint8Array);
 
     // Item 54: Cloudinary upload w try/catch - gdy się nie powiedzie (np.

@@ -226,9 +226,32 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
         pendingApprovalPartIdxRef.current = null;
         setPendingApprovalPartIdx(null);
       }
+      // Item 32: po każdym strumieniu odświeżamy saldo punktów - jeśli user
+      // wyczerpał kredyty, kolejny przycisk Send zostanie zablokowany.
+      void refreshPoints();
       router.refresh();
     },
   });
+
+  // Item 32: lokalne saldo punktów - blokujemy przycisk Wyślij gdy <= 0.
+  // null = jeszcze nie pobrane (nie blokujemy aż wiemy ile jest).
+  const [pointsBalance, setPointsBalance] = useState<number | null>(null);
+  const refreshPoints = useCallback(async () => {
+    try {
+      const res = await fetch("/api/me/points", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = (await res.json()) as { points?: number };
+      if (typeof data.points === "number") {
+        setPointsBalance(data.points);
+      }
+    } catch {
+      /* offline - nie blokujemy */
+    }
+  }, []);
+  useEffect(() => {
+    void refreshPoints();
+  }, [refreshPoints]);
+  const isOutOfCredits = pointsBalance !== null && pointsBalance <= 0;
 
   // Clear pending approval on error so the user can retry.
   useEffect(() => {
@@ -702,6 +725,21 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     // Refetch each time a stream finishes - that's when a new snapshot appears.
   }, [projectId, isStreaming]);
 
+  // ─── Globalna brama "wyślij do chatu" ───────────────────────────────────
+  // Inne komponenty (np. SecurityAuditPanel "Poproś o naprawę") wysyłają
+  // CustomEvent `wybitna:send-chat-message` z gotowym tekstem.
+  useEffect(() => {
+    function handler(e: Event) {
+      const ce = e as CustomEvent<{ text?: string }>;
+      const text = ce.detail?.text;
+      if (!text || isStreaming) return;
+      sendMessage({ text });
+    }
+    window.addEventListener("wybitna:send-chat-message", handler);
+    return () =>
+      window.removeEventListener("wybitna:send-chat-message", handler);
+  }, [isStreaming, sendMessage]);
+
   // ─── "Kontynuuj generowanie" - wznawia przerwany run ───────────────────────
   const continueGeneration = useCallback(() => {
     if (isStreaming) return;
@@ -774,7 +812,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
           </div>
         )}
 
-        {/* Rork-style thinking panel - pokazywany tylko przy pierwszej generacji
+        {/* Thinking panel - pokazywany tylko przy pierwszej generacji
             nowego projektu (brak zapisanej historii) i tylko zanim AI zacznie
             pisac pliki / pokaze plan. */}
         {!hasStoredHistory &&
@@ -1035,6 +1073,13 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
             onBlur={saveCaret}
             onMouseUp={saveCaret}
             onKeyUp={saveCaret}
+            // Item 68: globalny mouseleave nad polem edycji - czyści hover
+            // overlay w preview. Pojedyncze badge mają własne onMouseLeave,
+            // ale jeśli user wyjedzie kursorem POZA badge ale wewnątrz pola
+            // (np. między dwoma badgami), badge'owe handlery się nie odpalą.
+            onMouseLeave={() => {
+              sendIframeMessage({ type: "wybitna:hover-element-clear" });
+            }}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
@@ -1102,6 +1147,25 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
                 aria-label="Zatrzymaj"
               >
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              </Button>
+            ) : isOutOfCredits ? (
+              /* Item 32: zerowe saldo - hard block.  Klik otwiera ustawienia
+                 kredytów (settings.open('credits')) zamiast wysyłać request,
+                 który i tak by zwrócił 402. */
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  window.dispatchEvent(
+                    new CustomEvent("wybitna:open-settings", {
+                      detail: { tab: "credits" },
+                    }),
+                  );
+                }}
+                className="rounded-full bg-amber-500 text-amber-950 hover:bg-amber-400"
+                aria-label="Doładuj kredyty"
+              >
+                Doładuj kredyty
               </Button>
             ) : (
               <Button
@@ -1305,7 +1369,7 @@ function Message({
 }) {
   const isUser = message.role === "user";
 
-  // Bolt-clean flat layout:
+  // Clean flat layout:
   //   user  → small rounded chip aligned right
   //   AI    → full-width, no bubble, just text + tool rows
   if (isUser) {

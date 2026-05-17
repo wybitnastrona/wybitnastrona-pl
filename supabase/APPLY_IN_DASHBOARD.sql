@@ -417,6 +417,95 @@ comment on table public.project_admins is
   'Hasła SHA-256 + salt z env ADMIN_PASSWORD_SALT.';
 
 -- ============================================================
+-- MIGRACJA 0046: get_rls_audit() - funkcja audytu RLS
+-- ============================================================
+-- Używana przez panel "Audyt Bezpieczeństwa" w ustawieniach projektu.
+-- Zwraca listę polityk z flagą is_unsafe gdy USING/WITH CHECK = 'true'.
+
+create or replace function public.get_rls_audit()
+  returns table (
+    tablename   text,
+    policyname  text,
+    cmd         text,
+    roles       text[],
+    qual        text,
+    with_check  text,
+    is_unsafe   boolean,
+    reason      text
+  )
+  language sql
+  stable
+  security definer
+  set search_path = public, pg_catalog
+as $$
+  select
+    p.tablename::text,
+    p.policyname::text,
+    p.cmd::text,
+    p.roles::text[],
+    p.qual::text,
+    p.with_check::text,
+    (
+      (
+        (p.qual = 'true' or p.qual is null and p.cmd in ('INSERT'))
+        or p.with_check = 'true'
+      )
+      and (
+        'anon' = any(p.roles)
+        or 'authenticated' = any(p.roles)
+        or 'public' = any(p.roles)
+      )
+    ) as is_unsafe,
+    case
+      when p.qual = 'true' and p.with_check = 'true' then
+        'Klauzule USING i WITH CHECK ustawione na true - polityka nie chroni danych.'
+      when p.qual = 'true' then
+        'Klauzula USING ustawiona na true - kazdy moze odczytac/zmienic dane.'
+      when p.with_check = 'true' then
+        'Klauzula WITH CHECK ustawiona na true - kazdy moze wstawic dowolne dane.'
+      else 'OK'
+    end as reason
+  from pg_policies p
+  where p.schemaname = 'public'
+  order by p.tablename, p.cmd, p.policyname;
+$$;
+
+grant execute on function public.get_rls_audit() to anon, authenticated;
+
+comment on function public.get_rls_audit() is
+  'Audyt RLS - panel Audyt Bezpieczenstwa w wybitnastrona.pl.';
+
+-- ============================================================
+-- MIGRACJA 0047: deployed-sites owner listing
+-- ============================================================
+-- Blokuje listowanie cudzych folderów w bucket deployed-sites (item 17).
+-- Publiczne URL fetche działają bez zmian (bucket nadal public:true).
+
+drop policy if exists "deployed-sites: public read" on storage.objects;
+drop policy if exists "deployed-sites: public download" on storage.objects;
+create policy "deployed-sites: public download"
+  on storage.objects for select
+  to anon
+  using (bucket_id = 'deployed-sites');
+
+drop policy if exists "deployed-sites: owner list" on storage.objects;
+create policy "deployed-sites: owner list"
+  on storage.objects for select
+  to authenticated
+  using (
+    bucket_id = 'deployed-sites'
+    and (storage.foldername(name))[1] in (
+      select id::text from public.projects where user_id = auth.uid()
+    )
+  );
+
+-- ============================================================
+-- MIGRACJA 0048: profiles.stripe_cancel_at_period_end
+-- ============================================================
+alter table public.profiles
+  add column if not exists stripe_cancel_at_period_end boolean not null default false;
+
+-- ============================================================
 -- KONIEC MIGRACJI
 -- ============================================================
 -- Po uruchomieniu odswiezcie strone wybitnastrona.pl

@@ -145,9 +145,13 @@ export async function registerPorkbunDomain(
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // Item 46: whoisPrivacy=yes - włącza darmową prywatność danych
+        // rejestracyjnych (Porkbun robi to bezpłatnie dla wszystkich TLD).
+        // Bez tego flagi dane właściciela byłyby publiczne w WHOIS.
         body: JSON.stringify({
           ...creds,
           years: 1,
+          whoisPrivacy: "yes",
         }),
       },
     );

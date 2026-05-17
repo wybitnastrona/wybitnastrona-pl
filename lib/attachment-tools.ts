@@ -4,7 +4,7 @@
  * polem wpisywania (jak na screenie Bolt). AI widzi tytuł chipu w prompt jako
  * podpowiedź "Narzędzia do uwzględnienia: ...".
  *
- * Wzorowane na ekspozycji Bolt.new + Expo/React Native moduły.
+ * Pełna ekspozycja modułów Expo / React Native dla AI.
  */
 
 import {

@@ -35,8 +35,11 @@ export default async function PublicSharePage({ params }: { params: Params }) {
     metadata: { source: "public_slug_page" },
   });
 
+  // Item 96: VERCEL_URL fallback przed localhost.
   const rootDomain =
-    process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "localhost:3000";
+    process.env.NEXT_PUBLIC_ROOT_DOMAIN ??
+    process.env.VERCEL_URL ??
+    "localhost:3000";
   const subdomainUrl = rootDomain.includes("localhost")
     ? `http://${slug}.${rootDomain}`
     : `https://${slug}.${rootDomain}`;

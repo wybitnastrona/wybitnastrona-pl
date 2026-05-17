@@ -2,6 +2,13 @@
   "functions": {
     "app/api/generate/route.ts": {
       "maxDuration": 300
+    },
+    "app/api/projects/[id]/screenshot/route.ts": {
+      "maxDuration": 60,
+      "memory": 2048
+    },
+    "app/api/projects/[id]/deploy-static/route.ts": {
+      "maxDuration": 60
     }
   },
   "crons": [

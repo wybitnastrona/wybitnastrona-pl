@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Rozwijane menu pod przyciskiem "+" w czacie - wzorowane na Bolt.new.
+ * Rozwijane menu pod przyciskiem "+" w czacie.
  *
  * Sekcje:
  *  - ZAŁĄCZNIK: zdjęcie / plik

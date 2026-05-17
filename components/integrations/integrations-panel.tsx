@@ -13,7 +13,9 @@ import {
   Database,
   ExternalLink,
   FileText,
+  Github,
   Loader2,
+  Lock,
   Plug,
   Save,
   Trash2,
@@ -163,6 +165,16 @@ export function IntegrationsPanel({ open, onClose }: Props) {
                 </button>
               );
             })}
+            {/* GitHub stub - jedyna obsługiwana integracja Git (planowana).
+                Brak GitLab / Bitbucket - tylko GitHub w roadmapie. */}
+            <span
+              title="Integracja z GitHub - wkrótce (auto-push wygenerowanego kodu)"
+              className="flex cursor-not-allowed items-center gap-2 rounded-md px-2.5 py-2 text-xs text-muted-foreground/50"
+            >
+              <Github className="h-3.5 w-3.5" />
+              <span className="flex-1 text-left">GitHub</span>
+              <Lock className="h-3 w-3" />
+            </span>
           </nav>
 
           {/* Tab content */}

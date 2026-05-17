@@ -1,5 +1,5 @@
 /**
- * Tryby projektow — Rork.com style.
+ * Tryby projektow.
  * Kazdy tryb to platforma docelowa: iOS (Swift), Android (Kotlin), Web (React).
  *
  * iOS / Android sa code-only (brak preview w przegladarce — eksport ZIP do Xcode/Android Studio).

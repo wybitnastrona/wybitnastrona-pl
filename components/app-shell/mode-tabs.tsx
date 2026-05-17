@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * @deprecated Zastapione przez `PlatformSelector` (Rork-style pill).
+ * @deprecated Zastapione przez `PlatformSelector` (segmented pill).
  * Komponent zachowany tymczasowo na wypadek odwrotu - bedzie usuniety po stabilizacji.
  */
 

@@ -1,5 +1,16 @@
 -- Dzienne liczniki uzycia kredytow (FREE tier rate-limit 30 kr/dzien).
 -- monthly_credits_used jest juz w 0028 — dodajemy daily.
+--
+-- ─── ADR: rolling 30-day window (audyt produkcji item 38) ────────────────
+-- monthly_credits_reset_at jest aktualizowany przy pierwszym użyciu w nowym
+-- oknie - czyli reset nastąpi DOKŁADNIE 30 dni od ostatniego użycia, NIE
+-- od początku miesiąca kalendarzowego ani daty założenia konta.
+--
+-- Decyzja produktowa: rolling window jest bardziej "fair" niż calendar
+-- reset (user który zarejestrował się 31 grudnia o 23:59 nie traci całego
+-- miesięcznego limitu o północy). Dla anchor "rocznicowy reset od daty
+-- założenia konta" wystarczyłoby zmienić initial reset_at na profile.created_at.
+-- ─────────────────────────────────────────────────────────────────────────
 
 alter table profiles
   add column if not exists daily_credits_used integer not null default 0;

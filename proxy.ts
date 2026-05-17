@@ -210,12 +210,22 @@ async function serveFromStorage(
   if (!supabaseUrl) return null;
 
   const isRoot = pathname === "/" || pathname === "";
-  const filePath = isRoot ? "index.html" : pathname.replace(/^\//, "");
+  // Normalizujemy końcowy slash: /o-nas/ → /o-nas (item 3).
+  // Dzięki temu strony statyczne reagują tak samo niezależnie od tego, czy
+  // użytkownik wpisał trailing slash. Wyjątek: czyste "/" zostaje rootem.
+  let normalized = pathname;
+  if (!isRoot && normalized.endsWith("/")) {
+    normalized = normalized.replace(/\/+$/, "");
+  }
+  const filePath = isRoot ? "index.html" : normalized.replace(/^\//, "");
   const ext = getExt(filePath);
   const looksLikeRoute = !isRoot && ext === "";
 
   async function fetchFile(p: string): Promise<NextResponse | null> {
-    const storageUrl = `${supabaseUrl}/storage/v1/object/public/deployed-sites/${projectId}/${p}`;
+    // encodeURI obsługuje spacje i polskie znaki w ścieżkach (item 16) bez
+    // psucia separatorów "/".
+    const encoded = p.split("/").map(encodeURIComponent).join("/");
+    const storageUrl = `${supabaseUrl}/storage/v1/object/public/deployed-sites/${projectId}/${encoded}`;
     try {
       const res = await fetch(storageUrl, { cache: "no-store" });
       if (!res.ok) return null;
@@ -270,21 +280,72 @@ function staticNotFound(): NextResponse {
 }
 
 /**
- * Rewrite do Sandpacka z zachowaniem oryginalnego sufiksu ścieżki.
- * Naprawia błąd gdy rewrite usuwał /assets/... i inne sufiksy URL.
+ * Brandowana strona "jeszcze nie opublikowana" - serwowana gdy slug/domena
+ * istnieją w bazie, ale projekt NIE ma jeszcze ukończonego statycznego builda
+ * (`static_deployed_at IS NULL`). Wcześniej w tym miejscu robiliśmy rewrite
+ * do Sandpacka, ale Sandpack-bundler.codesandbox.io jest blokowany przez CORS
+ * w wielu przeglądarkach (Opera, Chrome incognito) → czarny ekran.
+ *
+ * Lepsze UX: pokazujemy informację że właściciel jeszcze nie zbudował strony.
  */
-function rewriteToSandpack(
-  url: URL,
-  slug: string,
-  originalPathname: string,
-): NextResponse {
-  const suffix = originalPathname === "/" ? "" : originalPathname;
-  url.pathname = `/sites/${slug}${suffix}`;
-  const response = NextResponse.rewrite(url);
-  Object.entries(SITE_HEADERS).forEach(([k, v]) =>
-    response.headers.set(k, v),
+function siteNotPublished(slug: string): NextResponse {
+  return new NextResponse(
+    `<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Strona w przygotowaniu - wybitnastrona.pl</title>
+  <style>
+    *{box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+      background:#0a0a09;color:#e7e3da;margin:0;padding:24px;
+      display:flex;min-height:100vh;align-items:center;justify-content:center}
+    .card{max-width:520px;text-align:center;padding:48px 32px;
+      border:1px solid rgba(212,197,163,.15);border-radius:20px;
+      background:rgba(20,20,16,.6);backdrop-filter:blur(8px)}
+    .badge{display:inline-block;padding:4px 12px;border-radius:999px;
+      background:rgba(212,197,163,.1);color:#d4c5a3;font-size:11px;
+      text-transform:uppercase;letter-spacing:.1em;margin-bottom:20px}
+    h1{font-size:28px;margin:0 0 12px;color:#f0ebe2;font-weight:500}
+    p{opacity:.7;margin:8px 0;line-height:1.6;font-size:14px}
+    .slug{font-family:ui-monospace,monospace;color:#d4c5a3;font-size:13px;
+      background:rgba(212,197,163,.08);padding:2px 8px;border-radius:6px}
+    a{color:#d4c5a3;text-decoration:none;border-bottom:1px solid rgba(212,197,163,.3);
+      padding-bottom:1px}
+    a:hover{border-bottom-color:#d4c5a3}
+    .actions{margin-top:28px}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="badge">W przygotowaniu</div>
+    <h1>Strona jeszcze nie została opublikowana</h1>
+    <p>Subdomena <span class="slug">${escapeHtml(slug)}.wybitny.website</span> istnieje, ale właściciel jeszcze nie zbudował i nie opublikował zawartości.</p>
+    <p>Jeśli to Twoja strona - wróć do panelu wybitnastrona.pl i kliknij <strong>Opublikuj</strong>.</p>
+    <div class="actions">
+      <a href="https://wybitnastrona.pl">wybitnastrona.pl</a>
+    </div>
+  </div>
+</body>
+</html>`,
+    {
+      status: 503,
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "no-store",
+        ...SITE_HEADERS,
+      },
+    },
   );
-  return response;
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 export async function proxy(request: NextRequest) {
@@ -327,7 +388,12 @@ export async function proxy(request: NextRequest) {
           maxAge: ROUTE_COOKIE_MAX_AGE,
           path: "/",
           httpOnly: true,
-          sameSite: "lax",
+          // SameSite=None + Secure pozwala czytać ciasteczko przez przeglądarki
+          // gdy strona ładuje się wewnątrz iframe (np. podgląd Wybitnej z innej
+          // domeny). Bez Secure modern Chrome 80+ odrzuca SameSite=None (item 4).
+          // W dev (http://localhost) Secure jest ignorowany, więc działa lokalnie.
+          sameSite: "none",
+          secure: true,
         });
       }
     }
@@ -340,8 +406,6 @@ export async function proxy(request: NextRequest) {
         return staticResponse;
       }
       // Static build istnieje, ale plik nie znaleziony → 404 (NIGDY Sandpack).
-      // To eliminuje błędy 'Unsafe attempt to load URL sandpack-bundler' dla
-      // brakujących /manifest.json, /apple-icon, /_rsc itp.
       if (isStaticDeployed) {
         const notFound = staticNotFound();
         setPidCookie(notFound);
@@ -349,17 +413,25 @@ export async function proxy(request: NextRequest) {
       }
     }
 
-    // Brak static build → fallback do Sandpacka (preview deweloperski)
-    const sandpackResponse = rewriteToSandpack(url, publishSlug, originalPathname);
-    setPidCookie(sandpackResponse);
-    return sandpackResponse;
+    // Brak static build → strona "jeszcze nie opublikowana".
+    // (Wcześniej był rewrite do Sandpacka, ale codesandbox bundler jest blokowany
+    // przez CORS i daje czarny ekran. Lepiej pokazać czytelną informację.)
+    const notPublished = siteNotPublished(publishSlug);
+    setPidCookie(notPublished);
+    return notPublished;
   }
 
   // ── 2. Wewnętrzne hosty (wybitnastrona.pl, localhost, *.vercel.app) ───────
   if (isInternalHost(host, roots)) {
     const res = NextResponse.next();
     if (url.pathname.startsWith("/project/")) {
-      res.headers.set("Cross-Origin-Embedder-Policy", "require-corp");
+      // WAŻNE (item 6): NIE ustawiamy tutaj Cross-Origin-Embedder-Policy.
+      // COEP=require-corp blokuje Stripe.js, Resend, Google Fonts, Cloudinary
+      // i wszystkie inne zewnętrzne zasoby bez nagłówka CORP. WebContainer
+      // wymaga COEP tylko w iframe podglądu, który ładuje się z subdomeny
+      // gdzie nagłówki ustawia branża "1. Subdomeny publikacji".
+      // COOP=same-origin pozostaje (popup safety), CORP cross-origin też -
+      // ale bez COEP cała platforma działa z integracjami.
       res.headers.set("Cross-Origin-Opener-Policy", "same-origin");
       res.headers.set("Cross-Origin-Resource-Policy", "cross-origin");
     }
@@ -414,7 +486,9 @@ export async function proxy(request: NextRequest) {
       maxAge: ROUTE_COOKIE_MAX_AGE,
       path: "/",
       httpOnly: true,
-      sameSite: "lax",
+      // Te same powody co dla wbn_pid - item 4.
+      sameSite: "none",
+      secure: true,
     });
   }
 
@@ -433,8 +507,8 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // Brak static build → fallback do Sandpacka
-  const response = rewriteToSandpack(url, slug, originalPathname);
+  // Brak static build → strona "jeszcze nie opublikowana" (zamiast Sandpacka).
+  const response = siteNotPublished(slug);
   setRouteCookie(response);
   return response;
 }

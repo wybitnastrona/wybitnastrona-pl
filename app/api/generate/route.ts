@@ -20,6 +20,7 @@ import {
   DEFAULT_MODEL_ID,
   getModel,
   resolveAnthropicModel,
+  tierAllows,
   type AiModelId,
 } from "@/lib/ai-models";
 import { buildRagContext } from "@/lib/rag";
@@ -342,6 +343,24 @@ export async function POST(req: Request) {
   const currentPoints = (profileRow?.points as number | null) ?? 0;
   const userTier = (profileRow?.tier as string | null) ?? "free";
   const effectiveModelId: AiModelId = modelId;
+
+  // Item 36: server-side weryfikacja tieru modelu. Wcześniej tylko frontend
+  // filtrował dostępne modele (`disabled` w UI) - złośliwy klient mógł
+  // wysłać request z modelId 'claude-opus-4-7' będąc na FREE.
+  const userTierNormalized = (userTier === "pro" ? "pro" : "free") as
+    | "free"
+    | "pro";
+  if (!tierAllows(userTierNormalized, modelDef.requiresTier)) {
+    return NextResponse.json(
+      {
+        error: "Model PRO wymaga aktywnej subskrypcji",
+        modelId,
+        requiresTier: modelDef.requiresTier,
+        hint: "Wykup plan PRO, aby uzyskać dostęp do tego modelu.",
+      },
+      { status: 402 },
+    );
+  }
 
   if (currentPoints < pointsRequired) {
     return NextResponse.json(
@@ -970,6 +989,30 @@ export async function POST(req: Request) {
 
     onStepFinish: async () => {
       completedLlmSteps += 1;
+
+      // Item 35: per-step balance recheck. Bronimy przed wyścigiem gdy user
+      // odpalił 10 zapytań równolegle (Postmanem) - kredyty mogą zejść poniżej
+      // zera między start a koniec strumienia. Jeśli aktualne saldo jest
+      // ujemne, rzucamy błąd - SDK propaguje go do klienta i kończy stream.
+      try {
+        const { data: snap } = await supabase
+          .from("profiles")
+          .select("points")
+          .eq("id", user.id)
+          .maybeSingle();
+        const live = (snap?.points as number | null) ?? 0;
+        if (live < 0) {
+          throw new Error(
+            "Saldo kredytów spadło poniżej zera (równoległe zapytania).",
+          );
+        }
+      } catch (e) {
+        // Re-throw wyłącznie nasz własny błąd. Inne błędy (np. timeout DB)
+        // ignorujemy - lepiej nie ubijać strumienia z powodu losowej awarii.
+        if (e instanceof Error && e.message.startsWith("Saldo kredytów")) {
+          throw e;
+        }
+      }
     },
 
     onFinish: async ({ totalUsage, response, finishReason }) => {

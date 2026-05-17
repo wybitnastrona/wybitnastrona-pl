@@ -107,6 +107,13 @@ export const ELEMENT_PICKER_SCRIPT = `
   function syncOverlayRect(el) {
     if (!el) return;
     const r = el.getBoundingClientRect();
+    // Item 69: min-size guard. Ukryte/dekoracyjne 1x1 elementy (np. tracking
+    // pixele, ARIA hidden) by uciekły poza viewport jako 1x1 ramka -
+    // estetycznie psuje wrażenie. Pomijamy gdy element jest mniejszy niż 4px.
+    if (r.width < 4 || r.height < 4) {
+      overlay.style.display = 'none';
+      return;
+    }
     overlay.style.display = 'block';
     overlay.style.top = r.top + 'px';
     overlay.style.left = r.left + 'px';
@@ -195,11 +202,23 @@ export const ELEMENT_PICKER_SCRIPT = `
   }
 
   function onKey(e) {
-    if (!editingEl) return;
+    // Item 65: Escape działa W KAŻDYM trybie - nawet w iOS Safari gdzie
+    // klawisz Esc rzadko jest dostępny (zewnętrzna klawiatura). Anulowanie
+    // przez kliknięcie przycisku w UI nadal działa, ale tu mamy globalny
+    // skrót.
     if (e.key === 'Escape') {
-      e.preventDefault();
-      commitEdit(false);
-    } else if (e.key === 'Enter' && !e.shiftKey) {
+      if (editingEl) {
+        e.preventDefault();
+        commitEdit(false);
+        return;
+      }
+      if (mode === 'pick' || mode === 'edit-text') {
+        e.preventDefault();
+        window.parent.postMessage({ type: 'wybitna:cancel-select-mode' }, '*');
+        return;
+      }
+    }
+    if (editingEl && e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       commitEdit(true);
     }

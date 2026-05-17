@@ -82,7 +82,7 @@ export type TemplateDef = {
   available: boolean;
   badge?: "new" | "beta";
   /**
-   * Emergent-style container image label (kosmetic — wyswietlane w Advanced Controls).
+   * Kosmetyczny opis container image (wyświetlany w Advanced Controls).
    * Faktyczny preview to nadal Sandpack / WebContainer.
    */
   containerImage: string;

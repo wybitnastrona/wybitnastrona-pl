@@ -172,3 +172,27 @@
 .sp-tabs {
   border-bottom: 1px solid rgba(232, 220, 196, 0.15);
 }
+
+/*
+ * Item 97: forced-colors mode (Windows high-contrast) - bez tej reguły
+ * Windows zastępuje wszystkie nasze kolory systemowymi (białe tło, czarny
+ * tekst), co rujnuje wizerunek aplikacji. forced-color-adjust:none mówi
+ * przeglądarce: "zostaw moje style".
+ *
+ * Dla najważniejszych komponentów rysujemy ramkę z CanvasText (zmiennej
+ * systemowej) żeby pozostały widoczne w obu trybach.
+ */
+@media (forced-colors: active) {
+  .wybitna-badge,
+  [data-cursor-element-id],
+  .sp-preview-container {
+    forced-color-adjust: none;
+    border: 1px solid CanvasText !important;
+  }
+  /* Beige (akcent platformy) - zachowujemy widoczność w high-contrast */
+  .text-beige,
+  .border-beige\/40,
+  .border-beige\/20 {
+    forced-color-adjust: none;
+  }
+}

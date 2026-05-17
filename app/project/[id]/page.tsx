@@ -48,9 +48,18 @@ export default async function ProjectPage({
     parts: m.parts,
   })) as unknown as UIMessage[];
 
-  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "localhost:3000";
+  // Item 96: smart fallbacki (VERCEL_URL > localhost) zamiast hard-coded
+  // localhost:3000.
+  const rootDomain =
+    process.env.NEXT_PUBLIC_ROOT_DOMAIN ??
+    process.env.VERCEL_URL ??
+    "localhost:3000";
   const publishDomain = getPublishDomain();
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL ??
+    (process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : "http://localhost:3000");
   const domainPartnerUrl =
     process.env.NEXT_PUBLIC_DOMAIN_PARTNER_URL ?? "https://zenbox.pl/";
 

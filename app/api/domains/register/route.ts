@@ -4,6 +4,7 @@ import { getProject, updateProjectCustomDomain } from "@/lib/projects";
 import { addProjectDomain } from "@/lib/vercel";
 import {
   DOMAIN_COMMISSION_USD,
+  checkPorkbunAvailability,
   registerPorkbunDomain,
 } from "@/lib/porkbun";
 
@@ -59,6 +60,43 @@ export async function POST(req: Request) {
   const project = await getProject(projectId);
   if (!project || project.user_id !== user.id) {
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
+
+  // Item 45: price reservation guard. Sprawdzamy aktualną cenę domeny w Porkbun
+  // tuż przed zakupem i porównujemy z `expectedTotal` z body (cena wyświetlona
+  // userowi w UI). Jeśli cena urosła o > $1 między search a checkout, zwracamy
+  // 409 zamiast cicho pobrać większą kwotę.
+  if (typeof body.expectedTotal === "number" && body.expectedTotal > 0) {
+    const recheck = await checkPorkbunAvailability(cleaned);
+    if (recheck.ok) {
+      if (!recheck.available) {
+        return NextResponse.json(
+          {
+            error: "Domain taken",
+            message:
+              "Ktoś kupił tę domenę po Twoim wyszukaniu. Wybierz inną.",
+          },
+          { status: 409 },
+        );
+      }
+      const base = recheck.price ?? recheck.regularPrice ?? 0;
+      const liveTotal =
+        Math.round((base + DOMAIN_COMMISSION_USD) * 100) / 100;
+      const diff = Math.abs(liveTotal - body.expectedTotal);
+      if (diff > 1) {
+        return NextResponse.json(
+          {
+            error: "Price changed",
+            message: `Cena domeny zmieniła się z $${body.expectedTotal.toFixed(2)} na $${liveTotal.toFixed(2)}. Odśwież i potwierdź nową cenę.`,
+            expectedTotal: body.expectedTotal,
+            liveTotal,
+          },
+          { status: 409 },
+        );
+      }
+    }
+    // Jeśli recheck się nie udał (Porkbun chwilowo down) - kontynuujemy
+    // bo nie chcemy blokować zakupu z powodu transient błędu.
   }
 
   // 1. Rejestracja w Porkbun.

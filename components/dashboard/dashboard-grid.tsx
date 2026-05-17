@@ -69,6 +69,26 @@ export function DashboardGrid({ projects }: Props) {
               href={`/project/${project.id}`}
               className="group flex flex-col gap-3 rounded-xl border border-beige/10 bg-card p-4 transition hover:border-beige/40 hover:bg-card/80"
             >
+              {/* Item 57: thumbnail z preview_image_url lub placeholder
+                  gradientowy gdy screenshot się nie udał. */}
+              <div className="relative aspect-[16/10] w-full overflow-hidden rounded-lg border border-beige/10 bg-gradient-to-br from-beige/[0.08] via-card to-beige/[0.04]">
+                {project.preview_image_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={project.preview_image_url}
+                    alt={project.title}
+                    loading="lazy"
+                    className="h-full w-full object-cover transition group-hover:scale-[1.02]"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center">
+                    <span className="text-3xl font-medium text-beige/40">
+                      {(project.title?.[0] ?? "W").toUpperCase()}
+                    </span>
+                  </div>
+                )}
+              </div>
+
               <div className="flex items-start justify-between gap-2">
                 <h2 className="line-clamp-2 text-base font-medium text-foreground transition group-hover:text-beige">
                   {project.title}

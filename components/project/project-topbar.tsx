@@ -208,7 +208,7 @@ export function ProjectTopbar({
           <ArrowLeft className="h-4 w-4" />
         </Link>
 
-        {/* Project switcher (Lovable-style) */}
+        {/* Project switcher */}
         <ProjectSwitcher
           currentProject={{
             id: project.id,
@@ -1174,6 +1174,20 @@ function DomainsDialog({
       setSearchError("Wpisz domenę do sprawdzenia.");
       return;
     }
+    // Item 42: client-side syntax validation. Odrzucamy znaki niedozwolone
+    // (_, spacje, podwójne kropki, niepełne TLD) przed wywołaniem API.
+    const candidate = q.includes(".") ? q : `${q}.pl`;
+    const SYNTAX = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z]{2,})+$/;
+    if (
+      !SYNTAX.test(candidate) ||
+      candidate.includes("..") ||
+      candidate.includes("_")
+    ) {
+      setSearchError(
+        "Nieprawidłowy format domeny. Użyj liter, cyfr i myślników (np. moja-firma.pl).",
+      );
+      return;
+    }
     setSearching(true);
     try {
       // Uzywamy nowego endpointa `check` (Porkbun + $5 marza). Stary
@@ -1470,18 +1484,26 @@ function DomainsDialog({
               <p className="mb-2 font-medium text-foreground">
                 Konfiguracja DNS
               </p>
-              <ol className="list-decimal space-y-1 pl-4">
+              {/* Item 48: pełna instrukcja DNS - apex (A) i subdomena (CNAME).
+                  Bez rekordu A dla @ apex domain by się nie zwerifikował. */}
+              <ol className="list-decimal space-y-1.5 pl-4">
                 <li>
-                  U swojego rejestratora dodaj rekord{" "}
-                  <span className="font-mono text-beige/80">CNAME</span> dla
-                  hosta{" "}
-                  <span className="font-mono text-beige/80">@</span> lub{" "}
-                  <span className="font-mono text-beige/80">www</span>{" "}
-                  wskazujacy na{" "}
-                  <span className="font-mono text-beige/80">
-                    cname.vercel-dns.com
+                  Dla domeny głównej (apex) dodaj rekord{" "}
+                  <span className="font-mono text-beige/80">A</span>:
+                  <br />
+                  <span className="font-mono text-foreground/80">
+                    Typ: A | Host: @ | Wartość: 76.76.21.21
                   </span>
-                  .
+                </li>
+                <li>
+                  Dla subdomeny{" "}
+                  <span className="font-mono text-beige/80">www</span> dodaj
+                  rekord{" "}
+                  <span className="font-mono text-beige/80">CNAME</span>:
+                  <br />
+                  <span className="font-mono text-foreground/80">
+                    Typ: CNAME | Host: www | Wartość: cname.vercel-dns.com
+                  </span>
                 </li>
                 <li>
                   Po zapisaniu domeny powyzej napisz do nas (

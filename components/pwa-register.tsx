@@ -32,8 +32,22 @@ export function PwaRegister() {
 
     if (process.env.NODE_ENV !== "production") return;
 
+    // Item 92: cache busting. updateViaCache=none zmusza przeglądarkę żeby
+    // ZAWSZE pobierała świeży /sw.js przy każdej rejestracji (zamiast cache).
+    // Dzięki temu po deploy nowej wersji SW od razu się aktualizuje.
+    // Dodajemy query param z timestampem buildu (Vercel) żeby uniknąć cache CDN.
+    const swUrl = process.env.NEXT_PUBLIC_BUILD_ID
+      ? `/sw.js?v=${process.env.NEXT_PUBLIC_BUILD_ID}`
+      : "/sw.js";
     navigator.serviceWorker
-      .register("/sw.js")
+      .register(swUrl, { updateViaCache: "none" })
+      .then((reg) => {
+        // Sprawdź czy jest nowa wersja co 60 minut (gdy strona długo otwarta).
+        const intervalId = setInterval(() => {
+          reg.update().catch(() => {});
+        }, 60 * 60 * 1000);
+        return () => clearInterval(intervalId);
+      })
       .catch((err) => console.warn("[pwa] SW register failed:", err));
   }, []);
 

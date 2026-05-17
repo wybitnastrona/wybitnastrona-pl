@@ -3,6 +3,25 @@
  * pointCost: koszt jednego zapytania do AI w kredytach uzytkownika.
  *
  * Tiers po refaktorze: tylko 'free' i 'pro'. Wybitny zostal zwiniety do PRO.
+ *
+ * ─── ADR: stały pointCost per model (NIE proporcjonalny do tokenów) ──────
+ * (audyt produkcji items 34, 40)
+ *
+ * Decyzja produktowa: cena za zapytanie jest STAŁA dla danego modelu,
+ * niezależnie od długości promptu/odpowiedzi. Powody:
+ *
+ *  1) Predictable UX - user widzi w UI dokładnie ile wyda PRZED kliknięciem.
+ *  2) Marża 8x nad real cost Anthropic - duży bufor pokrywa nawet skrajne
+ *     przypadki długich kontekstów (4M tokenów dla Sonnet 4.6).
+ *  3) Mniej skomplikowane rozliczenia - jeden tier = jeden koszt.
+ *
+ * Trade-off (świadomy): bardzo krótkie discuss zapytania subsidiują bardzo
+ * długie build zapytania. Akceptujemy bo dystrybucja użycia jest skewed -
+ * większość userów robi krótki chat + długi build, średnio się zwraca.
+ *
+ * NIE migruj na "tokens × cena/token" bez decyzji produktowej - to było
+ * świadomie odrzucone.
+ * ─────────────────────────────────────────────────────────────────────────
  */
 
 export type AiModelId =

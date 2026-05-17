@@ -6,11 +6,20 @@ import {
   extractTld,
   getPorkbunTldPrice,
 } from "@/lib/porkbun";
+import { getClientIp, rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
 const DOMAIN_REGEX =
   /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/i;
+
+function isPorkbunConfigured(): boolean {
+  return Boolean(
+    process.env.PORKBUN_API_KEY &&
+      process.env.PORKBUN_SECRET_KEY &&
+      process.env.PORKBUN_API_KEY !== "REPLACE_ME",
+  );
+}
 
 /**
  * GET /api/domains/check?q=example.com
@@ -35,6 +44,40 @@ export async function GET(req: Request) {
   } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Item 41: jeśli Porkbun nie jest skonfigurowany - 503 z czytelną wiadomością.
+  // UI w DomainsDialog pokaże banner zamiast pustego stanu.
+  if (!isPorkbunConfigured()) {
+    return NextResponse.json(
+      {
+        error: "Porkbun not configured",
+        message:
+          "Kupno domen jest tymczasowo niedostępne - skontaktuj się z kontakt@wybitnastrona.pl.",
+      },
+      { status: 503 },
+    );
+  }
+
+  // Item 47: rate limit (10 req/min per user, 30 req/min per IP).
+  const ip = getClientIp(req);
+  const userLimit = rateLimit(`domains-check:user:${user.id}`, 10, 60_000);
+  const ipLimit = rateLimit(`domains-check:ip:${ip}`, 30, 60_000);
+  if (!userLimit.allowed || !ipLimit.allowed) {
+    const retryAfter = Math.max(
+      userLimit.retryAfterSeconds,
+      ipLimit.retryAfterSeconds,
+    );
+    return NextResponse.json(
+      {
+        error: "Too many requests",
+        message: `Zbyt wiele zapytań. Spróbuj ponownie za ${retryAfter}s.`,
+      },
+      {
+        status: 429,
+        headers: { "Retry-After": String(retryAfter) },
+      },
+    );
   }
 
   const url = new URL(req.url);

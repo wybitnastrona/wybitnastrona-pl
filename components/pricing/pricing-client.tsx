@@ -18,6 +18,14 @@ import {
 const PRORATION_HINT =
   "Kwota zostanie pomniejszona o niewykorzystany czas obecnego planu (proporcjonalne rozliczenie Stripe).";
 
+/**
+ * Item 21: tekst wyjaśniający okres karencji po anulowaniu - pokazujemy
+ * gdy `subscription.cancel_at_period_end === true`. User wciąż ma dostęp
+ * do PRO do końca opłaconego cyklu, Stripe nie pobiera proraty zwrotnej.
+ */
+const CANCEL_GRACE_HINT =
+  "Po anulowaniu zachowujesz dostęp do PRO do końca opłaconego okresu rozliczeniowego. Stripe nie pobiera proraty zwrotnej za niewykorzystany czas.";
+
 const PRO_FEATURES = [
   "Wszystkie modele AI: Pan Programista (Sonnet 4.6), Opus 4.6, Opus 4.7",
   "Web, Android, iOS oraz Watch / TV / Vision Pro",
@@ -36,20 +44,31 @@ export function PricingClient() {
   // Stripe nie naliczy zwrotu za "niewykorzystany czas obecnego planu",
   // wiec wyswietlanie tej informacji byloby mylace.
   const [isPro, setIsPro] = useState(false);
+  // Item 21: `cancelAtPeriodEnd` - PRO user anulował, ale jest jeszcze
+  // w opłaconym okresie. Pokazujemy mu wtedy informację o karencji.
+  const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState(false);
 
   useEffect(() => {
     if (!user) {
       setIsPro(false);
+      setCancelAtPeriodEnd(false);
       return;
     }
     let cancelled = false;
     fetch("/api/me/points", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("nope"))))
-      .then((data: { isPro?: boolean }) => {
-        if (!cancelled) setIsPro(Boolean(data.isPro));
-      })
+      .then(
+        (data: { isPro?: boolean; cancelAtPeriodEnd?: boolean }) => {
+          if (cancelled) return;
+          setIsPro(Boolean(data.isPro));
+          setCancelAtPeriodEnd(Boolean(data.cancelAtPeriodEnd));
+        },
+      )
       .catch(() => {
-        if (!cancelled) setIsPro(false);
+        if (!cancelled) {
+          setIsPro(false);
+          setCancelAtPeriodEnd(false);
+        }
       });
     return () => {
       cancelled = true;
@@ -120,8 +139,18 @@ export function PricingClient() {
             onBuy={buy}
             perCredit={perCredit}
             isPro={isPro}
+            cancelAtPeriodEnd={cancelAtPeriodEnd}
           />
         </div>
+
+        {/* Item 21: banner karencji dla anulujących userów - widoczny tylko
+            gdy isPro && cancelAtPeriodEnd, żeby nowi userzy go nie widzieli. */}
+        {isPro && cancelAtPeriodEnd && (
+          <div className="mt-6 flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/[0.05] p-4 text-sm text-amber-200/90">
+            <Info className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>{CANCEL_GRACE_HINT}</p>
+          </div>
+        )}
 
         <p className="mt-6 text-center text-[11px] text-muted-foreground">
           Płatność miesięczna obsługiwana przez Stripe. Możesz anulować w
@@ -170,6 +199,7 @@ function ProSliderCard({
   onBuy,
   perCredit,
   isPro,
+  cancelAtPeriodEnd,
 }: {
   tierIndex: number;
   onTierIndexChange: (i: number) => void;
@@ -177,7 +207,11 @@ function ProSliderCard({
   onBuy: () => void;
   perCredit: number;
   isPro: boolean;
+  cancelAtPeriodEnd?: boolean;
 }) {
+  // Trzymamy zmienną mimo że na razie nie jest renderowana - prop drilling dla
+  // potencjalnych przyszłych rozszerzeń (badge "Anulowane" na karcie).
+  void cancelAtPeriodEnd;
   const tier = PRO_TIERS[tierIndex] ?? PRO_TIERS[0];
   const isRecommended = tier.id === RECOMMENDED_PRO_TIER_ID;
   return (

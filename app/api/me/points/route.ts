@@ -9,6 +9,7 @@ const FREE_RESPONSE = {
   monthlyLimit: FREE_TIER_LIMITS.monthlyCredits,
   tier: "free",
   isPro: false,
+  cancelAtPeriodEnd: false,
 };
 
 /**
@@ -38,7 +39,20 @@ export async function GET() {
   // bezpieczny fallback FREE zamiast 500. SideNav / Pricing zostanie
   // wyrenderowany z zerowym saldem, co jest poprawnym UX.
 
-  // Proba 1: pełne zapytanie z wszystkimi kolumnami (po migracji 0042+0043)
+  // Proba 1: pełne zapytanie z wszystkimi kolumnami (po migracji 0042+0043+0048)
+  const fullWithCancel = await supabase
+    .from("profiles")
+    .select(
+      "points, tier, stripe_subscription_status, monthly_credits_limit, stripe_cancel_at_period_end",
+    )
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (!fullWithCancel.error && fullWithCancel.data) {
+    return buildResponse(fullWithCancel.data);
+  }
+
+  // Proba 1b: bez stripe_cancel_at_period_end (przed migracja 0048)
   const full = await supabase
     .from("profiles")
     .select("points, tier, stripe_subscription_status, monthly_credits_limit")
@@ -84,6 +98,7 @@ function buildResponse(row: {
   tier?: string | null;
   stripe_subscription_status?: string | null;
   monthly_credits_limit?: number | null;
+  stripe_cancel_at_period_end?: boolean | null;
 }) {
   const tier = (row.tier as string | null) ?? "free";
   const status = row.stripe_subscription_status as string | null;
@@ -93,6 +108,13 @@ function buildResponse(row: {
   const monthlyLimit =
     (row.monthly_credits_limit as number | null) ??
     FREE_TIER_LIMITS.monthlyCredits;
+  const cancelAtPeriodEnd = Boolean(row.stripe_cancel_at_period_end);
 
-  return NextResponse.json({ points, monthlyLimit, tier, isPro });
+  return NextResponse.json({
+    points,
+    monthlyLimit,
+    tier,
+    isPro,
+    cancelAtPeriodEnd,
+  });
 }

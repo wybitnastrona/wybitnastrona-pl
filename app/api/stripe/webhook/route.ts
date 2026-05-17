@@ -168,17 +168,38 @@ async function handleSubscriptionUpsert(
     ? (proTier?.credits ?? product?.points ?? FREE_TIER_LIMITS.monthlyCredits)
     : FREE_TIER_LIMITS.monthlyCredits;
 
+  // Item 25: upsert zamiast update. Jeśli webhook przyleci szybciej niż
+  // trigger DB stworzy profile row dla nowego usera, update by się przepalił
+  // bez efektu - i user zostałby na FREE pomimo opłaconej subskrypcji.
+  // Upsert tworzy minimalny rekord jeśli nie istnieje.
   await supabase
     .from("profiles")
-    .update({
-      tier: isActive ? "pro" : "free",
-      stripe_subscription_id: sub.id,
-      stripe_subscription_status: sub.status,
-      stripe_subscription_price_id: priceId ?? null,
-      monthly_credit_quota: proTier?.credits ?? null,
-      monthly_credits_limit: monthlyLimit,
-    })
-    .eq("id", userId);
+    .upsert(
+      {
+        id: userId,
+        tier: isActive ? "pro" : "free",
+        stripe_subscription_id: sub.id,
+        stripe_subscription_status: sub.status,
+        stripe_subscription_price_id: priceId ?? null,
+        monthly_credit_quota: proTier?.credits ?? null,
+        monthly_credits_limit: monthlyLimit,
+      },
+      { onConflict: "id" },
+    );
+
+  // Item 21: cancel_at_period_end zapisujemy osobno (migracja 0048 może
+  // jeszcze nie być zaaplikowana - update na nieistniejącej kolumnie
+  // zwróci error, ignorujemy go cicho, żeby główna ścieżka działała).
+  try {
+    await supabase
+      .from("profiles")
+      .update({
+        stripe_cancel_at_period_end: sub.cancel_at_period_end ?? false,
+      })
+      .eq("id", userId);
+  } catch (e) {
+    console.warn("[stripe webhook] cancel_at_period_end column missing", e);
+  }
 }
 
 async function handleSubscriptionCanceled(
@@ -191,16 +212,19 @@ async function handleSubscriptionCanceled(
   // Anty-abuse: cofnij custom subdomeny do auto-generated; zachowaj historyczne.
   await revertCustomSlugsForUser(supabase, userId);
 
+  // Item 25: upsert (race-safe) - patrz handleSubscriptionUpsert.
   await supabase
     .from("profiles")
-    .update({
-      tier: "free",
-      stripe_subscription_status: "canceled",
-      monthly_credit_quota: null,
-      // Pasek SideNav natychmiast pokazuje limit FREE (1500) zamiast pustego.
-      monthly_credits_limit: FREE_TIER_LIMITS.monthlyCredits,
-    })
-    .eq("id", userId);
+    .upsert(
+      {
+        id: userId,
+        tier: "free",
+        stripe_subscription_status: "canceled",
+        monthly_credit_quota: null,
+        monthly_credits_limit: FREE_TIER_LIMITS.monthlyCredits,
+      },
+      { onConflict: "id" },
+    );
 }
 
 /**

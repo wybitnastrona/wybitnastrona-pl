@@ -3,7 +3,20 @@
 -- Tworzy bucket Supabase Storage `deployed-sites` dla statycznych buildów
 -- (Vite dist/) opublikowanych projektów.
 --
--- Bucket jest publiczny (publiczny odczyt przez CDN Supabase).
+-- ─── ADR: dlaczego bucket jest public (audyt produkcji item 86) ──────────
+-- Bucket jest PUBLIC z założenia - to JEDYNY sposób żeby subdomeny
+-- {slug}.wybitny.website serwowały pliki bez wymagania autoryzacji.
+-- proxy.ts pobiera pliki przez URL /storage/v1/object/public/... który
+-- omija RLS (anonimowy odczyt CDN).
+--
+-- Migracja 0047 zawęża LISTOWANIE folderów - czyli przez supabase-js SDK
+-- nie można `list()` cudzych folderów. Bezpośrednie odczyty po nazwie
+-- (single file URL) działają jak każda strona statyczna w internecie.
+--
+-- NIE migruj na bucket prywatny - złamałbyś publiczny dostęp do
+-- opublikowanych stron klientów.
+-- ─────────────────────────────────────────────────────────────────────────
+--
 -- Zapis wyłącznie przez Service Role Key (z /api/projects/[id]/deploy-static).
 --
 -- Dodaje kolumnę `static_deployed_at` do `projects` — timestamp ostatniego

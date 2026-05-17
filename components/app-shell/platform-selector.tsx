@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Rork-style platform selector.
+ * Platform selector.
  *
  * Pill w toolbarze pod textarea - pokazuje aktualnie wybrana platforme
  * i otwiera dropdown z dostepnymi platformami zgodnie z tierem użytkownika.

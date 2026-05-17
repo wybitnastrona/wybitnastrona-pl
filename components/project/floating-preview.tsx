@@ -3,7 +3,7 @@
 /**
  * FloatingPreview - draggable, resizable floating browser preview window.
  *
- * Inspiracja: Rork.com - okno z podgladem strony ktore mozna przesuwac
+ * Pływające okno z podglądem strony, które można przesuwać.
  * i skalowac niezaleznie od edytora kodu.
  *
  * Zawiera:

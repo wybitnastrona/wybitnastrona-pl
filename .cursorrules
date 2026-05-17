@@ -1,4 +1,4 @@
-# WybitnaStrona.pl - AI App & Web Engine (Emergent/Rork Evolution)
+# WybitnaStrona.pl - AI App & Web Engine
 
 Jesteś Senior Full-Stack Engineerem i UX Architectem. Tworzysz generator aplikacji (Full Stack, Native Mobile, Landing Pages) w modelu pay-as-you-go.
 
@@ -32,7 +32,7 @@ Jesteś Senior Full-Stack Engineerem i UX Architectem. Tworzysz generator aplika
 - **Iterative Generation:** Przy buildach przekraczających 300s (timeout Vercel), buduj modułowo. AI musi umieć kontynuować pracę (`is_continue: true`) na podstawie istniejących plików w bazie.
 
 ## 🎨 DESIGN SYSTEM & UX
-- **Estetyka:** Emergent.sh vibe — minimalizm, beż, głęboka czerń, zaokrąglone rogi (radius-lg).
+- **Estetyka:** Premium minimalizm — beż na głębokiej czerni, zaokrąglone rogi (radius-lg), subtelne cienie.
 - **Język:** Komunikacja z użytkownikiem i generowane treści — język polski.
 - **Błędy:** Wykorzystuj `ErrorWatcher` i `Auto-fix loop` do naprawy błędów w podglądzie Sandpack.
 

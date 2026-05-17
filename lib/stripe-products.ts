@@ -1,5 +1,5 @@
 /**
- * Stripe products — JEDNA subskrypcja PRO ze sliderem (Bolt-style).
+ * Stripe products — JEDNA subskrypcja PRO ze sliderem.
  *
  * Konwencja:
  *  - 8 poziomow miesiecznych kredytow → 8 stalych Stripe Price ID (kazdy jako
@@ -9,6 +9,25 @@
  *    sprzedawca nie jest VAT-owcem, podana cena to faktyczna kwota pobierana.
  *
  * UWAGA: stripePriceId musi byc zastapione realnym ID z Dashboard Stripe.
+ *
+ * ─── ADR: PLN-only (audyt produkcji items 24, 26) ────────────────────────
+ * Decyzja produktowa: nie obsługujemy USD/EUR ani mid-cycle downgrade proration.
+ *
+ * PLN-only powody:
+ *  - Target rynek: Polska. 99% userów chce PLN.
+ *  - Brak VAT EU-OSS w MVP - faktury w EUR/USD wymagałyby dodatkowej
+ *    konfiguracji księgowej (rejestracja w OSS, sprawozdania zagraniczne).
+ *  - Stripe checkout sam pokazuje konwersję na walutę kraju karty.
+ *
+ * Brak mid-cycle proration:
+ *  - Downgrade: user płaci za bieżący okres (pełna kwota), zmiana wchodzi
+ *    od następnego cyklu. Stripe nie zwraca pieniędzy.
+ *  - Upgrade: standardowa Stripe proration (kwota różnicy doliczona do
+ *    następnej faktury) - już obsługiwana.
+ *
+ * Jeśli kiedyś dodasz EUR/USD: zmień typ `currency` na enum + zaktualizuj
+ * PRORATION_HINT w pricing-client.tsx (FX disclosure).
+ * ─────────────────────────────────────────────────────────────────────────
  */
 
 export type StripeProductKind = "subscription";

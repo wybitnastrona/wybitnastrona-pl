@@ -205,6 +205,20 @@ export function WorkspaceCanvas({
     return () => window.removeEventListener("message", onPick);
   }, [onElementPick]);
 
+  // Item 65: iframe może wysłać prośbę o anulowanie picker mode (Escape
+  // wciśnięty wewnątrz iframe). Tłumaczymy postMessage na CustomEvent,
+  // żeby reszta UI (project-workspace) zareagowała tak samo jak na
+  // Escape w parent window.
+  useEffect(() => {
+    function onCancelMsg(e: MessageEvent) {
+      if (e.data?.type === "wybitna:cancel-select-mode") {
+        window.dispatchEvent(new CustomEvent("wybitna:cancel-select-mode"));
+      }
+    }
+    window.addEventListener("message", onCancelMsg);
+    return () => window.removeEventListener("message", onCancelMsg);
+  }, []);
+
   // Trigger trybu picker z menu „Wskaż w podglądzie".
   useEffect(() => {
     if (!onActivatePreviewPickMode) return;

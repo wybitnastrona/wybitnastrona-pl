@@ -1,7 +1,59 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getClientIp, rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
+
+/**
+ * Item 80: buduje listę dozwolonych originów dla danego projektu.
+ * Zwracamy:
+ *  - subdomena publikacji `{slug}.wybitny.website`
+ *  - wszystkie zweryfikowane custom domains z tabeli `project_domains`
+ *  - localhost (dev)
+ */
+async function getAllowedOrigins(
+  supabase: ReturnType<typeof createClient>,
+  projectId: string,
+): Promise<Set<string>> {
+  const allowed = new Set<string>();
+  const { data: project } = await supabase
+    .from("projects")
+    .select("slug, custom_domain, custom_domain_verified_at")
+    .eq("id", projectId)
+    .maybeSingle();
+
+  if (project) {
+    const slug = (project as { slug?: string | null }).slug;
+    if (slug) {
+      allowed.add(`https://${slug}.wybitny.website`);
+    }
+    const customDomain = (project as { custom_domain?: string | null })
+      .custom_domain;
+    const verifiedAt = (
+      project as { custom_domain_verified_at?: string | null }
+    ).custom_domain_verified_at;
+    if (customDomain && verifiedAt) {
+      allowed.add(`https://${customDomain}`);
+      allowed.add(`https://www.${customDomain}`);
+    }
+  }
+
+  // Dla deweloperów - localhost
+  if (process.env.NODE_ENV !== "production") {
+    allowed.add("http://localhost:5173"); // Vite default
+    allowed.add("http://localhost:3000");
+  }
+  return allowed;
+}
+
+function pickCorsOrigin(
+  reqOrigin: string | null,
+  allowed: Set<string>,
+): string | null {
+  if (!reqOrigin) return null;
+  if (allowed.has(reqOrigin)) return reqOrigin;
+  return null;
+}
 
 /**
  * POST /api/form-submit?projectId=...
@@ -34,24 +86,86 @@ function getServiceClient() {
   });
 }
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
+// Item 80: bazowe nagłówki bez Access-Control-Allow-Origin - origin
+// dobierany dynamicznie per-projekt w `buildCorsHeaders`.
+const BASE_CORS_HEADERS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
+  Vary: "Origin",
 };
 
-export async function OPTIONS() {
-  return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
+function buildCorsHeaders(origin: string | null): Record<string, string> {
+  if (!origin) return BASE_CORS_HEADERS;
+  return {
+    ...BASE_CORS_HEADERS,
+    "Access-Control-Allow-Origin": origin,
+  };
+}
+
+export async function OPTIONS(req: Request) {
+  // Dla preflight musimy znać projectId żeby zweryfikować Origin.
+  const { searchParams } = new URL(req.url);
+  const projectId = searchParams.get("projectId");
+  const reqOrigin = req.headers.get("origin");
+  if (!projectId) {
+    return new NextResponse(null, {
+      status: 204,
+      headers: buildCorsHeaders(null),
+    });
+  }
+  const supabase = getServiceClient();
+  const allowed = await getAllowedOrigins(supabase, projectId);
+  const origin = pickCorsOrigin(reqOrigin, allowed);
+  return new NextResponse(null, {
+    status: 204,
+    headers: buildCorsHeaders(origin),
+  });
 }
 
 export async function POST(req: Request) {
   const { searchParams } = new URL(req.url);
   const projectId = searchParams.get("projectId");
+  const reqOrigin = req.headers.get("origin");
 
   if (!projectId) {
     return NextResponse.json(
       { error: "Missing projectId query param" },
-      { status: 400, headers: CORS_HEADERS },
+      { status: 400, headers: buildCorsHeaders(null) },
+    );
+  }
+
+  const supabase = getServiceClient();
+  const allowedOrigins = await getAllowedOrigins(supabase, projectId);
+  const corsOrigin = pickCorsOrigin(reqOrigin, allowedOrigins);
+  const corsHeaders = buildCorsHeaders(corsOrigin);
+
+  // Item 80: blokujemy POST gdy Origin nie pasuje do projektu. Wyjątek:
+  // brak Origin (curl, server-to-server) - akceptujemy żeby nie zepsuć
+  // legacy integracji.
+  if (reqOrigin && !corsOrigin) {
+    return NextResponse.json(
+      { error: "Origin not allowed for this project" },
+      { status: 403, headers: BASE_CORS_HEADERS },
+    );
+  }
+
+  // Item 77: rate limit. 5 zgłoszeń/min per IP+projectId zapobiega
+  // floodingowi (boty wypełniające formularze).
+  const ip = getClientIp(req);
+  const limit = rateLimit(`form-submit:${ip}:${projectId}`, 5, 60_000);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      {
+        error: "Too many submissions",
+        message: `Zbyt wiele zgłoszeń. Spróbuj ponownie za ${limit.retryAfterSeconds}s.`,
+      },
+      {
+        status: 429,
+        headers: {
+          ...corsHeaders,
+          "Retry-After": String(limit.retryAfterSeconds),
+        },
+      },
     );
   }
 
@@ -61,7 +175,7 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json(
       { error: "Invalid JSON body" },
-      { status: 400, headers: CORS_HEADERS },
+      { status: 400, headers: corsHeaders },
     );
   }
 
@@ -69,11 +183,9 @@ export async function POST(req: Request) {
   if (Object.keys(fields).length === 0) {
     return NextResponse.json(
       { error: "fields object cannot be empty" },
-      { status: 400, headers: CORS_HEADERS },
+      { status: 400, headers: corsHeaders },
     );
   }
-
-  const supabase = getServiceClient();
 
   // Pobierz projekt i email wlasciciela.
   const { data: project, error: projectErr } = await supabase
@@ -85,12 +197,10 @@ export async function POST(req: Request) {
   if (projectErr || !project) {
     return NextResponse.json(
       { error: "Project not found" },
-      { status: 404, headers: CORS_HEADERS },
+      { status: 404, headers: corsHeaders },
     );
   }
 
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
   const ua = req.headers.get("user-agent") ?? null;
 
   // Zapisz submission.
@@ -109,7 +219,7 @@ export async function POST(req: Request) {
     console.error("[form-submit] insert error:", insertErr);
     return NextResponse.json(
       { error: "Database error" },
-      { status: 500, headers: CORS_HEADERS },
+      { status: 500, headers: corsHeaders },
     );
   }
 
@@ -136,7 +246,7 @@ export async function POST(req: Request) {
 
   return NextResponse.json(
     { ok: true, id: submission.id },
-    { headers: CORS_HEADERS },
+    { headers: corsHeaders },
   );
 }
 

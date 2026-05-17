@@ -161,26 +161,72 @@ export function WCRuntime({
         return;
       }
 
+      // Item 13: payload size guard. Vercel hobby limit dla POST = 4.5 MB.
+      // Liczymy rozmiar zserializowanego body przed wysyłką - jeśli przekracza
+      // 4 MB, przerywamy z czytelnym komunikatem zamiast czekać na 413
+      // od serwera.
+      const payload = JSON.stringify({ files: distFiles });
+      const sizeMb = payload.length / (1024 * 1024);
+      const MAX_MB = 4;
+      if (sizeMb > MAX_MB) {
+        console.warn(
+          `[deploy] payload ${sizeMb.toFixed(2)}MB > ${MAX_MB}MB limit`,
+        );
+        setDeployStatus("error");
+        window.dispatchEvent(
+          new CustomEvent("wybitna:static-deploy-done", {
+            detail: {
+              projectId,
+              ok: false,
+              error: `Strona jest za duża (${sizeMb.toFixed(1)}MB > ${MAX_MB}MB). Zmniejsz zasoby w /public/ lub użyj zewnętrznego CDN dla zdjęć.`,
+            },
+          }),
+        );
+        setTimeout(() => setDeployStatus("idle"), 6000);
+        return;
+      }
+
       try {
         const res = await fetch(`/api/projects/${projectId}/deploy-static`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ files: distFiles }),
+          body: payload,
         });
         if (res.ok) {
-          setDeployStatus("done");
-          window.dispatchEvent(
-            new CustomEvent("wybitna:static-deploy-done", {
-              detail: { projectId, ok: true },
-            }),
-          );
+          const data = (await res
+            .json()
+            .catch(() => null)) as { ok?: boolean; errors?: string[] } | null;
+          // Item 20: serwer zwraca ok:false jeśli choć jeden plik nie przeszedł.
+          if (data?.ok === false) {
+            setDeployStatus("error");
+            window.dispatchEvent(
+              new CustomEvent("wybitna:static-deploy-done", {
+                detail: {
+                  projectId,
+                  ok: false,
+                  error:
+                    data.errors?.[0] ??
+                    "Nie udało się wgrać wszystkich plików.",
+                },
+              }),
+            );
+          } else {
+            setDeployStatus("done");
+            window.dispatchEvent(
+              new CustomEvent("wybitna:static-deploy-done", {
+                detail: { projectId, ok: true },
+              }),
+            );
+          }
         } else {
           setDeployStatus("error");
         }
       } catch {
         setDeployStatus("error");
+      } finally {
+        // Item 93: zawsze odblokowujemy stan po cyklu, nawet gdy fetch rzucił.
+        setTimeout(() => setDeployStatus("idle"), 5000);
       }
-      setTimeout(() => setDeployStatus("idle"), 5000);
     }
 
     window.addEventListener("wybitna:deploy-static", handleDeploy);

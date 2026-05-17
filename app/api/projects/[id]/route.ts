@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { updateProjectTitle } from "@/lib/projects";
+import { removeProjectDomain } from "@/lib/vercel";
 
 const patchSchema = z.object({
   title: z.string().min(1).max(120).optional(),
@@ -48,6 +49,25 @@ export async function DELETE(
   } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Item 49: detach custom domain z Vercela PRZED usunięciem rekordu z DB.
+  // Inaczej domena pozostaje "zajęta" w Vercel i nie da się jej podpiąć
+  // do nowego projektu bez ręcznego usuwania w panelu.
+  const { data: projectRow } = await supabase
+    .from("projects")
+    .select("custom_domain, user_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (!projectRow || projectRow.user_id !== user.id) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  if (projectRow.custom_domain) {
+    // Nie blokujemy usunięcia projektu jeśli Vercel API zawiedzie -
+    // user może i tak ręcznie usunąć z Vercel dashboard.
+    await removeProjectDomain(projectRow.custom_domain).catch((e) => {
+      console.warn("[project DELETE] removeProjectDomain failed", e);
+    });
   }
 
   const { error } = await supabase

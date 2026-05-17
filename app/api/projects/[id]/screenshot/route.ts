@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { promises as fs } from "node:fs";
 import puppeteer, { type Browser } from "puppeteer-core";
 import chromium from "@sparticuz/chromium";
 import { createClient as createServerClient } from "@/lib/supabase/server";
@@ -90,16 +91,52 @@ export async function POST(_req: Request, { params }: { params: Params }) {
       waitUntil: "networkidle2",
       timeout: 45_000,
     });
+
+    // Item 56: empty-content guard. Jeśli strona to "Strona w przygotowaniu"
+    // lub jest pusta (mniej niż 50 widocznych znaków), nie generujemy
+    // screenshota - i tak byłby czarny lub pokazałby naszą stronę 404.
+    const renderedText = await page
+      .evaluate(() => document.body?.innerText ?? "")
+      .catch(() => "");
+    if (renderedText.trim().length < 50) {
+      return NextResponse.json({
+        ok: true,
+        skipped: true,
+        message: "Strona zbyt pusta - pominięto screenshot.",
+      });
+    }
+
     // Daj Sandpackowi/React czas na zrenderowanie animacji.
     await new Promise((r) => setTimeout(r, 1500));
 
+    // Item 52: page.screenshot ma własny timeout (20s). page.goto timeout=45s
+    // jest dla całego ładowania - sam render PNG nie powinien trwać dłużej
+    // niż kilka sekund.
     const png = (await page.screenshot({
       type: "png",
       fullPage: false,
+      timeout: 20_000,
     })) as Buffer;
 
-    // Upload do Cloudinary — overwrite na public_id = projectId.
-    const previewUrl = await uploadBufferToCloudinary(png, id);
+    // Item 54: Cloudinary upload w try/catch - gdy się nie powiedzie (np.
+    // przekroczony limit transferu), nie chcemy całego endpointa zwalić.
+    // Zapisujemy `preview_image_url = null` żeby dashboard pokazał placeholder.
+    let previewUrl: string | null = null;
+    try {
+      previewUrl = await uploadBufferToCloudinary(png, id);
+      // Item 59: q_auto,f_auto + thumbnail crop dla optymalizacji w UI.
+      // Cloudinary automatycznie konwertuje na AVIF/WebP gdy przeglądarka
+      // wspiera, redukując wagę miniatur o 70-80%.
+      if (previewUrl && previewUrl.includes("/upload/")) {
+        previewUrl = previewUrl.replace(
+          "/upload/",
+          "/upload/q_auto,f_auto,c_fill,w_640,h_400/",
+        );
+      }
+    } catch (e) {
+      console.warn("[screenshot] Cloudinary upload failed:", e);
+      // Kontynuujemy bez previewUrl - DB zostanie z null.
+    }
 
     // Zapis URL-a w DB. Uzywamy service role bo route moze byc wywolany
     // z fire-and-forget bez waznej sesji uzytkownika (po publikacji).
@@ -121,7 +158,11 @@ export async function POST(_req: Request, { params }: { params: Params }) {
         .eq("id", id);
     }
 
-    return NextResponse.json({ ok: true, previewImageUrl: previewUrl });
+    return NextResponse.json({
+      ok: true,
+      previewImageUrl: previewUrl,
+      uploadFailed: previewUrl === null,
+    });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Screenshot failed" },
@@ -131,5 +172,18 @@ export async function POST(_req: Request, { params }: { params: Params }) {
     // CRITICAL: zamykamy browser zeby pamiec nie wyciekala przy warm
     // invocations. Bez tego Vercel reuse-uje funkcje i pamiec narasta.
     await browser?.close();
+
+    // Item 60: cleanup chromium temp files. Vercel reuse-uje funkcje
+    // (warm invocations) - bez czyszczenia /tmp narasta w nieskończoność
+    // i ostatecznie przepełnia 512 MB limit.
+    // Czyścimy tylko cache chromium ścieżki, nie cały /tmp (mógłby tam być
+    // inny aktywny task).
+    await Promise.all([
+      fs.rm("/tmp/chromium", { recursive: true, force: true }).catch(() => {}),
+      fs.rm("/tmp/puppeteer_dev_chrome_profile-*", {
+        recursive: true,
+        force: true,
+      }).catch(() => {}),
+    ]);
   }
 }

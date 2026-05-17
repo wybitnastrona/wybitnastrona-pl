@@ -136,44 +136,81 @@ export async function POST(req: Request, { params }: { params: Params }) {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
+  // Item 14: orphan cleanup. Usuwamy wszystkie stare pliki z poprzedniego
+  // builda PRZED uploadem nowych, żeby chunki Vite z innymi hashami nie zostały.
+  // Failujemy miękko: jeśli usuwanie się nie powiedzie, idziemy dalej (upsert
+  // i tak nadpisze pliki o tych samych nazwach).
+  try {
+    await deleteStoragePrefix(admin.storage, id);
+  } catch (e) {
+    console.warn("[deploy-static] orphan cleanup failed", e);
+  }
+
+  const entries = Object.entries(body.files);
   const uploadedPaths: string[] = [];
   const errors: string[] = [];
 
-  for (const [path, content] of Object.entries(body.files)) {
-    // Normalize path: ensure leading slash, then strip for storage key
-    const normalized = path.startsWith("/") ? path : `/${path}`;
-    const storagePath = `${id}${normalized}`; // e.g. "{id}/index.html"
-    const contentType = getContentType(normalized);
+  // Item 19: cacheControl=300 (5 minut) - republikacja widoczna szybko,
+  // bez konieczności bustowania CDN. Krytyczne pliki HTML mają i tak
+  // no-store na proxy.ts level.
+  const UPLOAD_CACHE_CONTROL = "300";
 
-    const { error } = await admin.storage
-      .from("deployed-sites")
-      .upload(storagePath, Buffer.from(content, "utf-8"), {
-        contentType,
-        upsert: true,
-      });
+  // Item 20 + concurrency: uploady robimy równolegle (Promise.all) i flagę
+  // static_deployed_at ustawiamy DOPIERO gdy WSZYSTKIE pliki się przesłały.
+  // Jeśli choć jeden zawiedzie - flagi nie ustawiamy, użytkownik widzi błąd.
+  const results = await Promise.all(
+    entries.map(async ([path, content]) => {
+      const normalized = path.startsWith("/") ? path : `/${path}`;
+      // Item 16: ścieżki w Storage zawsze przechowujemy w surowej formie
+      // (UTF-8); proxy.ts dekoduje przy odczycie. Tutaj tylko upewniamy się że
+      // nie ma /../ w środku.
+      if (normalized.includes("..")) {
+        return { path, ok: false, message: "Niedozwolona ścieżka (..)" };
+      }
+      const storagePath = `${id}${normalized}`;
+      const contentType = getContentType(normalized);
 
-    if (error) {
-      errors.push(`${path}: ${error.message}`);
+      const { error } = await admin.storage
+        .from("deployed-sites")
+        .upload(storagePath, Buffer.from(content, "utf-8"), {
+          contentType,
+          upsert: true,
+          cacheControl: UPLOAD_CACHE_CONTROL,
+        });
+
+      if (error) {
+        return { path, ok: false, message: error.message };
+      }
+      return { path, ok: true, storagePath };
+    }),
+  );
+
+  for (const r of results) {
+    if (r.ok) {
+      uploadedPaths.push(r.storagePath!);
     } else {
-      uploadedPaths.push(storagePath);
+      errors.push(`${r.path}: ${r.message}`);
     }
   }
 
-  // Ustaw static_deployed_at nawet jeśli część plików się nie przesłała —
-  // jeśli index.html jest OK, strona będzie działać.
   const indexUploaded = uploadedPaths.some((p) => p.endsWith("/index.html"));
-  if (indexUploaded) {
+  // Item 20: atomicznie - flagę stawiamy tylko gdy index ORAZ wszystkie inne
+  // pliki przeszły. Inaczej zostawiamy poprzedni stan (jeśli był) lub null.
+  const allOk = errors.length === 0 && indexUploaded;
+  let staticDeployedAt: string | null = null;
+  if (allOk) {
+    staticDeployedAt = new Date().toISOString();
     await supabase
       .from("projects")
-      .update({ static_deployed_at: new Date().toISOString() })
+      .update({ static_deployed_at: staticDeployedAt })
       .eq("id", id);
   }
 
   return NextResponse.json({
-    ok: true,
+    ok: allOk,
     uploaded: uploadedPaths.length,
     errors,
-    staticDeployedAt: indexUploaded ? new Date().toISOString() : null,
+    staticDeployedAt,
   });
 }
 

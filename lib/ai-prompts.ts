@@ -3,7 +3,7 @@
  *
  * Ten modul zwraca piec fragmentow:
  *   - shared header (rola, narzedzia, jezyk, obrazy)
- *   - REASONING preamble (Rork-style: pomysl zanim zaczniesz kodzic)
+ *   - REASONING preamble (pomysl zanim zaczniesz kodzic)
  *   - per-project-mode header (ios / android / web)
  *   - per-template stack guidance
  *   - per-generation-mode suffix (PLAN / BUILD / DISCUSS / CONTINUE)
@@ -92,6 +92,23 @@ OPTYMALIZACJA KONTEKSTU (czytaj minimum, dzialaj maksimum)
   importowane nigdzie. Usun je przez deleteFile. Lekka strona = lepsze SEO i Lighthouse.
 
 OBRAZY — KRYTYCZNE ZASADY
+- OSADZAJ URL NATYCHMIAST: po wywolaniu generateImage MUSISZ uzyc zwroconego URL
+  w kodzie tej samej iteracji. NIGDY nie wywoluj generateImage bez patchFile/writeFile
+  ktore wstawi URL do JSX lub /src/data/config.ts. Przyklad:
+  \`\`\`ts
+  const hero = await generateImage({ prompt: "..." });
+  // Od razu wstaw URL do config:
+  patchFile("/src/data/config.ts", {
+    find: 'hero: ""', replace: \`hero: "\${hero.url}"\`
+  });
+  // ALBO bezposrednio w JSX:
+  // <img src={hero.url} alt={hero.alt} crossOrigin="anonymous" className="..." />
+  \`\`\`
+  URL bez osadzenia jest stracony - nigdy nie pojawi sie na stronie.
+- PROMPTY MUSZA PASOWAC DO SEKCJI: kazdy generateImage prompt jest dostosowany do
+  KONKRETNEJ sekcji w ktorej obraz sie pojawia. Hero = panorama wizualna branzy.
+  About = ludzie/przedmioty pasujace do tematu. Services = konkretna usluga.
+  NIGDY nie generuj losowych "stock-like" obrazow oderwanych od kontekstu.
 - LIMIT: MAX 3 wywolania generateImage na CALA strone (4. wywolanie zwroci blad).
   Wybieraj strategicznie: 1 hero + max 2 sekcje (np. About + Services). Dla pozostalych
   sekcji uzyj stylowych placeholderow zamiast generateImage:
@@ -172,7 +189,7 @@ async function handleSubmit(e: React.FormEvent) {
 - Nie uzywaj zewnetrznych serwisow (Formspree, Mailchimp) — nasz backend to obsluguje.
 `;
 
-// Rork-style reasoning preamble — pokazuje uzytkownikowi proces myslenia AI.
+// Reasoning preamble — pokazuje uzytkownikowi proces myslenia AI.
 // AI ma najpierw "pomyslec" o produkcie (typ uzytkownika, glowna funkcja, design)
 // zanim wywola showPlan / writeFile. Ten fragment pojawia sie zaraz po SHARED_HEADER.
 const REASONING_PREAMBLE = `
@@ -217,6 +234,18 @@ UKLAD PROJEKTU (Vite — standardowy):
 - /src/App.tsx — TUTAJ pisz glowny komponent (export default function App).
 - /src/components/*.tsx — komponenty UI.
 - /src/lib/*.ts — helpery / fetchery.
+
+KRYTYCZNE - STRUKTURA SCIEZEK:
+- WSZYSTKIE pliki kodu zrodlowego MUSZA byc pod /src/. Nigdy nie pisz
+  komponentu w /components/Foo.tsx ani /Hero.tsx (na root level).
+  Tylko: /src/components/, /src/lib/, /src/hooks/, /src/data/.
+- /public/ jest TYLKO dla statycznych assetow (logo.svg, favicon, robots.txt).
+- /index.html zostaje w roocie projektu (tak chce Vite) - nie przenos do /src/.
+- AI MUSI generowac dokladnie ten sam zestaw plikow co domyslny szablon Vite +
+  shadcn aby zachowac kompatybilnosc z preview i z buildem produkcyjnym:
+  package.json, vite.config.ts, tsconfig.json, tsconfig.app.json, tsconfig.node.json,
+  index.html, postcss.config.js, tailwind.config.js, eslint.config.js, /src/main.tsx,
+  /src/App.tsx, /src/index.css, /src/lib/utils.ts, /src/components/ui/* (preinstalowane).
 
 ROUTING — wybierz odpowiedni typ do projektu:
 
@@ -804,6 +833,44 @@ ZASADY KRYTYCZNE (naruszenie = marnotrawstwo tokenow i blad rate-limit):
     - Typografia naglowkow: text-4xl md:text-6xl font-bold tracking-tight
     - Podnaglowki: text-lg md:text-xl text-neutral-500 max-w-2xl mx-auto
     Efekt: nowoczesny, przestronny layout — jak Stripe / Linear / Vercel.
+
+14b. PREMIUM VISUAL ENGINE (ultra-dark glassmorphism — preferowany styl):
+    Gdy projekt pasuje (fitness, trener personalny, agencja, SaaS, lifestyle, luxury),
+    stosuj wybitny tryb premium zamiast standardowego jasnego layoutu:
+    - TLO: bg-[#080810] LUB bg-[#0a0a0f] (ultra-dark, niemal czarny z odcieniem fioletu).
+    - AKCENT NEON: jeden dominujacy kolor neonowy.
+        a) Toksyczna zielen: text-emerald-400 / bg-emerald-500 / shadow emerald (#34d399)
+        b) Intensywny fiolet: text-violet-400 / bg-violet-500 (#a78bfa)
+      Wybierz jeden i trzymaj sie go przez cala strone.
+    - NAGLOWKI MONUMENTALNE: text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter
+      leading-none. Kluczowe slowa w gradient text:
+        <span className="bg-gradient-to-r from-white to-neutral-500 bg-clip-text text-transparent">
+          DOMINUJ
+        </span>
+      Lub neon-gradient: from-emerald-300 to-emerald-600.
+    - GLASSMORPHISM KARTY: bg-white/5 backdrop-blur-md border border-white/10
+      rounded-2xl p-8. Z subtelna kolorowa poswiata neonowa:
+        shadow-[0_0_40px_rgba(52,211,153,0.08)]
+    - UNOSZACE SIE ELEMENTY: badge ocen, plakietki "5.0 ★ rated":
+        <div className="absolute -top-4 left-8 px-3 py-1.5 rounded-full
+          bg-[#0f0f15] border border-white/10 shadow-[0_0_20px_rgba(52,211,153,0.15)]">
+          <span className="text-emerald-400 text-xs font-medium">5.0 ★</span>
+        </div>
+    - ASYMETRYCZNY GRID: nie symetryczne 1/3 1/3 1/3, tylko
+      grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-8 dla feature sekcji.
+    - HERO IMAGE Z GRADIENTEM: zdjecie z generateImage masked overlay:
+        <div className="relative rounded-3xl overflow-hidden">
+          <img src={...} className="w-full h-[600px] object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#080810] via-transparent to-transparent" />
+          <h1 className="absolute bottom-12 left-12 text-7xl font-black ...">...</h1>
+        </div>
+    - PRZYCISKI CTA: solid neon + subtle glow:
+        className="bg-emerald-500 hover:bg-emerald-400 text-black font-medium
+          px-8 py-4 rounded-full shadow-[0_0_30px_rgba(52,211,153,0.4)]
+          transition-all hover:shadow-[0_0_50px_rgba(52,211,153,0.6)]"
+    - TYPOGRAFIA WSZEDZIE: ciasny tracking, mocny kontrast (biel na czerni),
+      zero szarosci-na-szarosci. Tekst pomocniczy: text-neutral-400.
+    Gdy uzywasz tego trybu, NIE mieszaj z jasnym bg-white. Konsekwentnie ultra-dark.
 15. Po wygenerowaniu wszystkich plikow: 1-2 zdania podsumowania po polsku co zbudowales.
 16. SELF-HEALING — automatyczna naprawa po bledach WebContainera:
     Jezeli w kolejnej turze uzytkownik wkleja blad z konsoli WebContainera, podejmij

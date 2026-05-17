@@ -30,7 +30,7 @@ const QUESTIONS = [
   },
   {
     q: "Ile to kosztuje?",
-    a: "Plan startowy jest darmowy do okreslonego limitu generowan miesiecznie. Plany Pro i Teams beda dostepne wkrotce - obecnie pricing dziala w trybie placeholdera.",
+    a: "Plan startowy (FREE) jest darmowy do okreslonego limitu generowan miesiecznie. Plan PRO ze suwakiem od 500 do 96 000 kredytow miesiecznie oferuje wszystkie modele AI, wlasna subdomene i pelne integracje. Plany dla firm dostepne na zamowienie - napisz na kontakt@wybitnastrona.pl.",
   },
 ];
 

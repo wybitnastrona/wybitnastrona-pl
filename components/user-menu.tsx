@@ -25,8 +25,25 @@ type UserMenuProps = {
 
 export function UserMenu({ variant = "navbar" }: UserMenuProps) {
   const router = useRouter();
-  const { user, signOut } = useAuth();
+  const { user, signOut, openAuth } = useAuth();
   const settings = useSettings();
+
+  /**
+   * Po wylogowaniu robimy 3 rzeczy:
+   *  1. signOut() - kasuje sesję Supabase, ustawia user=null w kontekście.
+   *  2. router.refresh() - wymusza re-render Server Components z brakiem auth.
+   *  3. openAuth({ mode: "login" }) - od razu pokazuje modal logowania,
+   *     żeby użytkownik mógł się przelogować bez odświeżania F5.
+   */
+  async function handleSignOut() {
+    await signOut();
+    try {
+      router.refresh();
+    } catch {
+      /* router may not be ready */
+    }
+    openAuth({ mode: "login" });
+  }
 
   if (!user) return null;
 
@@ -86,7 +103,7 @@ export function UserMenu({ variant = "navbar" }: UserMenuProps) {
         </DropdownMenuGroup>
         <DropdownMenuSeparator className="bg-beige/10" />
         <DropdownMenuGroup>
-          <DropdownMenuItem onClick={() => void signOut()}>
+          <DropdownMenuItem onClick={() => void handleSignOut()}>
             <LogOut className="h-4 w-4" />
             Wyloguj się
           </DropdownMenuItem>

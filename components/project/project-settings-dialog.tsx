@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Wybitna-style "Ustawienia projektu" - modal w stylu Bolt.new:
+ * Wybitna-style "Ustawienia projektu" - modal projektu:
  * lewa nawigacja + prawa zawartosc. Skupia w jednym miejscu wszystkie
  * konfigurację per-projekt: Ogolne, Domeny, Analytics, Database, Auth, Stripe,
  * File Storage, Backups.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertCircle,
@@ -22,6 +22,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FormSubmissionsPanel } from "@/components/project/form-submissions-panel";
+import { SecurityAuditPanel } from "@/components/project/security-audit-panel";
 import type { Project } from "@/lib/types/project";
 
 type Props = {
@@ -49,45 +50,69 @@ export function DatabasePanel({ project }: Props) {
     );
   }
 
-  async function handleSave() {
+  async function persist(nextUrl: string | null, nextKey: string | null) {
     setError(null);
     setSaving(true);
     try {
       const res = await fetch(`/api/projects/${project.id}/database`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          url: url || null,
-          anonKey: anonKey || null,
-        }),
+        body: JSON.stringify({ url: nextUrl, anonKey: nextKey }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         setError(data.error ?? "Nie udalo sie zapisac konfiguracji");
-        return;
+        return false;
       }
       setSavedAt(new Date().toLocaleTimeString("pl-PL"));
       router.refresh();
+      return true;
     } finally {
       setSaving(false);
     }
   }
 
-  async function handleClear() {
-    setSaving(true);
-    try {
-      await fetch(`/api/projects/${project.id}/database`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: null, anonKey: null }),
-      });
-      setUrl("");
-      setAnonKey("");
-      setSavedAt(null);
-      router.refresh();
-    } finally {
-      setSaving(false);
+  async function handleSave() {
+    await persist(url || null, anonKey || null);
+  }
+
+  // Auto-save on blur - debouncuje, zapisuje tylko gdy wartość naprawdę się
+  // zmieniła vs ostatni stan z bazy (project.database_url/anon_key).
+  const lastSavedRef = useRef({
+    url: project.database_url ?? "",
+    anonKey: project.database_anon_key ?? "",
+  });
+
+  useEffect(() => {
+    lastSavedRef.current = {
+      url: project.database_url ?? "",
+      anonKey: project.database_anon_key ?? "",
+    };
+  }, [project.database_url, project.database_anon_key]);
+
+  async function maybeAutoSave() {
+    const trimmedUrl = url.trim();
+    const trimmedKey = anonKey.trim();
+    const changed =
+      trimmedUrl !== lastSavedRef.current.url ||
+      trimmedKey !== lastSavedRef.current.anonKey;
+    if (!changed) return;
+    // Walidacja: oba puste = clear; oba wypełnione = zapisz; jedno puste = czekaj.
+    const bothEmpty = trimmedUrl === "" && trimmedKey === "";
+    const bothFilled = trimmedUrl !== "" && trimmedKey !== "";
+    if (!bothEmpty && !bothFilled) return;
+    const ok = await persist(trimmedUrl || null, trimmedKey || null);
+    if (ok) {
+      lastSavedRef.current = { url: trimmedUrl, anonKey: trimmedKey };
     }
+  }
+
+  async function handleClear() {
+    await persist(null, null);
+    setUrl("");
+    setAnonKey("");
+    setSavedAt(null);
+    lastSavedRef.current = { url: "", anonKey: "" };
   }
 
   return (
@@ -134,6 +159,18 @@ export function DatabasePanel({ project }: Props) {
           </Button>
         </section>
 
+        <SecurityAuditPanel project={project} />
+
+        {isConfigured && (
+          <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.04] p-4 text-xs text-amber-200/90">
+            <strong>Tryb dedykowanej bazy.</strong> Ten projekt korzysta z Twojej
+            zewnętrznej instancji Supabase. Manualne modyfikacje polityk RLS
+            z poziomu naszego panelu oraz platformowe kopie zapasowe są
+            ograniczone - ta funkcja jest zarządzana bezpośrednio na Twojej
+            zewnętrznej instancji Supabase.
+          </div>
+        )}
+
         <WybitnaBazaDanychSection project={project} />
 
         <SupabaseOAuthConnectSection project={project} />
@@ -170,6 +207,7 @@ export function DatabasePanel({ project }: Props) {
               <Input
                 value={url}
                 onChange={(event) => setUrl(event.target.value)}
+                onBlur={() => void maybeAutoSave()}
                 placeholder="https://xxxxxxxxxxxx.supabase.co"
                 className="font-mono text-xs"
               />
@@ -181,6 +219,7 @@ export function DatabasePanel({ project }: Props) {
                   type={showKey ? "text" : "password"}
                   value={anonKey}
                   onChange={(event) => setAnonKey(event.target.value)}
+                  onBlur={() => void maybeAutoSave()}
                   placeholder="eyJhbGciOi..."
                   className="font-mono text-xs"
                 />
@@ -199,6 +238,9 @@ export function DatabasePanel({ project }: Props) {
                 </Button>
               </div>
             </Field>
+            <p className="text-[10px] text-muted-foreground/70">
+              Zmiany zapisują się automatycznie po opuszczeniu pola.
+            </p>
           </div>
 
           {error && (

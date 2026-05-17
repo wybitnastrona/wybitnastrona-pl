@@ -59,7 +59,9 @@ export async function POST(req: Request) {
   }
 
   const stripe = getStripe();
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  // Item 96: prefer NEXT_PUBLIC_APP_URL → VERCEL_URL → localhost fallback.
+  const { getAppUrl } = await import("@/lib/publish-url");
+  const appUrl = getAppUrl();
 
   const isSubscription = product.kind === "subscription";
   // Subscriptions w Polsce nie wspieraja BLIK / p24 — tylko karta.

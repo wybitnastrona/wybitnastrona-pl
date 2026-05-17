@@ -112,3 +112,72 @@ create policy "cart_items: project all" on public.cart_items
   for all
   using (project_id = public.current_project_id())
   with check (project_id = public.current_project_id());
+
+-- ── get_rls_audit() ─────────────────────────────────────────────────────────
+-- Zwraca liste polityk RLS ze schematu `public` z flaga `is_unsafe` gdy
+-- klauzula USING lub WITH CHECK efektywnie jest `true` (otwarta brama dla
+-- ról `anon` lub `authenticated`).
+--
+-- Panel "Audyt Bezpieczeństwa" w wybitnastrona.pl wywoluje ta funkcje przez
+-- supabase.rpc('get_rls_audit') i wyswietla wykryte luki, oferujac przycisk
+-- "Poproś Wybitnego programistę o naprawę".
+--
+-- SECURITY DEFINER + grant dla anon/authenticated -> kazdy moze odczytac
+-- metadane polityk (sa to publiczne informacje schematu).
+create or replace function public.get_rls_audit()
+  returns table (
+    tablename   text,
+    policyname  text,
+    cmd         text,
+    roles       text[],
+    qual        text,
+    with_check  text,
+    is_unsafe   boolean,
+    reason      text
+  )
+  language sql
+  stable
+  security definer
+  set search_path = public, pg_catalog
+as $$
+  select
+    p.tablename::text,
+    p.policyname::text,
+    p.cmd::text,
+    p.roles::text[],
+    p.qual::text,
+    p.with_check::text,
+    (
+      -- Polityka jest "unsafe" gdy:
+      --  - USING/WITH CHECK = 'true' (zawsze przepuszcza), ORAZ
+      --  - dotyczy roli anon lub authenticated (nie tylko service_role).
+      (
+        (p.qual = 'true' or p.qual is null and p.cmd in ('INSERT'))
+        or p.with_check = 'true'
+      )
+      and (
+        'anon' = any(p.roles)
+        or 'authenticated' = any(p.roles)
+        or 'public' = any(p.roles)
+      )
+    ) as is_unsafe,
+    case
+      when p.qual = 'true' and p.with_check = 'true' then
+        'Klauzule USING i WITH CHECK ustawione na true - polityka nie chroni danych.'
+      when p.qual = 'true' then
+        'Klauzula USING ustawiona na true - kazdy moze odczytac/zmienic dane.'
+      when p.with_check = 'true' then
+        'Klauzula WITH CHECK ustawiona na true - kazdy moze wstawic dowolne dane.'
+      else 'OK'
+    end as reason
+  from pg_policies p
+  where p.schemaname = 'public'
+  order by p.tablename, p.cmd, p.policyname;
+$$;
+
+grant execute on function public.get_rls_audit() to anon, authenticated;
+
+comment on function public.get_rls_audit() is
+  'Audyt RLS dla schematu public. Zwraca polityki ze schematu public i flagę '
+  'is_unsafe gdy klauzule sa true dla rol anon/authenticated. Uzywane przez '
+  'panel "Audyt Bezpieczenstwa" w wybitnastrona.pl.';

@@ -242,7 +242,7 @@ export function CreationHero({ userTier = "free" }: CreationHeroProps) {
             </div>
           )}
 
-          {/* Bottom toolbar - Rork style */}
+          {/* Bottom toolbar */}
           <div className="flex flex-wrap items-center gap-1.5 px-3 pb-3 sm:px-4 sm:pb-4">
             <PlusMenu
               onAttachImage={() => fileInputRef.current?.click()}

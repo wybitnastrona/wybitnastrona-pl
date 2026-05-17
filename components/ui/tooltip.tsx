@@ -33,16 +33,28 @@ function TooltipTrigger({ ...props }: TooltipPrimitive.Trigger.Props) {
 function TooltipContent({
   className,
   sideOffset = 6,
+  collisionPadding = 12,
   children,
   ...props
-}: TooltipPrimitive.Popup.Props & { sideOffset?: number }) {
+}: TooltipPrimitive.Popup.Props & {
+  sideOffset?: number;
+  collisionPadding?: number;
+}) {
   return (
     <TooltipPrimitive.Portal>
-      <TooltipPrimitive.Positioner sideOffset={sideOffset}>
+      {/*
+        Item 29: collisionPadding={12} sprawia że na małych ekranach (iPhone SE)
+        tooltip nie ucieka poza viewport - automatycznie odbija się od krawędzi.
+        sideOffset 6 zostaje dla normalnego dystansu od trigera.
+      */}
+      <TooltipPrimitive.Positioner
+        sideOffset={sideOffset}
+        collisionPadding={collisionPadding}
+      >
         <TooltipPrimitive.Popup
           data-slot="tooltip-content"
           className={cn(
-            "z-50 max-w-xs rounded-md bg-popover px-3 py-1.5 text-xs text-popover-foreground ring-1 ring-foreground/10 shadow-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+            "z-50 max-w-[min(20rem,calc(100vw-24px))] rounded-md bg-popover px-3 py-1.5 text-xs text-popover-foreground ring-1 ring-foreground/10 shadow-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
             className,
           )}
           {...props}

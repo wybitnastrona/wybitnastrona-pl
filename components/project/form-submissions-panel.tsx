@@ -57,6 +57,14 @@ type Props = {
   onBack: () => void;
 };
 
+function slugify(input: string): string {
+  const lower = input.toLowerCase();
+  const dashed = lower.replace(/[^a-z0-9]+/g, "-");
+  const collapsed = dashed.replace(/-{2,}/g, "-");
+  const trimmed = collapsed.replace(/^-+/, "").replace(/-+$/, "");
+  return trimmed.slice(0, 40);
+}
+
 export function FormSubmissionsPanel({ project, onBack }: Props) {
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -93,16 +101,13 @@ export function FormSubmissionsPanel({ project, onBack }: Props) {
   const isExternal = data?.source === "external";
 
   const fileBaseName = useMemo(() => {
-    const rawSlug = project.slug || (project.title || "projekt")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 40);
-    
-    const slug = rawSlug || "projekt";
+    const fromTitle = slugify(project.title ?? "projekt");
+    const base = project.slug ?? (fromTitle || "projekt");
     const d = new Date();
-    const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    return `formularze_${slug}_${date}`;
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `formularze_${base}_${yyyy}-${mm}-${dd}`;
   }, [project.slug, project.title]);
 
   function exportCsv() {
@@ -118,7 +123,7 @@ export function FormSubmissionsPanel({ project, onBack }: Props) {
       lines.push(row.map(csvCell).join(","));
     }
     // KRYTYCZNE: BOM \uFEFF na początku - bez tego Excel otwiera polskie znaki
-    // jako "Ã±", "Å›" itp. Z BOM Excel rozpoznaje UTF-8 prawidłowo.
+    // niepoprawnie (mojibake). Z BOM Excel rozpoznaje UTF-8 prawidłowo.
     const csv = "\uFEFF" + lines.join("\r\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -160,7 +165,6 @@ export function FormSubmissionsPanel({ project, onBack }: Props) {
           </div>
         </header>
 
-        {/* SEKCJA 1: ZGŁOSZENIA */}
         <section className="rounded-xl border border-beige/15 bg-card/40">
           <div className="flex items-center justify-between gap-3 border-b border-beige/10 px-4 py-3">
             <div className="flex items-center gap-2">
@@ -263,7 +267,6 @@ export function FormSubmissionsPanel({ project, onBack }: Props) {
           )}
         </section>
 
-        {/* SEKCJA 2: ADMIN */}
         <AdminCreator project={project} isExternal={!!isExternal} />
       </div>
     </div>
@@ -431,7 +434,7 @@ function formatDate(iso: string): string {
 }
 
 /**
- * Owrap pojedyncza komorka CSV: zawsze w cudzysłowach, escape "" → """".
+ * Owrap pojedyncza komórka CSV: zawsze w cudzysłowach, escape "" -> """".
  * Excel/Sheets oczekują takiego formatu (RFC 4180).
  */
 function csvCell(v: string): string {

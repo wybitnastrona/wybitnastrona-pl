@@ -112,11 +112,11 @@ export async function POST(_req: Request, { params }: { params: Params }) {
     // Item 52: page.screenshot ma własny timeout (20s). page.goto timeout=45s
     // jest dla całego ładowania - sam render PNG nie powinien trwać dłużej
     // niż kilka sekund.
-    const png = (await page.screenshot({
+    const png = Buffer.from(await page.screenshot({
       type: "png",
       fullPage: false,
       timeout: 20_000,
-    })) as Buffer;
+    }) as Uint8Array);
 
     // Item 54: Cloudinary upload w try/catch - gdy się nie powiedzie (np.
     // przekroczony limit transferu), nie chcemy całego endpointa zwalić.

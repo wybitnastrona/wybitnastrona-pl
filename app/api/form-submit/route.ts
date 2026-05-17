@@ -4,6 +4,15 @@ import { getClientIp, rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
+function getServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error("Supabase service role not configured");
+  return createClient(url, key, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+}
+
 /**
  * Item 80: buduje listę dozwolonych originów dla danego projektu.
  * Zwracamy:
@@ -12,7 +21,7 @@ export const runtime = "nodejs";
  *  - localhost (dev)
  */
 async function getAllowedOrigins(
-  supabase: ReturnType<typeof createClient>,
+  supabase: ReturnType<typeof getServiceClient>,
   projectId: string,
 ): Promise<Set<string>> {
   const allowed = new Set<string>();
@@ -76,15 +85,6 @@ function pickCorsOrigin(
  * CORS: endpoint musi akceptowac requesty z subdomen uzytkownikow
  * (wybitny.website, custom domains). Zwracamy naglowki CORS.
  */
-
-function getServiceClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error("Supabase service role not configured");
-  return createClient(url, key, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-}
 
 // Item 80: bazowe nagłówki bez Access-Control-Allow-Origin - origin
 // dobierany dynamicznie per-projekt w `buildCorsHeaders`.
